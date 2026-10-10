@@ -1,0 +1,75 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #08090D;
+  --surface: #11131A;
+  --surface-2: #181B25;
+  --border: #232736;
+  --text: #ECEEF4;
+  --muted: #8A90A2;
+  --mafia: #E5383B;
+  --mafia-deep: #7A1418;
+  --doctor: #F4F6FA;
+  --police: #5B8CFF;
+  --police-surface: #0E1A2B;
+  --vigilante: #7C8CA6;
+  --jester: #B58AD6;
+  --civilian: #C9B79C;
+  --god: #D6B15E;
+}
+
+body {
+  color: var(--text);
+  background: var(--bg);
+  min-height: 100vh;
+  min-height: 100dvh;
+  font-family: var(--font-body, system-ui, -apple-system, sans-serif);
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Noir Film Grain overlay */
+.bg-noise {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 0);
+  background-size: 24px 24px;
+}
+
+/* Card Back Pattern in Pure CSS */
+.card-back-pattern {
+  background-color: #11131A;
+  background-image: 
+    linear-gradient(45deg, #181B25 25%, transparent 25%, transparent 75%, #181B25 75%, #181B25),
+    linear-gradient(45deg, #181B25 25%, transparent 25%, transparent 75%, #181B25 75%, #181B25);
+  background-size: 20px 20px;
+  background-position: 0 0, 10px 10px;
+  border: 1px solid #232736;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #08090D;
+}
+::-webkit-scrollbar-thumb {
+  background: #232736;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #32384D;
+}
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

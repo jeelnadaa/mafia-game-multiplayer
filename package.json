@@ -1,0 +1,35 @@
+{
+  "name": "mafia-game",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "node ./scripts/run-next.js dev --webpack",
+    "build": "node ./scripts/run-next.js build --webpack",
+    "start": "node ./scripts/run-next.js start",
+    "lint": "node ./scripts/run-next.js lint",
+    "test": "node scripts/test-runner.js",
+    "assets": "node scripts/process-assets.mjs"
+  },
+  "dependencies": {
+    "@tailwindcss/postcss": "^4.3.3",
+    "framer-motion": "^11.18.2",
+    "lucide-react": "^0.475.0",
+    "next": "^16.4.0",
+    "peerjs": "^1.5.4",
+    "qrcode.react": "^4.2.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.19",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.5.2",
+    "sharp": "^0.35.5",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.7.3",
+    "vitest": "^5.0.3"
+  }
+}
