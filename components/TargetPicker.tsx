@@ -18,6 +18,7 @@ interface TargetPickerProps {
   allowHoldFire?: boolean;
   disabled?: boolean;
   teammatePicks?: Record<string, string | null>;
+  investigations?: { targetId: string; result: string }[];
 }
 
 export function TargetPicker({
@@ -31,6 +32,7 @@ export function TargetPicker({
   allowHoldFire = false,
   disabled = false,
   teammatePicks,
+  investigations,
 }: TargetPickerProps) {
   const [pendingTarget, setPendingTarget] = useState<PlayerView | null>(null);
   const [pendingSpecial, setPendingSpecial] = useState<'skip' | 'hold' | null>(null);
@@ -165,6 +167,21 @@ export function TargetPicker({
 
               {/* Status indicator on top right */}
               <div className="absolute top-2.5 right-2.5 flex flex-col items-end gap-1">
+                {(() => {
+                  const inv = investigations?.find((i) => i.targetId === p.id);
+                  if (!inv) return null;
+                  return (
+                    <span
+                      className={`px-1.5 py-0.5 text-[9px] font-mono font-bold border ${
+                        inv.result === 'Mafia'
+                          ? 'bg-red-950 text-red-300 border-red-500'
+                          : 'bg-emerald-950 text-emerald-300 border-emerald-500'
+                      }`}
+                    >
+                      🕵️ {inv.result}
+                    </span>
+                  );
+                })()}
                 {isSelected && (
                   <span className="px-2 py-0.5 text-xs font-semibold bg-white text-black shadow-sm">
                     Selected

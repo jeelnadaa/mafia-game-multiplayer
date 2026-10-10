@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Sun, MessageSquare, Gavel, CheckCircle, Send, Users } from 'lucide-react';
+import { Sun, MessageSquare, Gavel, CheckCircle, Send, Users, Search } from 'lucide-react';
 import { ClientGameView } from '@/lib/types';
 import { TargetPicker } from './TargetPicker';
 import { Button, Avatar, Kbd, Modal, CenterTimer } from './ui';
@@ -149,27 +149,89 @@ export function Day({ gameView, onVote, onReadyToVote, onSendChat }: DayProps) {
                 <div className="space-y-2.5">
                   {players
                     .filter((p) => p.alive && !p.isGod)
-                    .map((p) => (
-                      <div
-                        key={p.id}
-                        className="flex items-center justify-between p-3 bg-surface-2 border border-border text-sm"
-                      >
-                        <div className="flex items-center gap-3 truncate">
-                          <Avatar avatarId={p.avatar} size={36} className="rounded-none" />
-                          <span className="text-text font-semibold truncate">{p.name}</span>
+                    .map((p) => {
+                      const inv = me?.role === 'police' ? me?.policeInbox?.find((e) => e.targetId === p.id) : null;
+                      return (
+                        <div
+                          key={p.id}
+                          className="flex items-center justify-between p-3 bg-surface-2 border border-border text-sm"
+                        >
+                          <div className="flex items-center gap-3 truncate">
+                            <Avatar avatarId={p.avatar} size={36} className="rounded-none" />
+                            <div className="truncate">
+                              <span className="text-text font-semibold truncate block">{p.name}</span>
+                              {inv && (
+                                <span
+                                  className={`inline-block font-mono font-bold text-[10px] px-1.5 py-0.2 border ${
+                                    inv.result === 'Mafia'
+                                      ? 'bg-red-950 text-red-300 border-red-500'
+                                      : 'bg-emerald-950 text-emerald-300 border-emerald-500'
+                                  }`}
+                                >
+                                  🕵️ {inv.result}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          {readyToVote.includes(p.id) ? (
+                            <span className="text-xs font-semibold px-2 py-0.5 bg-white text-black">
+                              Ready ✓
+                            </span>
+                          ) : (
+                            <span className="text-xs text-muted">
+                              Thinking
+                            </span>
+                          )}
                         </div>
-                        {readyToVote.includes(p.id) ? (
-                          <span className="text-xs font-semibold px-2 py-0.5 bg-white text-black">
-                            Ready ✓
-                          </span>
-                        ) : (
-                          <span className="text-xs text-muted">
-                            Thinking
-                          </span>
-                        )}
-                      </div>
-                    ))}
+                      );
+                    })}
                 </div>
+
+                {/* Detective Investigation Dossier for Police */}
+                {me?.role === 'police' && (
+                  <div className="pt-4 border-t border-border space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-blue-300">
+                        <Search className="w-3.5 h-3.5 text-blue-400" />
+                        <span>Detective Dossier</span>
+                      </div>
+                      <span className="text-[10px] font-mono text-muted">{me.policeInbox?.length || 0} Records</span>
+                    </div>
+
+                    {me.policeInbox && me.policeInbox.length > 0 ? (
+                      <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                        {me.policeInbox.map((entry, idx) => {
+                          const target = players.find((p) => p.id === entry.targetId);
+                          const isSuspect = entry.result === 'Mafia';
+                          return (
+                            <div
+                              key={idx}
+                              className="flex items-center justify-between p-2 bg-surface border border-border text-xs"
+                            >
+                              <div className="truncate pr-2">
+                                <span className="font-bold text-white truncate block">{target?.name || 'Subject'}</span>
+                                <span className="text-[10px] text-muted">Round {entry.round} Investigation</span>
+                              </div>
+                              <span
+                                className={`px-2 py-0.5 font-bold font-mono text-[10px] border shrink-0 ${
+                                  isSuspect
+                                    ? 'bg-red-950/80 border-red-500 text-red-300'
+                                    : 'bg-emerald-950/80 border-emerald-500 text-emerald-300'
+                                }`}
+                              >
+                                {entry.result}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="p-2.5 bg-surface/60 border border-border text-[11px] text-muted text-center">
+                        No subjects investigated yet.
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="pt-3 border-t border-border text-xs text-muted text-center">
@@ -269,6 +331,7 @@ export function Day({ gameView, onVote, onReadyToVote, onSendChat }: DayProps) {
                 onSelect={(targetId) => onVote(targetId as any)}
                 mode="voting"
                 allowSkip={gameView.settings.allowSkipVote}
+                investigations={me?.policeInbox}
               />
             </div>
 

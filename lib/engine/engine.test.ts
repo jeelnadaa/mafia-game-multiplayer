@@ -346,4 +346,121 @@ describe('Mafia Engine: View Information Masking', () => {
     expect(res.eliminatedId).toBeNull();
     expect(res.skipWon).toBe(true);
   });
+
+  it('correctly executes detective investigations including godfather immunity', () => {
+    const policeState: GameState = {
+      code: 'TEST1',
+      version: 1,
+      phase: 'night',
+      round: 1,
+      phaseEndsAt: 2000,
+      paused: false,
+      settings: DEFAULT_SETTINGS,
+      players: [
+        { id: 'pol', token: 't-pol', name: 'Detective', avatar: 1, isHost: false, isGod: false, ready: true, connected: true, lastSeen: 0, role: 'police', alive: true },
+        { id: 'maf', token: 't-maf', name: 'Mobster', avatar: 2, isHost: false, isGod: false, ready: true, connected: true, lastSeen: 0, role: 'mafia', alive: true },
+        { id: 'gf', token: 't-gf', name: 'Don', avatar: 3, isHost: false, isGod: false, ready: true, connected: true, lastSeen: 0, role: 'godfather', alive: true },
+        { id: 'civ', token: 't-civ', name: 'Citizen', avatar: 4, isHost: false, isGod: false, ready: true, connected: true, lastSeen: 0, role: 'civilian', alive: true },
+      ],
+      night: {
+        subPhase: 'police',
+        picks: {
+          pol: 'maf',
+        },
+        confirmed: { pol: true },
+        locked: {},
+        earlyEndAt: null,
+      },
+      doctorHistory: {},
+      shotsUsed: {},
+      policeInbox: [],
+      votes: {},
+      revotePending: false,
+      readyToVote: [],
+      log: [],
+      secretLog: [],
+      chat: [],
+    };
+
+    // 1. Investigating regular Mafia -> 'Mafia'
+    const { nextState: afterMafia } = resolveNight(policeState, () => 0.5, 1000);
+    expect(afterMafia.policeInbox).toHaveLength(1);
+    expect(afterMafia.policeInbox[0].targetId).toBe('maf');
+    expect(afterMafia.policeInbox[0].result).toBe('Mafia');
+
+    // 2. Investigating Godfather -> 'Not mafia' (Don immunity)
+    const gfInvestigationState = {
+      ...policeState,
+      night: { ...policeState.night, picks: { pol: 'gf' } },
+    };
+    const { nextState: afterGf } = resolveNight(gfInvestigationState, () => 0.5, 1000);
+    expect(afterGf.policeInbox).toHaveLength(1);
+    expect(afterGf.policeInbox[0].targetId).toBe('gf');
+    expect(afterGf.policeInbox[0].result).toBe('Not mafia');
+
+    // 3. Investigating Civilian -> 'Not mafia'
+    const civInvestigationState = {
+      ...policeState,
+      night: { ...policeState.night, picks: { pol: 'civ' } },
+    };
+    const { nextState: afterCiv } = resolveNight(civInvestigationState, () => 0.5, 1000);
+    expect(afterCiv.policeInbox).toHaveLength(1);
+    expect(afterCiv.policeInbox[0].targetId).toBe('civ');
+    expect(afterCiv.policeInbox[0].result).toBe('Not mafia');
+  });
+
+  it('correctly executes vigilante marksman shots and hold fire options', () => {
+    const baseState: GameState = {
+      code: 'VIG01',
+      version: 1,
+      phase: 'night',
+      round: 1,
+      phaseEndsAt: 2000,
+      paused: false,
+      settings: { ...DEFAULT_SETTINGS, vigilanteShots: 1 },
+      players: [
+        { id: 'vig', token: 't-vig', name: 'Marksman', avatar: 1, isHost: false, isGod: false, ready: true, connected: true, lastSeen: 0, role: 'vigilante', alive: true },
+        { id: 'doc', token: 't-doc', name: 'Medic', avatar: 2, isHost: false, isGod: false, ready: true, connected: true, lastSeen: 0, role: 'doctor', alive: true },
+        { id: 'maf', token: 't-maf', name: 'Mobster', avatar: 3, isHost: false, isGod: false, ready: true, connected: true, lastSeen: 0, role: 'mafia', alive: true },
+        { id: 'civ', token: 't-civ', name: 'Citizen', avatar: 4, isHost: false, isGod: false, ready: true, connected: true, lastSeen: 0, role: 'civilian', alive: true },
+      ],
+      night: {
+        subPhase: 'vigilante',
+        picks: {
+          maf: 'civ',
+          doc: 'civ',
+          vig: 'maf', // Vigilante shoots mafia, Doctor saves civ
+        },
+        confirmed: { vig: true },
+        locked: {},
+        earlyEndAt: null,
+      },
+      doctorHistory: {},
+      shotsUsed: {},
+      policeInbox: [],
+      votes: {},
+      revotePending: false,
+      readyToVote: [],
+      log: [],
+      secretLog: [],
+      chat: [],
+    };
+
+    // 1. Vigilante eliminates Mafia; Civ saved by doctor
+    const { morningDeaths, savedPlayers, nextState: state1 } = resolveNight(baseState, () => 0.5, 1000);
+    expect(morningDeaths).toContain('maf');
+    expect(savedPlayers).toContain('civ');
+    expect(state1.players.find((p) => p.id === 'maf')?.alive).toBe(false);
+    expect(state1.players.find((p) => p.id === 'civ')?.alive).toBe(true);
+    expect(state1.shotsUsed['vig']).toBe(1);
+
+    // 2. Vigilante chooses 'hold' -> No shot consumed, target not hit
+    const holdState = {
+      ...baseState,
+      night: { ...baseState.night, picks: { maf: 'civ', doc: 'maf', vig: 'hold' } },
+    };
+    const { morningDeaths: deaths2, nextState: state2 } = resolveNight(holdState, () => 0.5, 1000);
+    expect(deaths2).not.toContain('maf');
+    expect(state2.shotsUsed['vig']).toBeUndefined();
+  });
 });

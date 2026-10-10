@@ -230,6 +230,7 @@ export function Night({
                 allowHoldFire={role === 'vigilante'}
                 disabled={isConfirmed}
                 teammatePicks={me?.teammatePicks}
+                investigations={me?.policeInbox}
               />
 
               {/* Confirm Action Button & Status Bar */}

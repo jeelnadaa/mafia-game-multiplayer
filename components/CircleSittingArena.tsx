@@ -20,6 +20,8 @@ import {
   Flame,
   Sun,
   Gavel,
+  Search,
+  FileText,
 } from 'lucide-react';
 import { ClientGameView, PlayerView, ChatChannel, ChatMessage } from '@/lib/types';
 import { ROLES } from '@/lib/content';
@@ -45,7 +47,11 @@ export function CircleSittingArena({
   onSendChat,
   onOpenHelp,
 }: CircleSittingArenaProps) {
-  const { phase, round, players, me, voteCounts, readyToVote, log, chat, nightSubPhase } = gameView;
+  const { phase, round, me, voteCounts, nightSubPhase } = gameView;
+  const players = gameView.players || [];
+  const readyToVoteList = gameView.readyToVote || [];
+  const logList = gameView.log || [];
+  const chatList = gameView.chat || [];
 
   // Active Chat Channel Tab
   const [activeChannel, setActiveChannel] = useState<ChatChannel>('public');
@@ -94,8 +100,8 @@ export function CircleSittingArena({
     if (!player.alive || player.isGod) return;
 
     if (phase === 'night' && canActAtNight) {
-      // Cannot target self for Mafia kill or Vigilante
-      if ((nightSubPhase === 'mafia' || nightSubPhase === 'vigilante') && player.id === me?.id) return;
+      // Cannot target self for Mafia kill, Vigilante, or Police investigation
+      if ((nightSubPhase === 'mafia' || nightSubPhase === 'vigilante' || nightSubPhase === 'police') && player.id === me?.id) return;
       // Immediately notify host & teammates of this tap so other mafias see the reticle live!
       onNightAction(player.id);
       setPendingTarget(player);
@@ -133,10 +139,24 @@ export function CircleSittingArena({
     }
   }, { scope: 'screen' });
 
+  // Keyboard shortcut S for skip vote
+  useShortcut(['s', 'S'], () => {
+    if (phase === 'voting' && me?.alive && !isGod && gameView.settings.allowSkipVote) {
+      setPendingSpecialAction('skip');
+    }
+  }, { scope: 'screen' });
+
+  // Keyboard shortcut X for Vigilante hold fire
+  useShortcut(['x', 'X'], () => {
+    if (phase === 'night' && role === 'vigilante' && canActAtNight) {
+      setPendingSpecialAction('hold');
+    }
+  }, { scope: 'screen' });
+
   // Filter chat messages for active tab
   const tabMessages = useMemo(() => {
-    return chat.filter((msg) => msg.channel === activeChannel);
-  }, [chat, activeChannel]);
+    return chatList.filter((msg) => msg.channel === activeChannel);
+  }, [chatList, activeChannel]);
 
   // Total living players
   const livingPlayers = players.filter((p) => p.alive && !p.isGod);
@@ -333,7 +353,11 @@ export function CircleSittingArena({
             {phase === 'night' && canActAtNight && (
               <span className="text-red-300 font-semibold flex items-center justify-center gap-2">
                 <Crosshair className="w-4 h-4 animate-pulse text-red-400" />
-                Tap any living player sitting at the table to select your secret night target.
+                {role === 'police'
+                  ? 'Tap any living suspect seated at the table to secretly investigate their allegiance tonight.'
+                  : role === 'doctor'
+                  ? 'Tap any living player seated at the table to protect them from harm tonight.'
+                  : 'Tap any living player sitting at the table to select your secret night target.'}
               </span>
             )}
             {phase === 'night' && !canActAtNight && (
@@ -357,6 +381,29 @@ export function CircleSittingArena({
               <span className="text-muted">Town voting in progress...</span>
             )}
           </div>
+
+          {/* Detective Intel Banner: Display latest investigation report for Police */}
+          {role === 'police' && me?.policeInbox && me.policeInbox.length > 0 && (
+            <div className="w-full text-center py-1.5 px-3 bg-blue-950/40 border-b border-blue-900/60 text-xs text-blue-200 flex items-center justify-center gap-2 z-10">
+              <Search className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+              <span>
+                Detective Intelligence: Latest investigation on{' '}
+                <strong className="text-white">
+                  {players.find((p) => p.id === me.policeInbox![me.policeInbox!.length - 1].targetId)?.name || 'Subject'}
+                </strong>{' '}
+                revealed:{' '}
+                <span
+                  className={`font-mono font-bold px-1.5 py-0.2 border ml-1 ${
+                    me.policeInbox[me.policeInbox.length - 1].result === 'Mafia'
+                      ? 'bg-red-950 text-red-300 border-red-500'
+                      : 'bg-emerald-950 text-emerald-300 border-emerald-500'
+                  }`}
+                >
+                  {me.policeInbox[me.policeInbox.length - 1].result}
+                </span>
+              </span>
+            </div>
+          )}
 
           {/* ========================================================= */}
           {/* ROUND TABLE & CIRCULAR SEATING ARENA CONTAINER          */}
@@ -439,7 +486,7 @@ export function CircleSittingArena({
                 ? players.find((p) => p.id === teammateWhoTargeted[0])
                 : null;
 
-              const isReady = readyToVote.includes(player.id);
+              const isReady = readyToVoteList.includes(player.id);
               const playerVoteCount = voteCounts?.[player.id] || 0;
 
               return (
@@ -459,6 +506,25 @@ export function CircleSittingArena({
                 >
                   {/* Status Indicator Badges above Chair */}
                   <div className="flex flex-col items-center gap-0.5 mb-1 z-30 pointer-events-none">
+                    {/* Detective Investigation Verdict Badge (Visible only to Police) */}
+                    {role === 'police' && me?.policeInbox && (() => {
+                      const inv = me.policeInbox.find((e) => e.targetId === player.id);
+                      if (!inv) return null;
+                      const isMafia = inv.result === 'Mafia';
+                      return (
+                        <div
+                          className={`px-1.5 py-0.5 font-mono text-[9px] font-bold border flex items-center gap-1 shadow-md ${
+                            isMafia
+                              ? 'bg-red-950 text-red-300 border-red-500 animate-pulse'
+                              : 'bg-emerald-950 text-emerald-300 border-emerald-500'
+                          }`}
+                        >
+                          <Search className="w-2.5 h-2.5" />
+                          <span>{isMafia ? 'MAFIA' : 'NOT MAFIA'}</span>
+                        </div>
+                      );
+                    })()}
+
                     {/* Targeted by Mafia Teammate Reticle Badge */}
                     {isObserverMafia && teammatePlayer && (
                       <div className="px-1.5 py-0.5 bg-red-600 text-white font-mono text-[9px] font-bold border border-red-400 flex items-center gap-1 shadow-md animate-bounce">
@@ -597,13 +663,13 @@ export function CircleSittingArena({
 
               {phase === 'discussion' && me?.alive && !isGod && (
                 <Button
-                  variant={readyToVote.includes(me?.id || '') ? 'primary' : 'secondary'}
+                  variant={readyToVoteList.includes(me?.id || '') ? 'primary' : 'secondary'}
                   size="sm"
                   onClick={onReadyToVote}
                   kbd="V"
                 >
                   <Check className="w-3.5 h-3.5 mr-1" />
-                  <span>{readyToVote.includes(me?.id || '') ? 'Ready ✓' : 'Ready to Vote'}</span>
+                  <span>{readyToVoteList.includes(me?.id || '') ? 'Ready ✓' : 'Ready to Vote'}</span>
                 </Button>
               )}
             </div>
@@ -670,6 +736,54 @@ export function CircleSittingArena({
                 })}
               </div>
             )}
+
+            {/* Detective Confidential Dossier */}
+            {role === 'police' && (
+              <div className="p-2.5 bg-blue-950/25 border border-blue-900/60 text-xs space-y-2">
+                <div className="text-blue-300 font-bold flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <Search className="w-3.5 h-3.5 text-blue-400" />
+                    <span>Detective Dossier</span>
+                  </div>
+                  <span className="font-mono text-[10px] text-blue-400 bg-blue-950/60 px-1.5 py-0.2 border border-blue-800">
+                    {me?.policeInbox?.length || 0} Records
+                  </span>
+                </div>
+
+                {me?.policeInbox && me.policeInbox.length > 0 ? (
+                  <div className="space-y-1.5 max-h-44 overflow-y-auto pr-0.5">
+                    {me.policeInbox.map((entry, idx) => {
+                      const target = players.find((p) => p.id === entry.targetId);
+                      const isSuspect = entry.result === 'Mafia';
+                      return (
+                        <div
+                          key={idx}
+                          className="flex items-center justify-between p-2 bg-surface-2/90 border border-border text-xs"
+                        >
+                          <div className="min-w-0 pr-2">
+                            <div className="font-bold text-white truncate">{target?.name || 'Subject'}</div>
+                            <div className="text-[10px] text-muted">Round {entry.round} Investigation</div>
+                          </div>
+                          <span
+                            className={`px-2 py-0.5 font-bold font-mono text-[10px] border shrink-0 ${
+                              isSuspect
+                                ? 'bg-red-950/80 border-red-500 text-red-300'
+                                : 'bg-emerald-950/80 border-emerald-500 text-emerald-300'
+                            }`}
+                          >
+                            {entry.result}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="p-2 bg-surface-2/40 border border-border/60 text-[11px] text-muted text-center">
+                    No suspects investigated yet. During your night turn, tap any seated player to uncover their allegiance.
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Middle: Game Event Log Feed */}
@@ -678,11 +792,11 @@ export function CircleSittingArena({
               <span className="text-xs font-bold text-muted uppercase tracking-wider">
                 Event Wire
               </span>
-              <span className="text-[11px] text-muted">{log.length} records</span>
+              <span className="text-[11px] text-muted">{logList.length} records</span>
             </div>
 
             <div className="flex-1 overflow-y-auto space-y-2 pr-1 text-xs">
-              {log.slice(-15).reverse().map((entry) => (
+              {logList.slice(-15).reverse().map((entry) => (
                 <div
                   key={entry.id}
                   className={`p-2 border rounded-none ${
@@ -732,7 +846,11 @@ export function CircleSittingArena({
           phase === 'voting'
             ? 'Confirm Elimination Ballot'
             : phase === 'night'
-            ? 'Confirm Night Target'
+            ? role === 'police'
+              ? 'Confirm Detective Investigation'
+              : role === 'doctor'
+              ? 'Confirm Medical Protection'
+              : 'Confirm Night Target'
             : 'Confirm Action'
         }
       >
@@ -748,6 +866,16 @@ export function CircleSittingArena({
                 <span>
                   Are you sure you want to cast your ballot to eliminate{' '}
                   <strong className="text-white underline font-bold">{pendingTarget?.name}</strong> today?
+                </span>
+              ) : role === 'police' ? (
+                <span>
+                  Are you sure you want to secretly investigate{' '}
+                  <strong className="text-white underline font-bold">{pendingTarget?.name}</strong> to uncover their allegiance tonight?
+                </span>
+              ) : role === 'doctor' ? (
+                <span>
+                  Are you sure you want to protect{' '}
+                  <strong className="text-white underline font-bold">{pendingTarget?.name}</strong> from harm tonight?
                 </span>
               ) : (
                 <span>
