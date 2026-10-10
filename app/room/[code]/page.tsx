@@ -98,6 +98,11 @@ export default function RoomPage() {
     leaveRoom,
   } = useRoom(code, name.trim() || 'Player', avatar, { enabled: hasJoined });
 
+  const handleLeaveRoom = useCallback(() => {
+    leaveRoom();
+    router.push('/');
+  }, [leaveRoom, router]);
+
   // If rejected because name is already taken, immediately bring back join form
   useEffect(() => {
     if (error && error.includes('already taken')) {
@@ -258,11 +263,6 @@ export default function RoomPage() {
   }
 
   const { phase, me } = gameView;
-
-  const handleLeaveRoom = useCallback(() => {
-    leaveRoom();
-    router.push('/');
-  }, [leaveRoom, router]);
 
   return (
     <div className="min-h-screen flex flex-col text-text bg-transparent">

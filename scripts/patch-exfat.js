@@ -326,5 +326,57 @@ fsModules.forEach((mod) => {
       }
     };
   }
+
+  const origWriteFileSync = mod.writeFileSync;
+  if (origWriteFileSync) {
+    mod.writeFileSync = function (path, data, options) {
+      try {
+        return origWriteFileSync.call(mod, path, data, options);
+      } catch (err) {
+        if (err && err.code === 'EPERM') {
+          const redirected = redirectTypesPath(path);
+          if (redirected !== path) {
+            return origWriteFileSync.call(mod, redirected, data, options);
+          }
+        }
+        throw err;
+      }
+    };
+  }
+
+  const origWriteFile = mod.writeFile;
+  if (origWriteFile) {
+    mod.writeFile = function (path, data, options, callback) {
+      const cb = typeof options === 'function' ? options : callback;
+      const opt = typeof options === 'function' ? undefined : options;
+
+      return origWriteFile.call(mod, path, data, opt, (err) => {
+        if (err && err.code === 'EPERM') {
+          const redirected = redirectTypesPath(path);
+          if (redirected !== path) {
+            return origWriteFile.call(mod, redirected, data, opt, cb);
+          }
+        }
+        return cb(err);
+      });
+    };
+  }
+
+  if (mod.promises && mod.promises.writeFile) {
+    const origPromiseWriteFile = mod.promises.writeFile;
+    mod.promises.writeFile = async function (path, data, options) {
+      try {
+        return await origPromiseWriteFile.call(mod.promises, path, data, options);
+      } catch (err) {
+        if (err && err.code === 'EPERM') {
+          const redirected = redirectTypesPath(path);
+          if (redirected !== path) {
+            return await origPromiseWriteFile.call(mod.promises, redirected, data, options);
+          }
+        }
+        throw err;
+      }
+    };
+  }
 });
 

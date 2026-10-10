@@ -43,6 +43,8 @@ export function Lobby({
   const [pendingKickPlayer, setPendingKickPlayer] = useState<PlayerView | null>(null);
 
   const { settings, players, me } = gameView;
+  const chatList = gameView.chat || [];
+  const logList = gameView.log || [];
   const validation = validateSettings(settings, players.length);
 
   // Host only start shortcut
@@ -342,9 +344,9 @@ export function Lobby({
                 >
                   <MessageSquare className="w-3.5 h-3.5" />
                   <span>Comms & Logs</span>
-                  {gameView.chat.filter((m) => m.channel === 'public').length > 0 && (
+                  {chatList.filter((m) => m.channel === 'public').length > 0 && (
                     <span className="ml-1 px-1.5 py-0.2 bg-zinc-800 text-white text-[10px] rounded-none">
-                      {gameView.chat.filter((m) => m.channel === 'public').length}
+                      {chatList.filter((m) => m.channel === 'public').length}
                     </span>
                   )}
                 </button>
@@ -654,7 +656,7 @@ export function Lobby({
 
                     {/* Chat Messages */}
                     <div className="flex-1 overflow-y-auto space-y-2 py-2 text-xs pr-1">
-                      {gameView.chat
+                      {chatList
                         .filter((m) => m.channel === 'public')
                         .map((m) => (
                           <div
@@ -676,7 +678,7 @@ export function Lobby({
                             <div>{m.text}</div>
                           </div>
                         ))}
-                      {gameView.chat.filter((m) => m.channel === 'public').length === 0 && (
+                      {chatList.filter((m) => m.channel === 'public').length === 0 && (
                         <div className="text-muted text-center pt-24 text-xs">
                           Comms wire quiet. Say hello to everyone!
                         </div>

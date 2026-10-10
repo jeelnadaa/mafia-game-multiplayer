@@ -566,7 +566,18 @@ export function useRoom(
 
       if (savedHostRaw) {
         try {
-          initialGameState = JSON.parse(savedHostRaw);
+          const parsed = JSON.parse(savedHostRaw);
+          const baseState = createInitialState(code, myPlayerIdRef.current, token, effectiveName, effectiveAvatar);
+          initialGameState = {
+            ...baseState,
+            ...parsed,
+            settings: {
+              ...DEFAULT_SETTINGS,
+              ...(parsed.settings || {}),
+            },
+            chat: Array.isArray(parsed.chat) ? parsed.chat : [],
+            log: Array.isArray(parsed.log) ? parsed.log : [],
+          };
           // Always synchronize host player's current codename & avatar
           initialGameState.players = initialGameState.players.map((p) =>
             p.id === myPlayerIdRef.current || p.isHost
