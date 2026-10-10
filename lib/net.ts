@@ -106,3 +106,14 @@ export async function requestScreenWakeLock(): Promise<{ release: () => void } |
   }
   return null;
 }
+
+/** Get the absolute shareable URL for a room code dynamically on Vercel or any deployment */
+export function getRoomShareUrl(code: string): string {
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return `${window.location.origin}/room/${code}`;
+  }
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    return `${process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, '')}/room/${code}`;
+  }
+  return `http://localhost:3000/room/${code}`;
+}

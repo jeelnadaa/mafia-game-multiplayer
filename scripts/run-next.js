@@ -35,6 +35,18 @@ function isWritable(dir) {
   }
 
   const typesDir = path.join(dir, 'types');
+  const routesFile = path.join(typesDir, 'routes.d.ts');
+
+  // Probe specifically for exFAT phantom locked routes.d.ts (must be openable with 'w')
+  try {
+    fs.mkdirSync(typesDir, { recursive: true });
+    const fd = fs.openSync(routesFile, 'w');
+    fs.closeSync(fd);
+    try { fs.unlinkSync(routesFile); } catch (__) {}
+  } catch (_) {
+    return false;
+  }
+
   const probeFile = path.join(typesDir, '__probe_' + Date.now() + '.tmp');
   try {
     fs.mkdirSync(typesDir, { recursive: true });

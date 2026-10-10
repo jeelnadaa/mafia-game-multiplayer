@@ -7,7 +7,7 @@ import { X } from 'lucide-react';
 export function Kbd({ children, className = '' }: { children: ReactNode; className?: string }) {
   return (
     <kbd
-      className={`hidden md:inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-mono font-medium text-muted bg-surface-2 border border-border rounded shadow-sm ${className}`}
+      className={`hidden md:inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-mono font-medium text-muted bg-surface-2 border border-border rounded-none shadow-none select-none ${className}`}
     >
       {children}
     </kbd>
@@ -27,7 +27,7 @@ export function Button({
 }: {
   children: ReactNode;
   onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void;
-  variant?: 'primary' | 'secondary' | 'danger' | 'ghost' | 'accent';
+  variant?: 'primary' | 'secondary' | 'danger' | 'ghost' | 'accent' | 'outline';
   size?: 'sm' | 'md' | 'lg';
   disabled?: boolean;
   kbd?: string;
@@ -36,20 +36,21 @@ export function Button({
   type?: 'button' | 'submit' | 'reset';
 }) {
   const baseStyles =
-    'relative inline-flex items-center justify-center font-medium rounded-xl transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-bg disabled:opacity-50 disabled:cursor-not-allowed select-none active:scale-[0.98]';
+    'relative inline-flex items-center justify-center font-sans text-xs md:text-sm font-medium rounded-none transition-colors duration-150 focus:outline-none focus:ring-1 focus:ring-white disabled:opacity-40 disabled:cursor-not-allowed select-none border active:scale-[0.99]';
 
   const sizeStyles = {
-    sm: 'px-3 py-1.5 text-xs min-h-[36px] gap-1.5',
-    md: 'px-4 py-2 text-sm min-h-[44px] gap-2',
-    lg: 'px-6 py-3 text-base min-h-[52px] gap-2.5',
+    sm: 'px-3 py-1.5 min-h-[36px] gap-1.5 text-xs',
+    md: 'px-4 py-2 min-h-[42px] gap-2 text-xs md:text-sm',
+    lg: 'px-6 py-2.5 min-h-[46px] gap-2.5 text-sm',
   };
 
   const variantStyles = {
-    primary: 'bg-surface-2 hover:bg-border text-text border border-border focus:ring-border',
-    secondary: 'bg-surface hover:bg-surface-2 text-text border border-border focus:ring-border',
-    danger: 'bg-mafia text-white hover:bg-mafia/90 shadow-[0_0_15px_rgba(229,56,59,0.3)] focus:ring-mafia',
-    accent: 'bg-day-amber text-bg font-semibold hover:bg-day-amber/90 shadow-[0_0_15px_rgba(242,184,75,0.3)] focus:ring-day-amber',
-    ghost: 'bg-transparent hover:bg-surface-2/60 text-muted hover:text-text focus:ring-border',
+    primary: 'bg-white text-black border-white hover:bg-zinc-200 focus:ring-white',
+    secondary: 'bg-surface-2 hover:bg-zinc-800 text-text border-border hover:border-zinc-500 focus:ring-zinc-400',
+    accent: 'bg-white text-black border-white hover:bg-zinc-200 focus:ring-white',
+    danger: 'bg-surface-2 text-white border-zinc-600 hover:bg-white hover:text-black hover:border-white focus:ring-white',
+    outline: 'bg-transparent text-text border-border hover:border-text hover:bg-surface-2 focus:ring-zinc-400',
+    ghost: 'bg-transparent hover:bg-surface-2 text-muted hover:text-text border-transparent hover:border-border focus:ring-zinc-500',
   };
 
   return (
@@ -82,10 +83,9 @@ export function Card({
   return (
     <div
       onClick={onClick}
-      style={active && glowColor ? { boxShadow: `0 0 20px ${glowColor}` } : {}}
-      className={`rounded-xl border transition-all duration-200 ${
-        active ? 'border-text bg-surface-2' : 'border-border bg-surface'
-      } ${onClick ? 'cursor-pointer hover:border-muted' : ''} ${className}`}
+      className={`rounded-none border transition-colors ${
+        active ? 'border-white bg-surface-2' : 'border-border bg-surface'
+      } ${onClick ? 'cursor-pointer hover:border-zinc-500' : ''} ${className}`}
     >
       {children}
     </div>
@@ -102,20 +102,20 @@ export function Badge({
   className?: string;
 }) {
   const colorMap = {
-    mafia: 'bg-mafia/15 text-mafia border-mafia/30',
-    doctor: 'bg-doctor/15 text-doctor border-doctor/30',
-    police: 'bg-police/15 text-police border-police/30',
-    vigilante: 'bg-vigilante/15 text-vigilante border-vigilante/30',
-    jester: 'bg-jester/15 text-jester border-jester/30',
-    civilian: 'bg-civilian/15 text-civilian border-civilian/30',
-    god: 'bg-god/15 text-god border-god/30',
-    amber: 'bg-day-amber/15 text-day-amber border-day-amber/30',
+    mafia: 'bg-surface-2 text-white border-zinc-500',
+    doctor: 'bg-surface-2 text-zinc-200 border-zinc-600',
+    police: 'bg-surface-2 text-zinc-100 border-zinc-400',
+    vigilante: 'bg-surface-2 text-zinc-300 border-zinc-600',
+    jester: 'bg-surface-2 text-zinc-200 border-zinc-500',
+    civilian: 'bg-surface-2 text-zinc-400 border-zinc-700',
+    god: 'bg-white text-black border-white',
+    amber: 'bg-surface-2 text-zinc-100 border-zinc-400',
     muted: 'bg-surface-2 text-muted border-border',
   };
 
   return (
     <span
-      className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold tracking-wide border ${colorMap[color]} ${className}`}
+      className={`inline-flex items-center px-2 py-0.5 rounded-none text-[11px] font-sans font-medium border ${colorMap[color]} ${className}`}
     >
       {children}
     </span>
@@ -137,14 +137,14 @@ export function Chip({
     <button
       type="button"
       onClick={onClick}
-      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-none text-xs font-sans border transition-colors ${
         active
-          ? 'bg-border text-text border-text'
-          : 'bg-surface text-muted border-border hover:border-muted hover:text-text'
+          ? 'bg-white text-black border-white'
+          : 'bg-surface text-muted border-border hover:border-zinc-500 hover:text-text'
       }`}
     >
       <span>{label}</span>
-      {value !== undefined && <span className="opacity-70">· {value}</span>}
+      {value !== undefined && <span className="opacity-70">({value})</span>}
     </button>
   );
 }
@@ -165,13 +165,11 @@ export function Switch({
       aria-checked={checked}
       disabled={disabled}
       onClick={() => onChange(!checked)}
-      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-border focus:ring-offset-2 focus:ring-offset-bg disabled:opacity-50 ${
-        checked ? 'bg-day-amber' : 'bg-surface-2'
-      }`}
+      className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-none border border-border transition-colors duration-150 focus:outline-none focus:ring-1 focus:ring-white disabled:opacity-40 bg-surface-2`}
     >
       <span
-        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-          checked ? 'translate-x-5' : 'translate-x-0'
+        className={`pointer-events-none inline-block h-3.5 w-3.5 mt-0.5 rounded-none transition-transform duration-150 ${
+          checked ? 'translate-x-5 bg-white' : 'translate-x-0.5 bg-zinc-600'
         }`}
       />
     </button>
@@ -194,21 +192,21 @@ export function Stepper({
   disabled?: boolean;
 }) {
   return (
-    <div className="inline-flex items-center rounded-lg border border-border bg-surface-2 p-0.5">
+    <div className="inline-flex items-center rounded-none border border-border bg-surface-2">
       <button
         type="button"
         disabled={disabled || value <= min}
         onClick={() => onChange(Math.max(min, value - step))}
-        className="w-7 h-7 flex items-center justify-center text-text hover:bg-border rounded disabled:opacity-30"
+        className="w-7 h-7 flex items-center justify-center text-text hover:bg-zinc-800 rounded-none disabled:opacity-30 font-mono text-sm"
       >
         -
       </button>
-      <span className="w-8 text-center text-xs font-mono font-semibold text-text">{value}</span>
+      <span className="w-8 text-center text-xs font-mono font-semibold text-text border-x border-border">{value}</span>
       <button
         type="button"
         disabled={disabled || value >= max}
         onClick={() => onChange(Math.min(max, value + step))}
-        className="w-7 h-7 flex items-center justify-center text-text hover:bg-border rounded disabled:opacity-30"
+        className="w-7 h-7 flex items-center justify-center text-text hover:bg-zinc-800 rounded-none disabled:opacity-30 font-mono text-sm"
       >
         +
       </button>
@@ -229,18 +227,17 @@ export function Avatar({
   return (
     <div
       style={{ width: size, height: size }}
-      className={`relative rounded-full overflow-hidden border border-border bg-surface-2 flex items-center justify-center shrink-0 ${className}`}
+      className={`relative rounded-none border border-border bg-surface-2 flex items-center justify-center shrink-0 overflow-hidden ${className}`}
     >
       <img
         src={`/assets/avatars/${safeId}.webp`}
         alt={`Avatar ${safeId}`}
-        className="w-full h-full object-cover"
+        className="w-full h-full object-cover" // Full vibrant colors enabled!
         onError={(e) => {
-          // Fallback to stylized SVG placeholder if image is missing
           (e.currentTarget as HTMLImageElement).style.display = 'none';
         }}
       />
-      <div className="absolute inset-0 flex items-center justify-center text-xs font-semibold text-muted bg-surface-2 pointer-events-none -z-10">
+      <div className="absolute inset-0 flex items-center justify-center text-[10px] font-mono font-bold text-muted bg-surface-2 pointer-events-none -z-10">
         #{safeId}
       </div>
     </div>
@@ -258,43 +255,14 @@ export function CountdownRing({
   size?: number;
   strokeWidth?: number;
 }) {
-  const radius = (size - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const fraction = totalSeconds > 0 ? Math.max(0, remainingSeconds / totalSeconds) : 0;
-  const offset = circumference - fraction * circumference;
   const isUrgent = remainingSeconds <= 5 && remainingSeconds > 0;
 
   return (
-    <div className="relative inline-flex items-center justify-center" style={{ width: size, height: size }}>
-      <svg className="transform -rotate-90" width={size} height={size}>
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          stroke="#232736"
-          strokeWidth={strokeWidth}
-          fill="transparent"
-        />
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          stroke={isUrgent ? '#E5383B' : '#F2B84B'}
-          strokeWidth={strokeWidth}
-          strokeDasharray={circumference}
-          strokeDashoffset={offset}
-          strokeLinecap="round"
-          fill="transparent"
-          className="transition-all duration-300"
-        />
-      </svg>
-      <span
-        className={`absolute font-mono text-[11px] font-bold ${
-          isUrgent ? 'text-mafia animate-pulse' : 'text-text'
-        }`}
-      >
-        {Math.max(0, Math.ceil(remainingSeconds))}
-      </span>
+    <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 border rounded-none font-sans text-xs font-semibold ${
+      isUrgent ? 'border-white bg-white text-black animate-pulse' : 'border-border bg-surface-2 text-text'
+    }`}>
+      <span className="text-muted text-[11px]">Time</span>
+      <span className="font-mono">{Math.max(0, Math.ceil(remainingSeconds))}s</span>
     </div>
   );
 }
@@ -321,23 +289,23 @@ export function Modal({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-black/75 backdrop-blur-sm"
+            className="fixed inset-0 bg-black/85"
           />
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 10 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 10 }}
-            className={`relative z-10 w-full ${maxWidth} bg-surface border border-border rounded-2xl p-6 shadow-2xl`}
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.98 }}
+            className={`relative z-10 w-full ${maxWidth} bg-surface border border-border rounded-none p-6 shadow-2xl`}
           >
-            <div className="flex items-center justify-between pb-4 border-b border-border mb-4">
-              {title && <h3 className="text-lg font-heading font-semibold text-text">{title}</h3>}
+            <div className="flex items-center justify-between pb-3 border-b border-border mb-4">
+              {title && <h3 className="text-sm font-sans font-bold text-text">{title}</h3>}
               <button
                 type="button"
                 onClick={onClose}
-                className="p-1 rounded-lg text-muted hover:text-text hover:bg-surface-2 transition-colors ml-auto"
+                className="p-1 rounded-none text-muted hover:text-text hover:bg-surface-2 border border-transparent hover:border-border transition-colors ml-auto"
                 aria-label="Close dialog"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4" />
               </button>
             </div>
             {children}

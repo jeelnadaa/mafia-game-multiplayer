@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Play, Users, HelpCircle, Sparkles, ChevronRight, Moon } from 'lucide-react';
+import { Play, HelpCircle, ArrowRight } from 'lucide-react';
 import { Button, Avatar, Kbd } from '@/components/ui';
 import { HelpSheet } from '@/components/HelpSheet';
 import { generateRoomCode } from '@/lib/net';
@@ -53,106 +53,169 @@ export default function HomePage() {
   };
 
   return (
-    <main className="flex-1 flex flex-col items-center justify-center p-4 md:p-8 bg-noise relative overflow-hidden">
-      {/* Background Ambient Glow */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-96 h-96 bg-mafia/10 rounded-full blur-3xl pointer-events-none -z-10" />
+    <main className="flex-1 flex flex-col justify-center min-h-screen p-4 md:p-8 lg:p-12 bg-noise">
+      <div className="w-full max-w-[1650px] 2xl:max-w-[1850px] mx-auto flex-1 flex flex-col justify-center">
+        {/* Full 16:9 Widescreen Two-Column Layout on PC, stacked on Mobile */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-stretch">
+          {/* Left Column: Technical Hero & Overview (7 cols on Desktop) */}
+          <div className="lg:col-span-7 bg-surface border border-border p-6 md:p-10 lg:p-12 flex flex-col justify-between space-y-8">
+            <div className="space-y-6">
+              {/* Header Status Bar */}
+              <div className="flex items-center justify-between pb-4 border-b border-border text-xs text-muted">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 bg-white inline-block" />
+                  <span>Peer-to-Peer Mesh</span>
+                </div>
+                <span>Zero Server · Encrypted</span>
+              </div>
 
-      <div className="w-full max-w-md space-y-8 text-center">
-        {/* Brand Header */}
-        <div className="space-y-3">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-surface-2 border border-border text-mafia shadow-2xl mx-auto">
-            <Moon className="w-8 h-8 fill-current" />
-          </div>
-          <div>
-            <h1 className="text-3xl md:text-4xl font-heading font-black tracking-widest uppercase text-text">
-              M A F I A
-            </h1>
-            <p className="text-xs text-muted tracking-wider uppercase mt-1">
-              Shadows of the City · Multiplayer WebRTC
-            </p>
-          </div>
-        </div>
+              {/* Title & Brand */}
+              <div className="space-y-3">
+                <h1 className="text-4xl md:text-6xl lg:text-7xl font-sans font-black tracking-tight text-text leading-none">
+                  Mafia
+                </h1>
+                <div className="text-sm md:text-base text-muted font-medium">
+                  Shadows of the City · Social Deduction Protocol
+                </div>
+                <p className="text-sm text-muted/80 max-w-xl leading-relaxed pt-1">
+                  A high-stakes multiplayer party game running directly in browser memory via WebRTC data channels. 
+                  Zero centralized servers, zero tracking. Deceive, investigate, and eliminate.
+                </p>
+              </div>
 
-        {/* Identity Setup Card */}
-        <div className="bg-surface border border-border rounded-2xl p-6 space-y-6 shadow-2xl text-left">
-          {/* Avatar Selector */}
-          <div className="space-y-2">
-            <label className="text-xs font-semibold text-text">Choose Your Identity Avatar</label>
-            <div className="grid grid-cols-6 gap-2">
-              {Array.from({ length: 12 }, (_, i) => i + 1).map((id) => (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => saveProfile(name, id)}
-                  className={`p-1 rounded-xl border transition-all flex items-center justify-center ${
-                    avatar === id
-                      ? 'border-day-amber bg-surface-2 ring-2 ring-day-amber/30 scale-105'
-                      : 'border-border/60 hover:border-muted bg-surface-2/40'
-                  }`}
-                >
-                  <Avatar avatarId={id} size={36} />
-                </button>
-              ))}
+              {/* Specifications Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-4 border-t border-border">
+                <div className="p-3 bg-surface-2 border border-border">
+                  <div className="text-xs text-muted">Roster</div>
+                  <div className="text-sm font-semibold text-text mt-0.5">4 to 12 Players</div>
+                  <div className="text-[11px] text-muted/70 mt-1">Balanced presets and custom distribution</div>
+                </div>
+                <div className="p-3 bg-surface-2 border border-border">
+                  <div className="text-xs text-muted">Networking</div>
+                  <div className="text-sm font-semibold text-text mt-0.5">Pure WebRTC Mesh</div>
+                  <div className="text-[11px] text-muted/70 mt-1">Direct device-to-device synchronization</div>
+                </div>
+                <div className="p-3 bg-surface-2 border border-border">
+                  <div className="text-xs text-muted">Privacy</div>
+                  <div className="text-sm font-semibold text-text mt-0.5">End-to-End Private</div>
+                  <div className="text-[11px] text-muted/70 mt-1">Syndicate secret night channels</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Bottom Actions & Shortcuts */}
+            <div className="pt-6 border-t border-border flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => setHelpOpen(true)}
+                className="inline-flex items-center gap-2 text-xs text-muted hover:text-white transition-colors"
+              >
+                <HelpCircle className="w-4 h-4" />
+                <span>How to Play & Role Guide</span>
+                <Kbd>H</Kbd>
+              </button>
+
+              <div className="text-xs text-muted hidden sm:block">
+                Press [H] for manual
+              </div>
             </div>
           </div>
 
-          {/* Name Input */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-text">Player Codename</label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => saveProfile(e.target.value, avatar)}
-              placeholder="e.g. Inspector Vance"
-              maxLength={20}
-              className="w-full bg-surface-2 border border-border rounded-xl px-4 py-2.5 text-sm text-text placeholder-muted/60 focus:outline-none focus:ring-2 focus:ring-day-amber"
-            />
-          </div>
+          {/* Right Column: Identity Configuration & Lobby Access (5 cols on Desktop) */}
+          <div className="lg:col-span-5 bg-surface border border-border p-6 md:p-10 flex flex-col justify-between space-y-6">
+            <div className="space-y-6">
+              {/* Card Header */}
+              <div className="flex items-center justify-between pb-3 border-b border-border">
+                <div className="text-sm font-bold text-text">
+                  Player Profile
+                </div>
+                <span className="text-xs text-muted">Local profile</span>
+              </div>
 
-          {/* Create Game Button */}
-          <Button variant="accent" size="lg" onClick={handleCreateGame} className="w-full">
-            <Play className="w-4 h-4 mr-2 fill-current" />
-            <span>Create New Game</span>
-          </Button>
+              {/* Avatar Selector (12 avatars in square grid with full vibrant colors) */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-medium text-muted">
+                    Choose Your Avatar
+                  </label>
+                  <span className="text-xs text-muted">Avatar #{avatar}</span>
+                </div>
+                <div className="grid grid-cols-6 gap-2">
+                  {Array.from({ length: 12 }, (_, i) => i + 1).map((id) => (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => saveProfile(name, id)}
+                      className={`p-1 border transition-colors flex items-center justify-center rounded-none ${
+                        avatar === id
+                          ? 'border-white bg-white/10 ring-1 ring-white'
+                          : 'border-border hover:border-zinc-500 bg-surface-2'
+                      }`}
+                    >
+                      <Avatar avatarId={id} size={38} className="rounded-none" />
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-          {/* Divider */}
-          <div className="relative flex items-center justify-center">
-            <div className="border-t border-border w-full" />
-            <span className="bg-surface px-3 text-[11px] font-mono uppercase text-muted tracking-wider">
-              OR JOIN WITH CODE
-            </span>
-          </div>
+              {/* Name Input */}
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-muted">
+                  Player Codename
+                </label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => saveProfile(e.target.value, avatar)}
+                  placeholder="e.g. Inspector Vance"
+                  maxLength={20}
+                  className="w-full bg-surface-2 border border-border rounded-none px-4 py-2.5 text-sm text-text placeholder-muted/50 focus:outline-none focus:border-white focus:bg-zinc-900 transition-colors"
+                />
+              </div>
 
-          {/* Join Game Form */}
-          <form onSubmit={handleJoinGame} className="space-y-3">
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={joinCode}
-                onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-                placeholder="5-LETTER CODE"
-                maxLength={5}
-                className="flex-1 bg-surface-2 border border-border rounded-xl px-4 py-2.5 text-center font-mono text-sm tracking-widest text-text placeholder-muted/60 focus:outline-none focus:ring-2 focus:ring-day-amber uppercase"
-              />
-              <Button type="submit" variant="secondary" size="md">
-                <span>Join</span>
-                <ChevronRight className="w-4 h-4 ml-1" />
+              {/* Create Game Button */}
+              <Button
+                variant="primary"
+                size="lg"
+                onClick={handleCreateGame}
+                className="w-full font-semibold"
+              >
+                <Play className="w-3.5 h-3.5 mr-2 fill-current" />
+                <span>Create New Game</span>
               </Button>
-            </div>
-          </form>
-        </div>
 
-        {/* Footer Links & Shortcuts */}
-        <div className="flex items-center justify-center gap-4 text-xs text-muted">
-          <button
-            type="button"
-            onClick={() => setHelpOpen(true)}
-            className="flex items-center gap-1.5 hover:text-text transition-colors"
-          >
-            <HelpCircle className="w-4 h-4 text-day-amber" />
-            <span>How to Play & Roles</span>
-            <Kbd>H</Kbd>
-          </button>
+              {/* Divider */}
+              <div className="relative flex items-center justify-center my-2">
+                <div className="border-t border-border w-full" />
+                <span className="bg-surface px-3 text-xs text-muted">
+                  or join with code
+                </span>
+              </div>
+
+              {/* Join Game Form */}
+              <form onSubmit={handleJoinGame} className="space-y-3">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={joinCode}
+                    onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                    placeholder="ROOM CODE"
+                    maxLength={5}
+                    className="flex-1 bg-surface-2 border border-border rounded-none px-4 py-2.5 text-center font-mono text-sm tracking-widest text-text placeholder-muted/50 focus:outline-none focus:border-white uppercase"
+                  />
+                  <Button type="submit" variant="secondary" size="md" className="px-5">
+                    <span>Join</span>
+                    <ArrowRight className="w-3.5 h-3.5 ml-1" />
+                  </Button>
+                </div>
+              </form>
+            </div>
+
+            {/* Micro status info */}
+            <div className="pt-4 border-t border-border text-xs text-muted text-center lg:text-left">
+              Compatible with all modern browsers · No signup required
+            </div>
+          </div>
         </div>
       </div>
 

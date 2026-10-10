@@ -2,12 +2,11 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Moon, Eye, X, Shield, Users, MessageSquare, Send, Check, AlertTriangle, FileText, Skull } from 'lucide-react';
-import { ClientGameView, Role } from '@/lib/types';
+import { Moon, Shield, Users, MessageSquare, Send, Check, FileText, Skull, AlertCircle } from 'lucide-react';
+import { ClientGameView } from '@/lib/types';
 import { ROLES, RoleDef } from '@/lib/content';
 import { TargetPicker } from './TargetPicker';
-import { Button, Badge, Kbd } from './ui';
-import { briefingCardVariants, peekHudVariants } from '@/lib/motion';
+import { Button, Badge, Modal } from './ui';
 import { useShortcut } from '@/lib/shortcuts';
 
 interface NightProps {
@@ -29,6 +28,7 @@ export function Night({
   const [isPeeking, setIsPeeking] = useState(false);
   const [chatInput, setChatInput] = useState('');
   const [decoyTaps, setDecoyTaps] = useState(0);
+  const [confirmModalOpen, setConfirmModalOpen] = useState(false);
 
   const me = gameView.me;
   const role = me?.role;
@@ -87,8 +87,13 @@ export function Night({
     setChatInput('');
   };
 
-  const handleConfirmAction = () => {
+  const handleConfirmActionClick = () => {
     if (!canActNow || isConfirmed) return;
+    setConfirmModalOpen(true);
+  };
+
+  const handleFinalConfirm = () => {
+    setConfirmModalOpen(false);
     onConfirmNightAction?.(me?.nightPick || undefined);
   };
 
@@ -101,388 +106,392 @@ export function Night({
     mafiaPicksArray.length > 0 && mafiaPicksArray.every((pick) => pick === mafiaPicksArray[0]);
 
   return (
-    <div className="relative min-h-[calc(100vh-60px)] flex flex-col p-4 md:p-6 max-w-4xl mx-auto space-y-6">
+    <div className="w-full max-w-[1650px] 2xl:max-w-[1850px] mx-auto p-4 md:p-8 lg:p-10 space-y-6">
       {/* Night Header */}
-      <div className="text-center space-y-1">
-        <div className="flex items-center justify-center gap-2">
-          <Moon className="w-5 h-5 text-indigo-400" />
-          <h2 className="text-xl md:text-2xl font-heading font-bold text-text">
-            Night {gameView.round}
-          </h2>
+      <div className="bg-surface border border-border p-5 md:p-7 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="flex items-center gap-3.5">
+          <Moon className="w-6 h-6 text-white" />
+          <div>
+            <h2 className="text-xl md:text-2xl font-sans font-bold text-text">
+              Night Operations · Round {gameView.round}
+            </h2>
+            <p className="text-sm text-muted mt-0.5">
+              {canActNow
+                ? roleDef?.howToPlay || 'Select your secret target and confirm action.'
+                : isDead
+                ? 'You have fallen. Observe the night and converse with other spirits.'
+                : 'The city sleeps in darkness. Keep your device face down to disguise activity.'}
+            </p>
+          </div>
         </div>
-        <p className="text-xs text-muted">
-          {canActNow
-            ? roleDef?.howToPlay || 'Make your secret move and confirm to advance.'
-            : isDead
-            ? 'You have fallen. Observe the night and converse with other spirits.'
-            : 'The city sleeps in darkness. Secret actions unfold silently in the shadows.'}
-        </p>
+
+        <div className="flex items-center gap-3">
+          {roleDef && (
+            <Badge color="mafia">{roleDef.name}</Badge>
+          )}
+          <span className="text-xs text-muted hidden md:inline">
+            Hold [R] to peek role
+          </span>
+        </div>
       </div>
 
-      {/* Main Night Action or Decoy / Graveyard Screen */}
-      {!canActNow ? (
-        isDead ? (
-          /* Graveyard Screen for Dead Players */
-          <div className="flex-1 flex flex-col bg-surface border border-border rounded-2xl p-4 md:p-6 space-y-4 shadow-xl">
-            <div className="flex items-center gap-2 text-muted pb-3 border-b border-border">
-              <Skull className="w-5 h-5 text-zinc-400" />
-              <div>
-                <h3 className="font-heading text-sm font-semibold text-text">The Graveyard</h3>
-                <p className="text-[11px] text-muted">Spirits of eliminated citizens may converse freely.</p>
+      {/* 16:9 Widescreen Two-Column Layout on PC */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+        {/* Left Column: TargetPicker & Main Operation Stage (7 cols on Desktop) */}
+        <div className="lg:col-span-7 bg-surface border border-border p-6 space-y-6 flex flex-col justify-between">
+          {!canActNow ? (
+            isDead ? (
+              /* Dead Player Status */
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 pb-3 border-b border-border">
+                  <Skull className="w-4 h-4 text-white" />
+                  <span className="text-sm font-semibold text-text">
+                    The Graveyard · Fallen Operatives
+                  </span>
+                </div>
+                <p className="text-sm text-muted leading-relaxed">
+                  You have been eliminated from active town governance. You may monitor remaining suspects and converse with spirits on the private right-hand frequency.
+                </p>
               </div>
-            </div>
-
-            {/* Dead Chat Messages */}
-            <div className="flex-1 min-h-[250px] overflow-y-auto bg-surface-2/60 border border-border rounded-xl p-3 space-y-2 text-xs">
-              {gameView.chat
-                .filter((m) => m.channel === 'dead')
-                .map((msg) => (
-                  <div key={msg.id} className="leading-snug">
-                    <span className="font-bold text-zinc-400 mr-1.5">{msg.senderName}:</span>
-                    <span className="text-text">{msg.text}</span>
-                  </div>
-                ))}
-            </div>
-
-            {/* Dead Chat Input */}
-            <form onSubmit={handleSendChat} className="flex gap-2">
-              <input
-                type="text"
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                placeholder="Whisper among the fallen..."
-                maxLength={300}
-                className="flex-1 bg-surface-2 border border-border rounded-xl px-3 py-2 text-xs text-text placeholder-muted/60 focus:outline-none focus:ring-1 focus:ring-muted"
-              />
-              <Button type="submit" variant="secondary" size="sm">
-                <Send className="w-3.5 h-3.5 mr-1" />
-                <span>Send</span>
-              </Button>
-            </form>
-          </div>
-        ) : (
-          /* Atmospheric Sleeping Decoy View for Living Players whose turn it isn't */
-          <div className="flex-1 flex flex-col items-center justify-center py-12 px-4 text-center space-y-6">
-            <div className="w-24 h-24 rounded-full bg-surface-2/60 border border-border flex items-center justify-center relative animate-pulse">
-              <Moon className="w-10 h-10 text-indigo-400" />
-            </div>
-
-            <div className="max-w-md space-y-2">
-              <h3 className="font-heading text-lg font-semibold text-text">Close your eyes...</h3>
-              <p className="text-xs text-muted leading-relaxed">
-                The city sleeps under quiet skies. Keep your device face down or tap freely to disguise activity
-                from watchful eyes nearby.
-              </p>
-            </div>
-
-            {/* Harmless fake interactive tapping zone */}
-            <button
-              type="button"
-              onClick={() => setDecoyTaps((t) => t + 1)}
-              className="w-full max-w-sm h-32 rounded-2xl border border-dashed border-border/80 bg-surface/40 hover:bg-surface-2/40 active:scale-[0.99] transition-all flex flex-col items-center justify-center text-xs text-muted select-none gap-1"
-            >
-              <span>Harmless decoy touch pad (Tap freely)</span>
-              {decoyTaps > 0 && <span className="text-[10px] opacity-60">Taps: {decoyTaps}</span>}
-            </button>
-          </div>
-        )
-      ) : (
-        /* Active Role Dashboard */
-        <div className="bg-surface border border-border rounded-2xl p-4 md:p-6 space-y-5 shadow-xl">
-          {/* Role Header */}
-          <div className="flex items-center justify-between pb-3 border-b border-border">
-            <div className="flex items-center gap-2">
-              <span className="font-heading text-sm font-semibold text-text">
-                {isMafia
-                  ? 'Mafia Syndicate Kill Order'
-                  : role === 'doctor'
-                  ? "Doctor's Clinic Protection"
-                  : role === 'police'
-                  ? 'Police Department Investigation'
-                  : 'Vigilante Night Watch'}
-              </span>
-              {roleDef && (
-                <Badge
-                  color={
-                    roleDef.team === 'mafia'
-                      ? 'mafia'
-                      : roleDef.team === 'town'
-                      ? 'doctor'
-                      : 'jester'
-                  }
+            ) : (
+              /* Decoy Screen for Sleeping living players */
+              <div className="py-12 text-center space-y-6 flex-1 flex flex-col items-center justify-center">
+                <div className="w-18 h-18 border border-border bg-surface-2 flex items-center justify-center p-4">
+                  <Moon className="w-10 h-10 text-white" />
+                </div>
+                <div className="max-w-md space-y-2">
+                  <h3 className="text-lg font-bold text-text">
+                    Close your eyes...
+                  </h3>
+                  <p className="text-sm text-muted leading-relaxed">
+                    Keep your device level. Tap the decoy pad below to disguise night movements from neighboring players.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setDecoyTaps((t) => t + 1)}
+                  className="w-full max-w-sm h-32 border border-dashed border-border bg-surface-2 hover:bg-zinc-800 transition-colors flex flex-col items-center justify-center text-sm text-muted select-none gap-1.5"
                 >
-                  {roleDef.nightVerb?.toUpperCase() || 'ACTION'}
-                </Badge>
-              )}
-            </div>
-
-            {me?.shotsRemaining !== undefined && (
-              <span className="text-xs font-mono font-semibold text-day-amber">
-                Ammo: {me.shotsRemaining} remaining
-              </span>
-            )}
-          </div>
-
-          {/* Mafia Teammates & Agreement Status */}
-          {isMafia && me?.teammates && me.teammates.length > 0 && (
-            <div className="p-3 rounded-xl bg-surface-2/60 border border-border text-xs space-y-2">
-              <div className="font-semibold text-mafia flex items-center gap-1.5">
-                <Users className="w-3.5 h-3.5" />
-                <span>Syndicate Alignment:</span>
+                  <span>Harmless decoy touch pad (Tap freely)</span>
+                  {decoyTaps > 0 && <span className="text-xs text-white">Tap count: {decoyTaps}</span>}
+                </button>
               </div>
-              <div className="flex flex-wrap gap-3">
-                {Object.entries(teammatePicks).map(([mateId, pickId]) => {
-                  const mate = gameView.players.find((p) => p.id === mateId);
-                  const pickedPlayer = gameView.players.find((p) => p.id === pickId);
-                  const isMe = mateId === me.id;
-                  return (
-                    <div
-                      key={mateId}
-                      className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-surface border border-border text-[11px]"
-                    >
-                      <span className="font-bold text-text">{isMe ? 'You' : mate?.name}:</span>
-                      <span className={pickedPlayer ? 'text-mafia font-semibold' : 'text-muted'}>
-                        {pickedPlayer ? pickedPlayer.name : 'Choosing...'}
-                      </span>
-                    </div>
-                  );
-                })}
+            )
+          ) : (
+            /* Active Target Picker Stage */
+            <div className="space-y-6">
+              <div className="flex items-center justify-between pb-3 border-b border-border">
+                <span className="text-sm font-bold text-text">
+                  {isMafia
+                    ? 'Syndicate Kill Order'
+                    : role === 'doctor'
+                    ? "Doctor's Clinic Protection"
+                    : role === 'police'
+                    ? 'Police Department Investigation'
+                    : 'Vigilante Night Watch'}
+                </span>
+
+                {me?.shotsRemaining !== undefined && (
+                  <span className="text-xs md:text-sm font-semibold text-white">
+                    Ammo: {me.shotsRemaining} remaining
+                  </span>
+                )}
               </div>
 
-              {gameView.settings.mafiaKillMode === 'unanimous' && !mafiaAgreed && (
-                <div className="flex items-center gap-1.5 text-amber-400 text-[11px] pt-1">
-                  <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-                  <span>Unanimous kill required: both Mafia must select the same target!</span>
+              {/* Target Picker Grid */}
+              <TargetPicker
+                players={gameView.players}
+                myPlayerId={me?.id || ''}
+                roleDef={roleDef}
+                selectedId={me?.nightPick || null}
+                onSelect={(targetId) => onNightAction(targetId)}
+                mode="night"
+                allowHoldFire={role === 'vigilante'}
+                disabled={isConfirmed}
+              />
+
+              {/* Confirm Action Button & Status Bar */}
+              <div className="pt-4 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="text-sm text-muted">
+                  {isConfirmed ? (
+                    <span className="text-emerald-400 font-semibold flex items-center gap-1.5">
+                      <Check className="w-4 h-4" /> Order confirmed. Advancing once all players ready...
+                    </span>
+                  ) : selectedTargetPlayer ? (
+                    <span>
+                      Selected: <strong className="text-white underline font-semibold">{selectedTargetPlayer.name}</strong>
+                    </span>
+                  ) : me?.nightPick === 'hold' ? (
+                    <span>Holding fire tonight</span>
+                  ) : (
+                    <span>Select a target above to confirm</span>
+                  )}
+                </div>
+
+                <Button
+                  variant="primary"
+                  size="lg"
+                  disabled={(!me?.nightPick && me?.nightPick !== 'hold') || isConfirmed}
+                  onClick={handleConfirmActionClick}
+                  className="w-full sm:w-auto font-bold text-sm"
+                >
+                  {isConfirmed ? (
+                    <>
+                      <Check className="w-4 h-4 mr-1.5" />
+                      <span>Confirmed ✓</span>
+                    </>
+                  ) : (
+                    <span>
+                      Confirm{' '}
+                      {isMafia
+                        ? 'Kill'
+                        : role === 'doctor'
+                        ? 'Protection'
+                        : role === 'police'
+                        ? 'Investigation'
+                        : 'Shot'}
+                    </span>
+                  )}
+                </Button>
+              </div>
+
+              {/* Police Dossier */}
+              {role === 'police' && me?.policeInbox && me.policeInbox.length > 0 && (
+                <div className="pt-4 border-t border-border space-y-2.5">
+                  <div className="flex items-center gap-2 text-sm font-bold text-text">
+                    <FileText className="w-4 h-4 text-white" />
+                    <span>Confidential Investigation Dossier:</span>
+                  </div>
+                  <div className="space-y-2">
+                    {me.policeInbox.map((entry, idx) => {
+                      const target = gameView.players.find((p) => p.id === entry.targetId);
+                      return (
+                        <div
+                          key={idx}
+                          className="flex items-center justify-between p-3 bg-surface-2 border border-border text-sm"
+                        >
+                          <span className="font-semibold text-text">{target?.name || 'Subject'}:</span>
+                          <span className="font-bold text-white border border-border px-2.5 py-1 bg-black">
+                            {entry.result}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
             </div>
           )}
+        </div>
 
-          {/* Target Picker */}
-          <TargetPicker
-            players={gameView.players}
-            myPlayerId={me?.id || ''}
-            roleDef={roleDef}
-            selectedId={me?.nightPick || null}
-            onSelect={(targetId) => onNightAction(targetId)}
-            mode="night"
-            allowHoldFire={role === 'vigilante'}
-            disabled={isConfirmed}
-          />
+        {/* Right Column: Syndicate Private Chat / Graveyard Chat / Quick Manual (5 cols on Desktop) */}
+        <div className="lg:col-span-5 bg-surface border border-border p-6 space-y-5 flex flex-col justify-between">
+          {isMafia ? (
+            /* Mafia Syndicate Private Tactical Hub */
+            <div className="space-y-4 flex-1 flex flex-col justify-between">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between pb-3 border-b border-border">
+                  <div className="flex items-center gap-2 text-sm font-bold text-text">
+                    <Users className="w-4 h-4" />
+                    <span>Syndicate Encrypted Night Frequency</span>
+                  </div>
+                  <Badge color="mafia">Private</Badge>
+                </div>
 
-          {/* Confirm Action Button */}
-          <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3">
-            <div className="text-xs text-muted">
-              {isConfirmed ? (
-                <span className="text-emerald-400 font-semibold flex items-center gap-1">
-                  <Check className="w-4 h-4" /> Action confirmed. Advancing once all ready...
-                </span>
-              ) : selectedTargetPlayer ? (
-                <span>
-                  Selected:{' '}
-                  <strong className="text-text font-semibold">{selectedTargetPlayer.name}</strong>
-                </span>
-              ) : me?.nightPick === 'hold' ? (
-                <span>Holding fire tonight</span>
-              ) : (
-                <span>Select a target above to confirm</span>
-              )}
-            </div>
-
-            <Button
-              variant={isMafia ? 'danger' : 'accent'}
-              size="md"
-              disabled={(!me?.nightPick && me?.nightPick !== 'hold') || isConfirmed}
-              onClick={handleConfirmAction}
-            >
-              {isConfirmed ? (
-                <>
-                  <Check className="w-4 h-4 mr-1.5" />
-                  <span>Confirmed ✓</span>
-                </>
-              ) : (
-                <span>
-                  Confirm{' '}
-                  {isMafia
-                    ? 'Kill'
-                    : role === 'doctor'
-                    ? 'Protection'
-                    : role === 'police'
-                    ? 'Investigation'
-                    : 'Shot'}
-                </span>
-              )}
-            </Button>
-          </div>
-
-          {/* Police Confidential Dossier */}
-          {role === 'police' && me?.policeInbox && me.policeInbox.length > 0 && (
-            <div className="mt-4 pt-4 border-t border-border space-y-2">
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-text">
-                <FileText className="w-3.5 h-3.5 text-day-amber" />
-                <span>Your Investigation Records (Strictly Confidential):</span>
-              </div>
-              <div className="space-y-1.5">
-                {me.policeInbox.map((entry, idx) => {
-                  const target = gameView.players.find((p) => p.id === entry.targetId);
-                  return (
-                    <div
-                      key={idx}
-                      className="flex items-center justify-between p-2 rounded-xl bg-surface-2 border border-border text-xs"
-                    >
-                      <span className="font-semibold text-text">{target?.name || 'Subject'}:</span>
-                      <span
-                        className={
-                          entry.result.toLowerCase().includes('mafia')
-                            ? 'font-bold text-mafia'
-                            : 'font-semibold text-emerald-400'
-                        }
-                      >
-                        {entry.result}
-                      </span>
+                {/* Teammate Picks / Alignment */}
+                {me?.teammates && me.teammates.length > 0 && (
+                  <div className="p-3.5 bg-surface-2 border border-border space-y-2 text-sm">
+                    <div className="text-xs text-muted font-medium">Syndicate alignment:</div>
+                    <div className="space-y-1.5">
+                      {Object.entries(teammatePicks).map(([mateId, pickId]) => {
+                        const mate = gameView.players.find((p) => p.id === mateId);
+                        const pickedPlayer = gameView.players.find((p) => p.id === pickId);
+                        const isMe = mateId === me.id;
+                        return (
+                          <div key={mateId} className="flex items-center justify-between">
+                            <span className="text-muted">{isMe ? 'You' : mate?.name}:</span>
+                            <span className={pickedPlayer ? 'text-white font-semibold' : 'text-muted/60'}>
+                              {pickedPlayer ? pickedPlayer.name : 'Choosing...'}
+                            </span>
+                          </div>
+                        );
+                      })}
                     </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
 
-          {/* Mafia Syndicate Secret Night Chat */}
-          {isMafia && (
-            <div className="mt-6 pt-4 border-t border-border space-y-3">
-              <div className="flex items-center gap-2 text-xs font-semibold text-mafia">
-                <MessageSquare className="w-4 h-4" />
-                <span>Syndicate Secret Night Frequency (Private)</span>
-              </div>
+                    {gameView.settings.mafiaKillMode === 'unanimous' && !mafiaAgreed && (
+                      <div className="text-xs text-amber-300 pt-1.5 border-t border-border">
+                        ⚠️ Unanimous kill required: both Mafia must select the same target!
+                      </div>
+                    )}
+                  </div>
+                )}
 
-              {/* Chat Messages Log */}
-              <div className="h-32 overflow-y-auto bg-surface-2/60 border border-border rounded-xl p-3 space-y-2 text-xs">
-                {gameView.chat
-                  .filter((m) => m.channel === 'mafia')
-                  .map((msg) => (
-                    <div key={msg.id} className="leading-snug">
-                      <span className="font-bold text-mafia mr-1.5">{msg.senderName}:</span>
-                      <span className="text-text">{msg.text}</span>
+                {/* Secret Syndicate Chat Messages */}
+                <div className="h-72 overflow-y-auto bg-surface-2 border border-border p-3.5 space-y-2.5 text-sm">
+                  {gameView.chat
+                    .filter((m) => m.channel === 'mafia')
+                    .map((msg) => (
+                      <div key={msg.id} className="leading-snug">
+                        <span className="font-semibold text-white mr-1.5">{msg.senderName}:</span>
+                        <span className="text-muted">{msg.text}</span>
+                      </div>
+                    ))}
+                  {gameView.chat.filter((m) => m.channel === 'mafia').length === 0 && (
+                    <div className="text-muted text-sm text-center pt-16">
+                      No secret night transmissions yet. Coordinate target with partner here.
                     </div>
-                  ))}
+                  )}
+                </div>
               </div>
 
-              {/* Input Form */}
-              <form onSubmit={handleSendChat} className="flex gap-2">
+              {/* Chat Input */}
+              <form onSubmit={handleSendChat} className="flex gap-2.5 pt-2 border-t border-border">
                 <input
                   type="text"
                   value={chatInput}
                   onChange={(e) => setChatInput(e.target.value)}
-                  placeholder="Coordinate target with partner..."
+                  placeholder="Whisper to syndicate partner..."
                   maxLength={300}
-                  className="flex-1 bg-surface-2 border border-border rounded-xl px-3 py-2 text-xs text-text placeholder-muted/60 focus:outline-none focus:ring-1 focus:ring-mafia"
+                  className="flex-1 bg-surface-2 border border-border rounded-none px-3.5 py-2 text-sm text-text placeholder-muted/50 focus:outline-none focus:border-white"
                 />
-                <Button type="submit" variant="danger" size="sm">
-                  <Send className="w-3.5 h-3.5 mr-1" />
+                <Button type="submit" variant="primary" size="md">
+                  <Send className="w-4 h-4 mr-1" />
                   <span>Send</span>
                 </Button>
               </form>
             </div>
-          )}
-        </div>
-      )}
+          ) : isDead ? (
+            /* Graveyard Chat for Dead Players */
+            <div className="space-y-4 flex-1 flex flex-col justify-between">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between pb-3 border-b border-border">
+                  <div className="flex items-center gap-2 text-sm font-bold text-text">
+                    <MessageSquare className="w-4 h-4" />
+                    <span>Graveyard Spirits Chat</span>
+                  </div>
+                  <Badge color="muted">Dead Only</Badge>
+                </div>
 
-      {/* Post-Reveal Briefing Card (Dismissible) */}
-      <AnimatePresence>
-        {showBriefing && roleDef && (
-          <motion.div
-            variants={briefingCardVariants}
-            initial="hidden"
-            animate="visible"
-            exit="exit"
-            className="fixed bottom-4 left-4 right-4 md:left-auto md:right-6 md:w-[400px] z-40 bg-surface border-2 rounded-2xl p-4 shadow-2xl space-y-3"
-            style={{ borderColor: `${roleDef.colour}70` }}
-          >
-            {/* Header with Close X */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="font-heading text-sm font-bold" style={{ color: roleDef.colour }}>
-                  {roleDef.name}
-                </span>
-                <Badge color={roleDef.team === 'mafia' ? 'mafia' : roleDef.team === 'town' ? 'doctor' : 'jester'}>
-                  {roleDef.team.toUpperCase()}
-                </Badge>
+                <div className="h-72 overflow-y-auto bg-surface-2 border border-border p-3.5 space-y-2.5 text-sm">
+                  {gameView.chat
+                    .filter((m) => m.channel === 'dead')
+                    .map((msg) => (
+                      <div key={msg.id} className="leading-snug">
+                        <span className="font-semibold text-white mr-1.5">{msg.senderName}:</span>
+                        <span className="text-muted">{msg.text}</span>
+                      </div>
+                    ))}
+                </div>
               </div>
-              <button
-                type="button"
-                onClick={() => setShowBriefing(false)}
-                className="p-1 rounded-lg text-muted hover:text-text hover:bg-surface-2 transition-colors"
-                aria-label="Close role briefing"
-              >
-                <X className="w-4 h-4" />
-              </button>
+
+              <form onSubmit={handleSendChat} className="flex gap-2.5 pt-2 border-t border-border">
+                <input
+                  type="text"
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  placeholder="Whisper among the fallen..."
+                  maxLength={300}
+                  className="flex-1 bg-surface-2 border border-border rounded-none px-3.5 py-2 text-sm text-text placeholder-muted/50 focus:outline-none focus:border-white"
+                />
+                <Button type="submit" variant="secondary" size="md">
+                  <Send className="w-4 h-4 mr-1" />
+                  <span>Send</span>
+                </Button>
+              </form>
             </div>
+          ) : (
+            /* Night Guidance & Manual */
+            <div className="space-y-4 flex-1 flex flex-col justify-between">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between pb-3 border-b border-border">
+                  <span className="text-sm font-bold text-text">
+                    Role Directives
+                  </span>
+                  <Badge color="muted">Night {gameView.round}</Badge>
+                </div>
 
-            <p className="text-xs text-text leading-relaxed">{roleDef.summary}</p>
+                <div className="p-4 bg-surface-2 border border-border space-y-3 text-sm">
+                  <div className="font-bold text-white">{roleDef?.name} Directive:</div>
+                  <p className="text-muted leading-relaxed">{roleDef?.howToPlay}</p>
+                  <div className="pt-2 border-t border-border">
+                    <span className="text-white font-semibold">Victory Goal: </span>
+                    <span className="text-muted">{roleDef?.winCondition}</span>
+                  </div>
+                </div>
 
-            <div className="space-y-1.5 text-xs bg-surface-2/60 p-2.5 rounded-xl border border-border">
-              <div>
-                <span className="font-semibold text-text">Tonight: </span>
-                <span className="text-muted">{roleDef.howToPlay}</span>
+                <div className="space-y-2">
+                  <div className="text-xs text-muted font-medium">Tactical tips:</div>
+                  <ul className="space-y-1.5 text-xs text-muted">
+                    {roleDef?.tips.map((tip, idx) => (
+                      <li key={idx} className="flex items-start gap-2">
+                        <span className="text-white">·</span>
+                        <span>{tip}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               </div>
-              <div>
-                <span className="font-semibold text-text">Victory Goal: </span>
-                <span className="text-muted">{roleDef.winCondition}</span>
-              </div>
-            </div>
-
-            {/* Bottom Actions */}
-            <div className="flex items-center justify-between pt-1">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowBriefing(false);
-                  onOpenHelp('my-role');
-                }}
-                className="text-xs text-day-amber hover:underline"
-              >
-                Detailed Role Guide →
-              </button>
 
               <Button
-                variant="primary"
-                size="sm"
-                onClick={() => setShowBriefing(false)}
-                kbd="Esc"
+                variant="secondary"
+                size="md"
+                onClick={() => onOpenHelp('my-role')}
+                className="w-full text-sm font-semibold"
               >
-                Got It
+                Open Full Role Dossier [I]
               </Button>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          )}
+        </div>
+      </div>
 
-      {/* Role Peek HUD (Triggered when holding R) */}
+      {/* Action Confirmation Modal */}
+      <Modal
+        isOpen={confirmModalOpen}
+        onClose={() => setConfirmModalOpen(false)}
+        title="Confirm Night Action"
+      >
+        <div className="space-y-4">
+          <div className="p-3.5 bg-surface-2 border border-border flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-white shrink-0 mt-0.5" />
+            <div className="space-y-1 text-sm text-text leading-relaxed">
+              {me?.nightPick === 'hold' ? (
+                <div>Are you sure you want to hold fire tonight?</div>
+              ) : (
+                <div>
+                  Are you sure you want to confirm action on <strong className="text-white underline">{selectedTargetPlayer?.name}</strong>?
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center justify-end gap-3 pt-2">
+            <Button variant="secondary" onClick={() => setConfirmModalOpen(false)} kbd="Esc">
+              Cancel
+            </Button>
+            <Button variant="primary" onClick={handleFinalConfirm} kbd="Enter">
+              Confirm Action
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Role Peek HUD Modal (When holding R) */}
       <AnimatePresence>
         {isPeeking && roleDef && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-            <motion.div
-              variants={peekHudVariants}
-              initial="hidden"
-              animate="visible"
-              exit="hidden"
-              className="max-w-sm w-full bg-surface border-2 rounded-2xl p-6 text-center space-y-4 shadow-2xl"
-              style={{ borderColor: roleDef.colour }}
-            >
-              <Badge color={roleDef.team === 'mafia' ? 'mafia' : roleDef.team === 'town' ? 'doctor' : 'jester'}>
-                {roleDef.team.toUpperCase()}
-              </Badge>
-              <h3 className="font-heading text-2xl font-bold" style={{ color: roleDef.colour }}>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90">
+            <div className="max-w-md w-full bg-surface border border-white p-6 text-center space-y-4 rounded-none shadow-2xl">
+              <Badge color="mafia">{roleDef.team}</Badge>
+              <h3 className="text-2xl font-bold text-white tracking-tight">
                 {roleDef.name}
               </h3>
-              <p className="text-xs text-text leading-relaxed">{roleDef.summary}</p>
-              <div className="p-3 bg-surface-2 rounded-xl text-xs text-muted">
+              <p className="text-sm text-muted leading-relaxed">{roleDef.summary}</p>
+              <div className="p-3.5 bg-surface-2 border border-border text-sm text-text">
                 {roleDef.howToPlay}
               </div>
-              <div className="text-[11px] text-muted italic">
+              <div className="text-xs text-muted">
                 Release [R] key to hide role HUD
               </div>
-            </motion.div>
+            </div>
           </div>
         )}
       </AnimatePresence>

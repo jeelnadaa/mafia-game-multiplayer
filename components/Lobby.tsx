@@ -2,12 +2,12 @@
 
 import React, { useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { Crown, Shield, Users, Play, Copy, Check, QrCode, Sliders, Sparkles, X, UserMinus } from 'lucide-react';
-import { ClientGameView, Settings, Role } from '@/lib/types';
-import { ROLES } from '@/lib/content';
-import { SETTINGS_SCHEMA, ROLE_PRESETS, RULE_PRESETS } from '@/lib/settings';
+import { Crown, Shield, Users, Play, Copy, Check, QrCode, UserMinus, AlertTriangle } from 'lucide-react';
+import { ClientGameView, Settings, PlayerView } from '@/lib/types';
+import { SETTINGS_SCHEMA, ROLE_PRESETS } from '@/lib/settings';
 import { validateSettings } from '@/lib/engine/rules';
-import { Button, Card, Badge, Switch, Stepper, Avatar, Modal, Kbd } from './ui';
+import { Button, Badge, Switch, Stepper, Avatar, Modal, Kbd } from './ui';
+import { getRoomShareUrl } from '@/lib/net';
 
 interface LobbyProps {
   gameView: ClientGameView;
@@ -32,6 +32,10 @@ export function Lobby({
   const [copied, setCopied] = useState(false);
   const [activeTab, setActiveTab] = useState<'roles' | 'settings'>('roles');
 
+  // Confirmation Modals State
+  const [startConfirmOpen, setStartConfirmOpen] = useState(false);
+  const [pendingKickPlayer, setPendingKickPlayer] = useState<PlayerView | null>(null);
+
   const { settings, players, me } = gameView;
   const validation = validateSettings(settings, players.length);
 
@@ -43,12 +47,13 @@ export function Lobby({
   const jesterTotal = settings.roles.jester.enabled ? settings.roles.jester.count : 0;
   const civTotal = Math.max(0, playingCount - (mafiaTotal + docTotal + copTotal + vigTotal + jesterTotal));
 
+  const shareUrl = getRoomShareUrl(gameView.code);
+
   const handleCopyLink = () => {
-    if (typeof window !== 'undefined') {
-      const url = `${window.location.origin}/room/${gameView.code}`;
-      navigator.clipboard.writeText(url);
+    if (typeof navigator !== 'undefined') {
+      navigator.clipboard.writeText(shareUrl);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      setTimeout(() => setCopied(false), 2500);
     }
   };
 
@@ -81,401 +86,488 @@ export function Lobby({
     });
   };
 
+  const handleConfirmStart = () => {
+    setStartConfirmOpen(false);
+    onStart();
+  };
+
+  const handleConfirmKick = () => {
+    if (pendingKickPlayer) {
+      onKick(pendingKickPlayer.id);
+      setPendingKickPlayer(null);
+    }
+  };
+
   return (
-    <div className="max-w-4xl mx-auto p-4 md:p-6 space-y-6">
-      {/* Top Banner: Share & Invite */}
-      <div className="bg-surface border border-border rounded-2xl p-4 md:p-6 flex flex-col md:flex-row items-center justify-between gap-4 shadow-xl">
-        <div>
-          <div className="text-xs uppercase font-mono tracking-wider text-muted">ROOM CODE</div>
-          <div className="text-3xl md:text-4xl font-mono font-bold tracking-widest text-text">
-            {gameView.code}
-          </div>
-          <div className="text-xs text-muted mt-1">Friends join via this code or link on any phone or laptop</div>
-        </div>
+    <div className="w-full max-w-[1650px] 2xl:max-w-[1850px] mx-auto p-4 md:p-8 lg:p-10 space-y-6">
+      {/* 16:9 Widescreen Two-Column Layout on PC, Stacked on Mobile */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+        {/* Left Column: Room Code & Players Roster (5 cols on Desktop) */}
+        <div className="lg:col-span-5 space-y-6 flex flex-col">
+          {/* Room Banner */}
+          <div className="bg-surface border border-border p-6 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-border">
+              <span className="text-sm font-medium text-muted">
+                Room Invitation
+              </span>
+              <span className="text-xs text-muted">Direct P2P Mesh</span>
+            </div>
 
-        <div className="flex items-center gap-2 w-full md:w-auto">
-          <Button variant="secondary" onClick={handleCopyLink} className="flex-1 md:flex-initial">
-            {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-            <span>{copied ? 'Copied' : 'Copy Link'}</span>
-          </Button>
-          <Button variant="secondary" onClick={() => setShowQr(true)}>
-            <QrCode className="w-4 h-4" />
-            <span className="hidden sm:inline">QR</span>
-          </Button>
-        </div>
-      </div>
-
-      {/* Player Roster Grid */}
-      <div className="bg-surface border border-border rounded-2xl p-4 md:p-6 space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Users className="w-5 h-5 text-day-amber" />
-            <h3 className="font-heading font-semibold text-text text-base">
-              Players ({players.length}/{settings.maxPlayers})
-            </h3>
-          </div>
-
-          {isHost && (
-            <label className="flex items-center gap-2 text-xs text-muted cursor-pointer hover:text-text select-none">
-              <span>I will be God (Narrator)</span>
-              <Switch checked={Boolean(me?.isGod)} onChange={(val) => onToggleGod(val)} />
-            </label>
-          )}
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-          {players.map((p) => (
-            <div
-              key={p.id}
-              className={`relative flex items-center gap-3 p-3 rounded-xl border transition-all ${
-                p.id === me?.id ? 'bg-surface-2 border-border shadow-sm' : 'bg-surface-2/40 border-border/60'
-              }`}
-            >
-              <Avatar avatarId={p.avatar} size={36} />
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs font-semibold text-text truncate">{p.name}</span>
-                  {p.isHost && <Crown className="w-3.5 h-3.5 text-day-amber shrink-0" />}
-                  {p.isGod && <Shield className="w-3.5 h-3.5 text-god shrink-0" />}
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <div className="text-4xl md:text-5xl font-mono font-bold tracking-wider text-text">
+                  {gameView.code}
                 </div>
-                <div className="text-[11px] text-muted">
-                  {p.isGod ? 'Moderator' : p.ready ? 'Ready' : 'Waiting'}
+                <div className="text-sm text-muted mt-1 truncate max-w-xs md:max-w-md">
+                  {shareUrl}
                 </div>
               </div>
 
-              {isHost && p.id !== me?.id && (
+              <div className="flex items-center gap-2 shrink-0">
+                <Button variant="secondary" size="md" onClick={handleCopyLink} className="font-medium">
+                  {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                  <span>{copied ? 'Link Copied!' : 'Copy Link'}</span>
+                </Button>
+                <Button variant="secondary" size="md" onClick={() => setShowQr(true)}>
+                  <QrCode className="w-4 h-4" />
+                  <span>QR</span>
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {/* Players Roster */}
+          <div className="flex-1 bg-surface border border-border p-6 space-y-4 flex flex-col justify-between">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-border">
+                <div className="flex items-center gap-2">
+                  <Users className="w-5 h-5 text-white" />
+                  <h3 className="text-base font-bold text-text">
+                    Connected Players ({players.length}/{settings.maxPlayers})
+                  </h3>
+                </div>
+
+                {isHost && (
+                  <label className="flex items-center gap-2 text-xs md:text-sm text-muted cursor-pointer hover:text-text select-none">
+                    <span>Narrator (God) Mode</span>
+                    <Switch checked={Boolean(me?.isGod)} onChange={(val) => onToggleGod(val)} />
+                  </label>
+                )}
+              </div>
+
+              {/* Player Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {players.map((p) => (
+                  <div
+                    key={p.id}
+                    className={`relative flex items-center gap-3 p-3 border transition-colors ${
+                      p.id === me?.id ? 'bg-surface-2 border-white/70' : 'bg-surface-2/60 border-border'
+                    }`}
+                  >
+                    <Avatar avatarId={p.avatar} size={44} className="rounded-none" />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-sm font-semibold text-text truncate">{p.name}</span>
+                        {p.isHost && <Crown className="w-4 h-4 text-white shrink-0" />}
+                        {p.isGod && <Shield className="w-4 h-4 text-zinc-400 shrink-0" />}
+                      </div>
+                      <div className="text-xs text-muted mt-0.5">
+                        {p.isGod ? 'Moderator' : p.ready ? 'Ready ✓' : 'Waiting'}
+                      </div>
+                    </div>
+
+                    {isHost && p.id !== me?.id && (
+                      <button
+                        type="button"
+                        onClick={() => setPendingKickPlayer(p)}
+                        title={`Kick ${p.name}`}
+                        className="opacity-50 hover:opacity-100 p-1.5 text-muted hover:text-white transition-opacity"
+                      >
+                        <UserMinus className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Waiting indicator */}
+            <div className="pt-4 border-t border-border text-xs text-muted text-center">
+              All players can join instantly via the room link or code.
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column: Roles Configuration & Match Settings (7 cols on Desktop) */}
+        <div className="lg:col-span-7 bg-surface border border-border p-6 space-y-6 flex flex-col justify-between">
+          <div className="space-y-6">
+            {/* Tabs & Presets */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border pb-3">
+              <div className="flex gap-2">
                 <button
                   type="button"
-                  onClick={() => onKick(p.id)}
-                  title="Kick player"
-                  className="opacity-40 hover:opacity-100 p-1 rounded text-mafia transition-opacity"
+                  onClick={() => setActiveTab('roles')}
+                  className={`px-4 py-2 text-sm font-medium border transition-colors ${
+                    activeTab === 'roles'
+                      ? 'bg-white text-black border-white font-bold'
+                      : 'bg-surface-2 text-muted border-border hover:border-zinc-500 hover:text-text'
+                  }`}
                 >
-                  <UserMinus className="w-3.5 h-3.5" />
+                  Roles Setup
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('settings')}
+                  className={`px-4 py-2 text-sm font-medium border transition-colors ${
+                    activeTab === 'settings'
+                      ? 'bg-white text-black border-white font-bold'
+                      : 'bg-surface-2 text-muted border-border hover:border-zinc-500 hover:text-text'
+                  }`}
+                >
+                  Rules & Timers
+                </button>
+              </div>
+
+              {activeTab === 'roles' && isHost && (
+                <Button variant="secondary" size="sm" onClick={handleSuggestBalanced}>
+                  <span>Suggest Balanced</span>
+                </Button>
               )}
             </div>
-          ))}
-        </div>
-      </div>
 
-      {/* Tabs: Roles Panel vs Settings */}
-      <div className="bg-surface border border-border rounded-2xl p-4 md:p-6 space-y-6">
-        <div className="flex items-center justify-between border-b border-border pb-3">
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => setActiveTab('roles')}
-              className={`px-4 py-1.5 rounded-xl text-xs font-semibold transition-colors ${
-                activeTab === 'roles' ? 'bg-surface-2 text-text border border-border' : 'text-muted hover:text-text'
-              }`}
-            >
-              Roles Configuration
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('settings')}
-              className={`px-4 py-1.5 rounded-xl text-xs font-semibold transition-colors ${
-                activeTab === 'settings' ? 'bg-surface-2 text-text border border-border' : 'text-muted hover:text-text'
-              }`}
-            >
-              Match Rules & Timers
-            </button>
-          </div>
+            {/* Roles Setup Tab */}
+            {activeTab === 'roles' && (
+              <div className="space-y-5">
+                {/* Composition Breakdown Bar (Clean monochrome segments) */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-xs md:text-sm">
+                    <span className="font-semibold text-text">Composition:</span>
+                    <span className="text-muted">
+                      {playingCount} Players: {mafiaTotal} Mafia · {docTotal} Doctor · {copTotal} Police · {civTotal} Civilians
+                    </span>
+                  </div>
+                  <div className="h-3 w-full bg-surface-2 border border-border overflow-hidden flex">
+                    <div style={{ width: `${(mafiaTotal / Math.max(1, playingCount)) * 100}%` }} className="bg-white h-full" />
+                    <div style={{ width: `${(docTotal / Math.max(1, playingCount)) * 100}%` }} className="bg-zinc-400 h-full" />
+                    <div style={{ width: `${(copTotal / Math.max(1, playingCount)) * 100}%` }} className="bg-zinc-500 h-full" />
+                    <div style={{ width: `${(vigTotal / Math.max(1, playingCount)) * 100}%` }} className="bg-zinc-600 h-full" />
+                    <div style={{ width: `${(jesterTotal / Math.max(1, playingCount)) * 100}%` }} className="bg-zinc-700 h-full" />
+                    <div style={{ width: `${(civTotal / Math.max(1, playingCount)) * 100}%` }} className="bg-zinc-800 h-full" />
+                  </div>
+                </div>
 
-          {activeTab === 'roles' && isHost && (
-            <Button variant="secondary" size="sm" onClick={handleSuggestBalanced}>
-              <Sparkles className="w-3.5 h-3.5 text-day-amber" />
-              <span>Suggest Balanced</span>
-            </Button>
-          )}
-        </div>
+                {/* Presets */}
+                {isHost && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs md:text-sm text-muted mr-1">Presets:</span>
+                    {Object.keys(ROLE_PRESETS).map((pname) => (
+                      <button
+                        key={pname}
+                        type="button"
+                        onClick={() => applyRolePreset(pname as any)}
+                        className="px-3 py-1.5 text-xs md:text-sm capitalize bg-surface-2 hover:bg-zinc-800 border border-border text-text transition-colors font-medium"
+                      >
+                        {pname}
+                      </button>
+                    ))}
+                  </div>
+                )}
 
-        {/* Roles Panel Tab */}
-        {activeTab === 'roles' && (
-          <div className="space-y-6">
-            {/* Live Summary Bar */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-semibold text-text">Composition Breakdown:</span>
-                <span className="text-muted font-mono">
-                  {playingCount} Players: {mafiaTotal} Mafia · {docTotal} Doctor · {copTotal} Police · {civTotal} Civilians
-                </span>
-              </div>
-              <div className="h-2.5 w-full bg-surface-2 rounded-full overflow-hidden flex">
-                <div style={{ width: `${(mafiaTotal / Math.max(1, playingCount)) * 100}%` }} className="bg-mafia h-full" />
-                <div style={{ width: `${(docTotal / Math.max(1, playingCount)) * 100}%` }} className="bg-doctor h-full" />
-                <div style={{ width: `${(copTotal / Math.max(1, playingCount)) * 100}%` }} className="bg-police h-full" />
-                <div style={{ width: `${(vigTotal / Math.max(1, playingCount)) * 100}%` }} className="bg-vigilante h-full" />
-                <div style={{ width: `${(jesterTotal / Math.max(1, playingCount)) * 100}%` }} className="bg-jester h-full" />
-                <div style={{ width: `${(civTotal / Math.max(1, playingCount)) * 100}%` }} className="bg-civilian h-full" />
-              </div>
-            </div>
+                {/* Role Cards Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  {/* Mafia */}
+                  <div className="p-4 bg-surface-2 border border-border flex items-center justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold text-white">Mafia</span>
+                        <Badge color="mafia">Syndicate</Badge>
+                      </div>
+                      <div className="text-xs text-muted mt-1">Strikes secretly each night</div>
+                    </div>
+                    {isHost && (
+                      <Stepper
+                        value={settings.roles.mafia.count}
+                        min={1}
+                        max={6}
+                        onChange={(val) =>
+                          onUpdateSettings({ roles: { ...settings.roles, mafia: { count: val } } })
+                        }
+                      />
+                    )}
+                  </div>
 
-            {/* Role Presets */}
-            {isHost && (
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs text-muted mr-1">Presets:</span>
-                {Object.keys(ROLE_PRESETS).map((pname) => (
-                  <button
-                    key={pname}
-                    type="button"
-                    onClick={() => applyRolePreset(pname as any)}
-                    className="px-2.5 py-1 rounded-lg text-xs bg-surface-2 hover:bg-border border border-border text-text transition-colors"
-                  >
-                    {pname}
-                  </button>
-                ))}
+                  {/* Doctor */}
+                  <div className="p-4 bg-surface-2 border border-border flex items-center justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold text-white">Doctor</span>
+                        <Badge color="doctor">Town</Badge>
+                      </div>
+                      <div className="text-xs text-muted mt-1">Protects 1 target from harm</div>
+                    </div>
+                    {isHost && (
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          checked={settings.roles.doctor.enabled}
+                          onChange={(val) =>
+                            onUpdateSettings({
+                              roles: {
+                                ...settings.roles,
+                                doctor: { enabled: val, count: val ? Math.max(1, settings.roles.doctor.count) : 0 },
+                              },
+                            })
+                          }
+                        />
+                        {settings.roles.doctor.enabled && (
+                          <Stepper
+                            value={settings.roles.doctor.count}
+                            min={1}
+                            max={3}
+                            onChange={(val) =>
+                              onUpdateSettings({ roles: { ...settings.roles, doctor: { enabled: true, count: val } } })
+                            }
+                          />
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Police */}
+                  <div className="p-4 bg-surface-2 border border-border flex items-center justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold text-white">Police</span>
+                        <Badge color="police">Investigative</Badge>
+                      </div>
+                      <div className="text-xs text-muted mt-1">Uncovers allegiance each night</div>
+                    </div>
+                    {isHost && (
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          checked={settings.roles.police.enabled}
+                          onChange={(val) =>
+                            onUpdateSettings({
+                              roles: {
+                                ...settings.roles,
+                                police: { enabled: val, count: val ? Math.max(1, settings.roles.police.count) : 0 },
+                              },
+                            })
+                          }
+                        />
+                        {settings.roles.police.enabled && (
+                          <Stepper
+                            value={settings.roles.police.count}
+                            min={1}
+                            max={3}
+                            onChange={(val) =>
+                              onUpdateSettings({ roles: { ...settings.roles, police: { enabled: true, count: val } } })
+                            }
+                          />
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Vigilante */}
+                  <div className="p-4 bg-surface-2 border border-border flex items-center justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold text-white">Vigilante</span>
+                        <Badge color="vigilante">Rogue</Badge>
+                      </div>
+                      <div className="text-xs text-muted mt-1">One-shot marksman</div>
+                    </div>
+                    {isHost && (
+                      <Switch
+                        checked={settings.roles.vigilante.enabled}
+                        onChange={(val) =>
+                          onUpdateSettings({
+                            roles: { ...settings.roles, vigilante: { enabled: val, count: val ? 1 : 0 } },
+                          })
+                        }
+                      />
+                    )}
+                  </div>
+
+                  {/* Jester */}
+                  <div className="p-4 bg-surface-2 border border-border flex items-center justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold text-white">Jester</span>
+                        <Badge color="jester">Chaos</Badge>
+                      </div>
+                      <div className="text-xs text-muted mt-1">Wins if eliminated in day vote</div>
+                    </div>
+                    {isHost && (
+                      <Switch
+                        checked={settings.roles.jester.enabled}
+                        onChange={(val) =>
+                          onUpdateSettings({
+                            roles: { ...settings.roles, jester: { enabled: val, count: val ? 1 : 0 } },
+                          })
+                        }
+                      />
+                    )}
+                  </div>
+
+                  {/* Civilian */}
+                  <div className="p-4 bg-surface-2 border border-border flex items-center justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold text-white">Civilian</span>
+                        <Badge color="civilian">Town</Badge>
+                      </div>
+                      <div className="text-xs text-muted mt-1">Remaining town members</div>
+                    </div>
+                    <span className="text-sm text-muted font-medium">Auto: {civTotal}</span>
+                  </div>
+                </div>
               </div>
             )}
 
-            {/* Role Cards Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {/* Mafia */}
-              <div className="p-3.5 bg-surface-2/60 border border-border rounded-xl flex items-center justify-between">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-mafia">Mafia</span>
-                    <Badge color="mafia">SYNDICATE</Badge>
-                  </div>
-                  <div className="text-xs text-muted mt-0.5">Strikes in the dark each night</div>
-                </div>
-                {isHost && (
-                  <Stepper
-                    value={settings.roles.mafia.count}
-                    min={1}
-                    max={6}
-                    onChange={(val) =>
-                      onUpdateSettings({ roles: { ...settings.roles, mafia: { count: val } } })
-                    }
-                  />
-                )}
-              </div>
+            {/* Settings Tab */}
+            {activeTab === 'settings' && (
+              <div className="space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  {SETTINGS_SCHEMA.filter((s) => !s.showIf || s.showIf(settings)).map((s) => (
+                    <div key={s.key} className="p-3.5 bg-surface-2 border border-border flex items-center justify-between">
+                      <div className="pr-2">
+                        <div className="text-xs md:text-sm font-semibold text-text">{s.label}</div>
+                        <div className="text-xs text-muted">{s.tooltip}</div>
+                      </div>
 
-              {/* Doctor */}
-              <div className="p-3.5 bg-surface-2/60 border border-border rounded-xl flex items-center justify-between">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-text">Doctor</span>
-                    <Badge color="doctor">TOWN</Badge>
-                  </div>
-                  <div className="text-xs text-muted mt-0.5">Protects 1 person from harm</div>
+                      {isHost ? (
+                        s.type === 'toggle' ? (
+                          <Switch
+                            checked={Boolean((settings as any)[s.key])}
+                            onChange={(val) => onUpdateSettings({ [s.key]: val })}
+                          />
+                        ) : s.type === 'number' ? (
+                          <Stepper
+                            value={Number((settings as any)[s.key])}
+                            min={s.min}
+                            max={s.max}
+                            step={s.step}
+                            onChange={(val) => onUpdateSettings({ [s.key]: val })}
+                          />
+                        ) : (
+                          <select
+                            value={String((settings as any)[s.key])}
+                            onChange={(e) => onUpdateSettings({ [s.key]: e.target.value })}
+                            className="bg-surface border border-border text-xs md:text-sm rounded-none px-2.5 py-1.5 text-text"
+                          >
+                            {s.options?.map((opt) => (
+                              <option key={opt.value} value={opt.value}>
+                                {opt.label}
+                              </option>
+                            ))}
+                          </select>
+                        )
+                      ) : (
+                        <span className="text-xs text-muted">{s.plain((settings as any)[s.key])}</span>
+                      )}
+                    </div>
+                  ))}
                 </div>
-                {isHost && (
-                  <div className="flex items-center gap-2">
-                    <Switch
-                      checked={settings.roles.doctor.enabled}
-                      onChange={(val) =>
-                        onUpdateSettings({
-                          roles: {
-                            ...settings.roles,
-                            doctor: { enabled: val, count: val ? Math.max(1, settings.roles.doctor.count) : 0 },
-                          },
-                        })
-                      }
-                    />
-                    {settings.roles.doctor.enabled && (
-                      <Stepper
-                        value={settings.roles.doctor.count}
-                        min={1}
-                        max={3}
-                        onChange={(val) =>
-                          onUpdateSettings({ roles: { ...settings.roles, doctor: { enabled: true, count: val } } })
-                        }
-                      />
-                    )}
-                  </div>
-                )}
               </div>
+            )}
+          </div>
 
-              {/* Police */}
-              <div className="p-3.5 bg-surface-2/60 border border-border rounded-xl flex items-center justify-between">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-police">Police</span>
-                    <Badge color="police">INVESTIGATIVE</Badge>
-                  </div>
-                  <div className="text-xs text-muted mt-0.5">Investigates allegiance each night</div>
-                </div>
-                {isHost && (
-                  <div className="flex items-center gap-2">
-                    <Switch
-                      checked={settings.roles.police.enabled}
-                      onChange={(val) =>
-                        onUpdateSettings({
-                          roles: {
-                            ...settings.roles,
-                            police: { enabled: val, count: val ? Math.max(1, settings.roles.police.count) : 0 },
-                          },
-                        })
-                      }
-                    />
-                    {settings.roles.police.enabled && (
-                      <Stepper
-                        value={settings.roles.police.count}
-                        min={1}
-                        max={3}
-                        onChange={(val) =>
-                          onUpdateSettings({ roles: { ...settings.roles, police: { enabled: true, count: val } } })
-                        }
-                      />
-                    )}
-                  </div>
-                )}
-              </div>
+          {/* Start / Ready Action Bar at Bottom of Right Panel */}
+          <div className="pt-4 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="text-xs md:text-sm text-center sm:text-left">
+              {!validation.valid ? (
+                <span className="text-white font-semibold flex items-center gap-1.5">
+                  <AlertTriangle className="w-4 h-4 text-amber-400" /> {validation.reason}
+                </span>
+              ) : (
+                <span className="text-emerald-400 font-medium">✓ Ready to begin match</span>
+              )}
+            </div>
 
-              {/* Vigilante */}
-              <div className="p-3.5 bg-surface-2/60 border border-border rounded-xl flex items-center justify-between">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-vigilante">Vigilante</span>
-                    <Badge color="vigilante">ROGUE</Badge>
-                  </div>
-                  <div className="text-xs text-muted mt-0.5">One-shot marksman</div>
-                </div>
-                {isHost && (
-                  <Switch
-                    checked={settings.roles.vigilante.enabled}
-                    onChange={(val) =>
-                      onUpdateSettings({
-                        roles: { ...settings.roles, vigilante: { enabled: val, count: val ? 1 : 0 } },
-                      })
-                    }
-                  />
-                )}
-              </div>
+            <div className="flex items-center gap-3 w-full sm:w-auto">
+              {!isHost && (
+                <Button
+                  variant={me?.isReady ? 'secondary' : 'primary'}
+                  onClick={onToggleReady}
+                  className="w-full sm:w-auto text-sm font-semibold"
+                  kbd="Shift+Enter"
+                >
+                  {me?.isReady ? 'Cancel Ready' : 'Mark Ready'}
+                </Button>
+              )}
 
-              {/* Jester */}
-              <div className="p-3.5 bg-surface-2/60 border border-border rounded-xl flex items-center justify-between">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-jester">Jester</span>
-                    <Badge color="jester">CHAOS</Badge>
-                  </div>
-                  <div className="text-xs text-muted mt-0.5">Wins if eliminated in day vote</div>
-                </div>
-                {isHost && (
-                  <Switch
-                    checked={settings.roles.jester.enabled}
-                    onChange={(val) =>
-                      onUpdateSettings({
-                        roles: { ...settings.roles, jester: { enabled: val, count: val ? 1 : 0 } },
-                      })
-                    }
-                  />
-                )}
-              </div>
-
-              {/* Civilian (Automatic) */}
-              <div className="p-3.5 bg-surface-2/40 border border-border/60 rounded-xl flex items-center justify-between">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-civilian">Civilians</span>
-                    <Badge color="civilian">TOWN</Badge>
-                  </div>
-                  <div className="text-xs text-muted mt-0.5">All remainder players</div>
-                </div>
-                <span className="text-xs font-mono font-semibold text-muted">Auto: {civTotal}</span>
-              </div>
+              {isHost && (
+                <Button
+                  variant="primary"
+                  disabled={!validation.valid}
+                  onClick={() => setStartConfirmOpen(true)}
+                  className="w-full sm:w-auto font-bold text-sm"
+                  kbd="Ctrl+Enter"
+                >
+                  <Play className="w-4 h-4 mr-1.5 fill-current" />
+                  <span>Start Match</span>
+                </Button>
+              )}
             </div>
           </div>
-        )}
+        </div>
+      </div>
 
-        {/* Settings Tab */}
-        {activeTab === 'settings' && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {SETTINGS_SCHEMA.filter((s) => !s.showIf || s.showIf(settings)).map((s) => (
-                <div key={s.key} className="p-3 bg-surface-2/60 border border-border rounded-xl flex items-center justify-between">
-                  <div className="pr-2">
-                    <div className="text-xs font-semibold text-text">{s.label}</div>
-                    <div className="text-[11px] text-muted">{s.tooltip}</div>
-                  </div>
-
-                  {isHost ? (
-                    s.type === 'toggle' ? (
-                      <Switch
-                        checked={Boolean((settings as any)[s.key])}
-                        onChange={(val) => onUpdateSettings({ [s.key]: val })}
-                      />
-                    ) : s.type === 'number' ? (
-                      <Stepper
-                        value={Number((settings as any)[s.key])}
-                        min={s.min}
-                        max={s.max}
-                        step={s.step}
-                        onChange={(val) => onUpdateSettings({ [s.key]: val })}
-                      />
-                    ) : (
-                      <select
-                        value={String((settings as any)[s.key])}
-                        onChange={(e) => onUpdateSettings({ [s.key]: e.target.value })}
-                        className="bg-surface border border-border text-xs rounded-lg px-2 py-1 text-text"
-                      >
-                        {s.options?.map((opt) => (
-                          <option key={opt.value} value={opt.value}>
-                            {opt.label}
-                          </option>
-                        ))}
-                      </select>
-                    )
-                  ) : (
-                    <span className="text-xs font-mono text-muted">{s.plain((settings as any)[s.key])}</span>
-                  )}
-                </div>
-              ))}
-            </div>
+      {/* Start Match Confirmation Modal */}
+      <Modal
+        isOpen={startConfirmOpen}
+        onClose={() => setStartConfirmOpen(false)}
+        title="Start Match Confirmation"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-text leading-relaxed">
+            Are you sure you want to begin the match now with <strong className="text-white">{players.length} players</strong>?
+          </p>
+          <div className="p-3 bg-surface-2 border border-border text-xs text-muted">
+            All players will immediately be assigned their secret roles and Night 1 will commence.
           </div>
-        )}
-      </div>
-
-      {/* Start / Ready Action Bar */}
-      <div className="p-4 bg-surface border border-border rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xl">
-        <div className="text-xs text-center sm:text-left">
-          {!validation.valid ? (
-            <span className="text-mafia font-medium">⚠️ {validation.reason}</span>
-          ) : (
-            <span className="text-emerald-400 font-medium">✓ Ready to initiate game</span>
-          )}
-        </div>
-
-        <div className="flex items-center gap-3 w-full sm:w-auto">
-          {!isHost && (
-            <Button
-              variant={me?.isReady ? 'secondary' : 'accent'}
-              onClick={onToggleReady}
-              className="w-full sm:w-auto"
-              kbd="Shift+Enter"
-            >
-              {me?.isReady ? 'Cancel Ready' : 'Mark Ready'}
+          <div className="flex items-center justify-end gap-3 pt-2">
+            <Button variant="secondary" onClick={() => setStartConfirmOpen(false)} kbd="Esc">
+              Cancel
             </Button>
-          )}
-
-          {isHost && (
-            <Button
-              variant="accent"
-              disabled={!validation.valid}
-              onClick={onStart}
-              className="w-full sm:w-auto"
-              kbd="Ctrl+Enter"
-            >
-              <Play className="w-4 h-4 mr-1 fill-current" />
-              <span>Start Match</span>
+            <Button variant="primary" onClick={handleConfirmStart} kbd="Enter">
+              Start Match
             </Button>
-          )}
+          </div>
         </div>
-      </div>
+      </Modal>
+
+      {/* Kick Player Confirmation Modal */}
+      <Modal
+        isOpen={Boolean(pendingKickPlayer)}
+        onClose={() => setPendingKickPlayer(null)}
+        title="Kick Player Confirmation"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-text leading-relaxed">
+            Are you sure you want to remove <strong className="text-white">{pendingKickPlayer?.name}</strong> from the game lobby?
+          </p>
+          <div className="flex items-center justify-end gap-3 pt-2">
+            <Button variant="secondary" onClick={() => setPendingKickPlayer(null)} kbd="Esc">
+              Cancel
+            </Button>
+            <Button variant="primary" onClick={handleConfirmKick} kbd="Enter">
+              Kick Player
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       {/* QR Code Modal */}
       <Modal isOpen={showQr} onClose={() => setShowQr(false)} title="Join via QR Code">
         <div className="flex flex-col items-center justify-center p-4 space-y-4">
-          <div className="p-4 bg-white rounded-2xl">
-            {typeof window !== 'undefined' && (
-              <QRCodeSVG value={`${window.location.origin}/room/${gameView.code}`} size={200} />
-            )}
+          <div className="p-4 bg-white rounded-none border border-border">
+            <QRCodeSVG value={shareUrl} size={220} />
           </div>
-          <div className="text-center">
-            <div className="font-mono text-xl font-bold tracking-widest text-text">{gameView.code}</div>
-            <div className="text-xs text-muted mt-1">Scan with any phone camera to join immediately</div>
+          <div className="text-center space-y-1">
+            <div className="font-mono text-2xl font-bold tracking-widest text-text">{gameView.code}</div>
+            <div className="text-xs text-muted">Scan to join on any phone or browser</div>
           </div>
         </div>
       </Modal>

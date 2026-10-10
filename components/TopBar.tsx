@@ -1,11 +1,13 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Volume2, VolumeX, HelpCircle, Shield, Copy, Check } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Volume2, VolumeX, HelpCircle, Copy, Check, ArrowLeft, LogOut } from 'lucide-react';
 import { ClientGameView } from '@/lib/types';
 import { ROLES } from '@/lib/content';
-import { CountdownRing, Kbd } from './ui';
+import { CountdownRing, Kbd, Modal, Button } from './ui';
 import { toggleMute, getIsMuted } from '@/lib/sfx';
+import { getRoomShareUrl } from '@/lib/net';
 
 interface TopBarProps {
   gameView: ClientGameView;
@@ -15,20 +17,28 @@ interface TopBarProps {
 }
 
 export function TopBar({ gameView, onOpenHelp, rtt = 18, isReconnecting = false }: TopBarProps) {
+  const router = useRouter();
   const [copied, setCopied] = useState(false);
   const [muted, setMuted] = useState(getIsMuted());
+  const [leaveModalOpen, setLeaveModalOpen] = useState(false);
 
-  const handleCopyCode = () => {
+  const handleCopyLink = () => {
+    const url = getRoomShareUrl(gameView.code);
     if (typeof navigator !== 'undefined') {
-      navigator.clipboard.writeText(gameView.code);
+      navigator.clipboard.writeText(url);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      setTimeout(() => setCopied(false), 2500);
     }
   };
 
   const handleToggleSound = () => {
     const unmuted = toggleMute();
     setMuted(!unmuted);
+  };
+
+  const handleConfirmLeave = () => {
+    setLeaveModalOpen(false);
+    router.push('/');
   };
 
   const role = gameView.me?.role;
@@ -40,93 +50,153 @@ export function TopBar({ gameView, onOpenHelp, rtt = 18, isReconnecting = false 
       ? Math.max(0, (gameView.phaseEndsAt - gameView.serverNow) / 1000)
       : 0;
 
+  const getPhaseDisplay = (phase: string) => {
+    switch (phase) {
+      case 'lobby': return 'Lobby';
+      case 'roleReveal': return 'Role Reveal';
+      case 'night': return 'Night';
+      case 'morning': return 'Dawn Report';
+      case 'discussion': return 'Discussion';
+      case 'voting': return 'Town Vote';
+      case 'voteResult': return 'Verdict';
+      case 'gameOver': return 'Game Over';
+      default: return phase;
+    }
+  };
+
   return (
-    <header className="sticky top-0 z-30 w-full bg-surface/90 backdrop-blur-md border-b border-border px-3 py-2 md:px-6">
-      <div className="max-w-6xl mx-auto flex items-center justify-between gap-2">
-        {/* Left: Room Code & Connection */}
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={handleCopyCode}
-            title="Click to copy Room Code"
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-surface-2 hover:bg-border border border-border text-xs font-mono font-bold text-text transition-colors"
-          >
-            <span>{gameView.code}</span>
-            {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-muted" />}
-          </button>
+    <>
+      <header className="sticky top-0 z-30 w-full bg-surface/90 backdrop-blur-md border-b border-border px-4 md:px-8 lg:px-12 py-3">
+        <div className="w-full max-w-[1650px] 2xl:max-w-[1850px] mx-auto flex items-center justify-between gap-4">
+          {/* Left: Back Button & Room Code / Share Link */}
+          <div className="flex items-center gap-3">
+            {/* Back Button */}
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setLeaveModalOpen(true)}
+              title="Leave Room & Return Home"
+              className="flex items-center gap-1.5 font-medium px-3.5"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Back</span>
+            </Button>
 
-          {/* Connection Chip */}
-          <div className="hidden sm:flex items-center gap-1.5 px-2 py-1 rounded-lg bg-surface-2/60 border border-border text-[11px] font-mono text-muted">
-            <span
-              className={`w-2 h-2 rounded-full ${
-                isReconnecting ? 'bg-amber-400 animate-ping' : 'bg-emerald-400'
-              }`}
-            />
-            <span>{isReconnecting ? 'Reconnecting' : `${rtt}ms`}</span>
+            {/* Room Code & Copy Link */}
+            <button
+              type="button"
+              onClick={handleCopyLink}
+              title="Click to copy full invite link"
+              className="flex items-center gap-2 px-3.5 py-1.5 rounded-none bg-surface-2 hover:bg-zinc-800 border border-border text-xs md:text-sm font-medium text-text transition-colors"
+            >
+              <span className="text-muted">Room:</span>
+              <span className="font-mono font-bold tracking-wide">{gameView.code}</span>
+              {copied ? (
+                <span className="flex items-center gap-1 text-emerald-400 font-semibold text-xs ml-1">
+                  <Check className="w-3.5 h-3.5" /> Copied!
+                </span>
+              ) : (
+                <Copy className="w-3.5 h-3.5 text-muted ml-0.5" />
+              )}
+            </button>
+
+            {/* Connection Status Chip */}
+            <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-none bg-surface-2/60 border border-border text-xs text-muted">
+              <span
+                className={`w-2 h-2 rounded-none ${
+                  isReconnecting ? 'bg-zinc-400 animate-ping' : 'bg-emerald-400'
+                }`}
+              />
+              <span className="font-mono">{isReconnecting ? 'Reconnecting' : `${rtt}ms`}</span>
+            </div>
           </div>
-        </div>
 
-        {/* Center: Phase & Round / Countdown Ring */}
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs font-bold font-heading text-text uppercase tracking-wider">
-              {gameView.phase === 'roleReveal' ? 'REVEAL' : gameView.phase.toUpperCase()}
-            </span>
-            {gameView.round > 0 && (
-              <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-surface-2 text-day-amber border border-border">
-                R{gameView.round}
+          {/* Center: Phase & Round / Countdown Box */}
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2.5 px-4 py-1.5 bg-surface-2 border border-border">
+              <span className="text-xs md:text-sm font-semibold text-text">
+                {getPhaseDisplay(gameView.phase)}
               </span>
+              {gameView.round > 0 && (
+                <span className="px-1.5 py-0.5 rounded-none text-xs font-mono font-bold bg-white text-black">
+                  Round {gameView.round}
+                </span>
+              )}
+            </div>
+
+            {remainingSeconds > 0 && (
+              <CountdownRing remainingSeconds={remainingSeconds} totalSeconds={45} size={36} />
             )}
           </div>
 
-          {remainingSeconds > 0 && (
-            <CountdownRing remainingSeconds={remainingSeconds} totalSeconds={45} size={32} strokeWidth={2.5} />
-          )}
-        </div>
+          {/* Right: Role Chip, Help Button, Sound Mute */}
+          <div className="flex items-center gap-2.5">
+            {/* Role Chip: Tapping opens "My Role" */}
+            {roleDef && (
+              <button
+                type="button"
+                onClick={() => onOpenHelp('my-role')}
+                title="Click to view your role instructions"
+                className="flex items-center gap-2 px-3.5 py-1.5 rounded-none border border-border bg-surface-2 hover:border-zinc-500 text-xs md:text-sm font-medium text-text transition-colors"
+              >
+                <span className="text-muted">Role:</span>
+                <span className="font-bold text-white">{roleDef.name}</span>
+                <Kbd className="bg-transparent border-border text-muted">I</Kbd>
+              </button>
+            )}
 
-        {/* Right: Role Chip, Help Button, Sound Mute */}
-        <div className="flex items-center gap-2">
-          {/* Role Chip: Tapping opens "My Role" */}
-          {roleDef && (
+            {/* Guide Button */}
             <button
               type="button"
-              onClick={() => onOpenHelp('my-role')}
-              style={{
-                borderColor: `${roleDef.colour}50`,
-                backgroundColor: `${roleDef.colour}15`,
-                color: roleDef.colour,
-              }}
-              title="Click to view your role instructions"
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-semibold hover:opacity-90 transition-opacity"
+              onClick={() => onOpenHelp('basics')}
+              title="How to Play & Game Guide"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-none bg-surface-2 hover:bg-zinc-800 border border-border text-xs md:text-sm text-text transition-colors font-medium"
             >
-              <span>{roleDef.name}</span>
-              <Kbd className="bg-transparent border-current text-current opacity-70">I</Kbd>
+              <HelpCircle className="w-4 h-4" />
+              <span className="hidden md:inline">Guide</span>
+              <Kbd>H</Kbd>
             </button>
-          )}
 
-          {/* Guide Button */}
-          <button
-            type="button"
-            onClick={() => onOpenHelp('basics')}
-            title="How to Play & Game Guide"
-            className="flex items-center gap-1 p-1.5 md:px-2.5 md:py-1 rounded-lg bg-surface-2 hover:bg-border border border-border text-xs text-text transition-colors"
-          >
-            <HelpCircle className="w-4 h-4 text-day-amber" />
-            <span className="hidden md:inline">Guide</span>
-            <Kbd>H</Kbd>
-          </button>
-
-          {/* Sound Toggle Button */}
-          <button
-            type="button"
-            onClick={handleToggleSound}
-            title={muted ? 'Unmute Sound (M)' : 'Mute Sound (M)'}
-            className="p-1.5 rounded-lg bg-surface-2 hover:bg-border border border-border text-muted hover:text-text transition-colors"
-          >
-            {muted ? <VolumeX className="w-4 h-4 text-muted" /> : <Volume2 className="w-4 h-4 text-day-amber" />}
-          </button>
+            {/* Sound Toggle Button */}
+            <button
+              type="button"
+              onClick={handleToggleSound}
+              title={muted ? 'Unmute Sound (M)' : 'Mute Sound (M)'}
+              className="p-2 rounded-none bg-surface-2 hover:bg-zinc-800 border border-border text-muted hover:text-text transition-colors"
+            >
+              {muted ? <VolumeX className="w-4 h-4 text-muted" /> : <Volume2 className="w-4 h-4 text-white" />}
+            </button>
+          </div>
         </div>
-      </div>
-    </header>
+      </header>
+
+      {/* Leave Room Custom Confirmation Modal */}
+      <Modal
+        isOpen={leaveModalOpen}
+        onClose={() => setLeaveModalOpen(false)}
+        title="Leave Room"
+      >
+        <div className="space-y-5">
+          <div className="p-4 bg-surface-2 border border-border flex items-start gap-3">
+            <LogOut className="w-5 h-5 text-white shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <div className="text-sm font-semibold text-text">Return to Main Menu?</div>
+              <p className="text-xs text-muted leading-relaxed">
+                Are you sure you want to exit room <strong className="text-white font-mono">{gameView.code}</strong>? You will be disconnected from the game session.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-3 pt-2">
+            <Button variant="secondary" onClick={() => setLeaveModalOpen(false)} kbd="Esc">
+              Cancel
+            </Button>
+            <Button variant="primary" onClick={handleConfirmLeave} kbd="Enter">
+              Leave Room
+            </Button>
+          </div>
+        </div>
+      </Modal>
+    </>
   );
 }

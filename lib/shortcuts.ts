@@ -49,8 +49,8 @@ export const SHORTCUTS: ShortcutItem[] = [
   { id: 'god-skip', keys: ['Shift+S'], label: 'Shift+S', group: 'God Mode', scope: 'screen', description: 'Skip phase' },
 ];
 
-// Active scope stack manager
-const activeScopes: ShortcutScope[] = ['global'];
+// Active scope stack manager - start with 'screen' as the active working scope
+const activeScopes: ShortcutScope[] = ['screen'];
 
 export function pushScope(scope: ShortcutScope) {
   activeScopes.push(scope);
@@ -64,7 +64,7 @@ export function popScope(scope: ShortcutScope) {
 }
 
 export function getCurrentScope(): ShortcutScope {
-  return activeScopes[activeScopes.length - 1] || 'global';
+  return activeScopes[activeScopes.length - 1] || 'screen';
 }
 
 export interface UseShortcutOptions {
@@ -104,10 +104,25 @@ export function useShortcut(
         }
       }
 
-      // Check current scope priority
+      // Check current scope priority:
+      // - 'global': Always allowed, unless a modal dialog captures Esc specifically
+      // - 'dialog': Only allowed when a dialog modal is currently open (activeScope === 'dialog')
+      // - 'sheet': Only allowed when the help drawer is open (activeScope === 'sheet')
+      // - 'screen': Allowed during normal page view when no modal or sheet is capturing input
       const current = getCurrentScope();
-      if (scope !== 'global' && current !== scope) {
-        return;
+
+      if (scope === 'dialog') {
+        if (current !== 'dialog') return;
+      } else if (scope === 'sheet') {
+        if (current !== 'sheet') return;
+      } else if (scope === 'screen') {
+        // If a dialog modal or sheet is open, screen shortcuts should not fire
+        if (current === 'dialog' || current === 'sheet') return;
+      } else if (scope === 'global') {
+        // If a dialog is open, allow global Escape only
+        if ((current === 'dialog' || current === 'sheet') && e.key !== 'Escape') {
+          return;
+        }
       }
 
       const keyList = Array.isArray(keys) ? keys : [keys];
@@ -119,11 +134,22 @@ export function useShortcut(
 
           const modPressed =
             (modifier === 'shift' && e.shiftKey) ||
-            (modifier === 'ctrl' && e.ctrlKey) ||
-            (modifier === 'meta' && e.metaKey);
+            (modifier === 'ctrl' && (e.ctrlKey || e.metaKey)) ||
+            (modifier === 'meta' && (e.metaKey || e.ctrlKey));
 
-          return modPressed && e.key.toLowerCase() === mainKey;
+          return (
+            modPressed &&
+            (e.key.toLowerCase() === mainKey ||
+              e.code.toLowerCase() === mainKey ||
+              (mainKey === 'enter' && e.key === 'Enter'))
+          );
         }
+
+        // Single key matching
+        if (k === '?' && (e.key === '?' || (e.key === '/' && e.shiftKey))) return true;
+        if (k === 'Escape' && e.key === 'Escape') return true;
+        if (k === 'Enter' && e.key === 'Enter') return true;
+
         return e.key.toLowerCase() === k.toLowerCase();
       });
 

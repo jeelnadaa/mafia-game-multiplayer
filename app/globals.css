@@ -1,23 +1,43 @@
+@import url('https://api.fontshare.com/v2/css?f[]=satoshi@900,700,600,500,400&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --bg: #08090D;
-  --surface: #11131A;
-  --surface-2: #181B25;
-  --border: #232736;
-  --text: #ECEEF4;
-  --muted: #8A90A2;
-  --mafia: #E5383B;
-  --mafia-deep: #7A1418;
-  --doctor: #F4F6FA;
-  --police: #5B8CFF;
-  --police-surface: #0E1A2B;
-  --vigilante: #7C8CA6;
-  --jester: #B58AD6;
-  --civilian: #C9B79C;
-  --god: #D6B15E;
+  --bg: #09090b;
+  --surface: #111113;
+  --surface-2: #18181b;
+  --surface-3: #27272a;
+  --border: #27272a;
+  --border-light: #3f3f46;
+  --text: #fafafa;
+  --muted: #a1a1aa;
+  --mafia: #ffffff;
+  --mafia-deep: #27272a;
+  --doctor: #e4e4e7;
+  --police: #d4d4d8;
+  --police-surface: #18181b;
+  --vigilante: #a1a1aa;
+  --jester: #e4e4e7;
+  --civilian: #71717a;
+  --god: #ffffff;
+}
+
+html {
+  font-size: 16px;
+}
+
+@media (min-width: 1280px) {
+  html {
+    font-size: 17px;
+  }
+}
+
+@media (min-width: 1536px) {
+  html {
+    font-size: 18px;
+  }
 }
 
 body {
@@ -25,43 +45,78 @@ body {
   background: var(--bg);
   min-height: 100vh;
   min-height: 100dvh;
-  font-family: var(--font-body, system-ui, -apple-system, sans-serif);
+  font-family: 'Satoshi', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Noir Film Grain overlay */
+/* Crisp Technical Background Grid */
 .bg-noise {
-  background-image: radial-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 0);
-  background-size: 24px 24px;
-}
-
-/* Card Back Pattern in Pure CSS */
-.card-back-pattern {
-  background-color: #11131A;
   background-image: 
-    linear-gradient(45deg, #181B25 25%, transparent 25%, transparent 75%, #181B25 75%, #181B25),
-    linear-gradient(45deg, #181B25 25%, transparent 25%, transparent 75%, #181B25 75%, #181B25);
-  background-size: 20px 20px;
-  background-position: 0 0, 10px 10px;
-  border: 1px solid #232736;
+    linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+  background-size: 32px 32px;
 }
 
-/* Custom Scrollbar */
+/* Sharp Technical Pattern in Monochromatic CSS */
+.card-back-pattern {
+  background-color: #111113;
+  background-image: 
+    linear-gradient(45deg, #18181b 25%, transparent 25%, transparent 75%, #18181b 75%, #18181b),
+    linear-gradient(45deg, #18181b 25%, transparent 25%, transparent 75%, #18181b 75%, #18181b);
+  background-size: 16px 16px;
+  background-position: 0 0, 8px 8px;
+  border: 1px solid #27272a;
+}
+
+/* Square Minimalist Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #08090D;
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #232736;
-  border-radius: 9999px;
+  background: #27272a;
+  border-radius: 0;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #32384D;
+  background: #3f3f46;
+}
+
+/* Cross Line Background Marquee Animations */
+@keyframes marquee {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes marquee-reverse {
+  0% {
+    transform: translateX(-50%);
+  }
+  100% {
+    transform: translateX(0%);
+  }
+}
+
+.animate-cross-marquee {
+  display: flex;
+  width: max-content;
+  animation: marquee 45s linear infinite;
+  will-change: transform;
+}
+
+.animate-cross-marquee-reverse {
+  display: flex;
+  width: max-content;
+  animation: marquee-reverse 45s linear infinite;
+  will-change: transform;
 }
 
 /* Respect reduced motion */
@@ -71,5 +126,9 @@ body {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+  .animate-cross-marquee,
+  .animate-cross-marquee-reverse {
+    animation: none !important;
   }
 }

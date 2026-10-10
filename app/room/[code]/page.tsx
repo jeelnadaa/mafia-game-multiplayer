@@ -79,19 +79,21 @@ export default function RoomPage() {
   if (error) {
     return (
       <main className="min-h-screen flex items-center justify-center p-4 bg-bg text-center">
-        <div className="max-w-md w-full bg-surface border border-border rounded-2xl p-6 space-y-4 shadow-2xl">
-          <div className="inline-flex items-center justify-center p-3 rounded-full bg-mafia/20 text-mafia">
-            <AlertCircle className="w-8 h-8" />
+        <div className="max-w-md w-full bg-surface border border-border rounded-none p-6 space-y-4">
+          <div className="inline-flex items-center justify-center p-3 border border-border bg-surface-2 text-white">
+            <AlertCircle className="w-6 h-6" />
           </div>
-          <h2 className="text-xl font-heading font-bold text-text">Connection Interrupted</h2>
-          <p className="text-xs text-muted leading-relaxed">{error}</p>
+          <h2 className="text-sm font-mono font-bold uppercase tracking-widest text-text">
+            CONNECTION INTERRUPTED
+          </h2>
+          <p className="text-xs font-mono text-muted leading-relaxed">{error}</p>
           <div className="flex justify-center gap-3 pt-2">
             <Button variant="secondary" onClick={() => window.location.reload()}>
-              <RotateCcw className="w-4 h-4 mr-1.5" />
-              <span>Retry</span>
+              <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
+              <span>RETRY</span>
             </Button>
             <Button variant="primary" onClick={() => router.push('/')}>
-              Home
+              <span>RETURN HOME</span>
             </Button>
           </div>
         </div>
@@ -103,13 +105,15 @@ export default function RoomPage() {
   if (isConnecting || !gameView) {
     return (
       <main className="min-h-screen flex items-center justify-center p-4 bg-bg text-center">
-        <div className="space-y-4">
-          <div className="w-16 h-16 rounded-2xl bg-surface-2 border border-border flex items-center justify-center text-day-amber mx-auto animate-pulse">
-            <Moon className="w-8 h-8 fill-current" />
+        <div className="space-y-4 max-w-sm w-full bg-surface border border-border p-8">
+          <div className="w-12 h-12 border border-border bg-surface-2 flex items-center justify-center text-white mx-auto animate-pulse">
+            <Moon className="w-6 h-6 fill-current" />
           </div>
           <div>
-            <h2 className="text-lg font-heading font-semibold text-text">Connecting to Room {code}</h2>
-            <p className="text-xs text-muted mt-1">Establishing direct WebRTC peer channel...</p>
+            <h2 className="text-xs font-mono font-bold uppercase tracking-widest text-text">
+              CONNECTING TO ROOM {code}
+            </h2>
+            <p className="text-xs font-mono text-muted mt-1">ESTABLISHING WEBRTC PEER CHANNEL...</p>
           </div>
         </div>
       </main>
@@ -119,7 +123,7 @@ export default function RoomPage() {
   const { phase, me } = gameView;
 
   return (
-    <div className="min-h-screen flex flex-col bg-bg text-text">
+    <div className="min-h-screen flex flex-col text-text bg-transparent">
       {/* Persistent Top Bar */}
       <TopBar
         gameView={gameView}

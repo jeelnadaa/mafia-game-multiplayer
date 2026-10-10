@@ -2,10 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Moon, Sun, Gavel, Shield, Eye, HelpCircle, Key, FileText, ScrollText } from 'lucide-react';
+import { X, Moon, HelpCircle } from 'lucide-react';
 import { ROLES, BASICS_STEPS, RoleDef } from '@/lib/content';
 import { SHORTCUTS, useShortcut, pushScope, popScope } from '@/lib/shortcuts';
-import { ClientGameView, Role } from '@/lib/types';
+import { ClientGameView } from '@/lib/types';
 import { Kbd, Badge } from './ui';
 
 export type HelpTab = 'basics' | 'my-role' | 'roles' | 'rules' | 'log' | 'notes' | 'keys';
@@ -109,13 +109,13 @@ export function HelpSheet({ isOpen, onClose, initialTab = 'basics', gameView }: 
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* Mobile Backdrop */}
+          {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="md:hidden fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
+            className="fixed inset-0 z-40 bg-black/80"
           />
 
           {/* Drawer Container (Desktop right drawer, Mobile bottom sheet) */}
@@ -123,46 +123,48 @@ export function HelpSheet({ isOpen, onClose, initialTab = 'basics', gameView }: 
             initial={{ x: '100%' }}
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
-            transition={{ type: 'spring', damping: 26, stiffness: 280 }}
-            className="fixed z-50 bottom-0 md:top-0 right-0 w-full md:w-[420px] max-h-[88vh] md:max-h-full h-full bg-surface border-t md:border-t-0 md:border-l border-border rounded-t-2xl md:rounded-none flex flex-col shadow-2xl overflow-hidden"
+            transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+            className="fixed z-50 bottom-0 md:top-0 right-0 w-full md:w-[480px] max-h-[90vh] md:max-h-full h-full bg-surface border-t md:border-t-0 md:border-l border-border rounded-none flex flex-col shadow-2xl overflow-hidden"
           >
             {/* Header */}
-            <div className="flex items-center justify-between p-4 border-b border-border bg-surface-2/40">
+            <div className="flex items-center justify-between p-4 border-b border-border bg-surface-2">
               <div className="flex items-center gap-2">
-                <HelpCircle className="w-5 h-5 text-day-amber" />
-                <h2 className="font-heading font-semibold text-text text-base">Game Guide & Rules</h2>
+                <HelpCircle className="w-4 h-4 text-white" />
+                <h2 className="font-sans font-bold text-text text-sm">
+                  Documentation & Rules Manual
+                </h2>
               </div>
               <div className="flex items-center gap-2">
                 {gameView?.phase && (
-                  <span className="px-2 py-0.5 rounded-full text-xs font-mono font-medium bg-surface text-muted border border-border">
-                    {gameView.phase.toUpperCase()}
+                  <span className="px-2 py-0.5 rounded-none text-xs font-medium bg-black text-white border border-border capitalize">
+                    {gameView.phase}
                   </span>
                 )}
                 <button
                   type="button"
                   onClick={onClose}
-                  className="p-1 rounded-lg text-muted hover:text-text hover:bg-surface-2 transition-colors"
+                  className="p-1 rounded-none text-muted hover:text-white hover:bg-zinc-800 transition-colors"
                   aria-label="Close guide"
                 >
-                  <X className="w-5 h-5" />
+                  <X className="w-4 h-4" />
                 </button>
               </div>
             </div>
 
             {/* Scrollable Tabs Header */}
-            <div className="flex items-center gap-1 p-2 border-b border-border overflow-x-auto no-scrollbar bg-bg/50">
+            <div className="flex items-center gap-1 p-2 border-b border-border overflow-x-auto no-scrollbar bg-black">
               {tabList.map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors flex items-center gap-1.5 ${
+                  className={`px-3 py-1.5 rounded-none text-xs font-medium whitespace-nowrap transition-colors flex items-center gap-1.5 border ${
                     activeTab === tab.id
-                      ? 'bg-border text-text font-semibold shadow-sm'
-                      : 'text-muted hover:text-text hover:bg-surface-2'
+                      ? 'bg-white text-black border-white font-semibold'
+                      : 'text-muted hover:text-text border-transparent hover:border-border bg-surface-2'
                   }`}
                 >
                   <span>{tab.label}</span>
-                  <Kbd>{tab.num}</Kbd>
+                  <Kbd className="bg-transparent border-current text-current">{tab.num}</Kbd>
                 </button>
               ))}
             </div>
@@ -172,17 +174,19 @@ export function HelpSheet({ isOpen, onClose, initialTab = 'basics', gameView }: 
               {/* Tab 1: Basics */}
               {activeTab === 'basics' && (
                 <div className="space-y-4">
-                  <div className="p-3 bg-surface-2 rounded-xl border border-border">
-                    <h3 className="font-heading text-sm font-semibold text-day-amber mb-1">How Mafia Works</h3>
+                  <div className="p-3 bg-surface-2 rounded-none border border-border">
+                    <h3 className="text-xs font-semibold text-white mb-1">
+                      How Mafia Works
+                    </h3>
                     <p className="text-xs text-muted leading-relaxed">
                       Mafia is a social deduction game of deception and logic. Two teams clash: the uninformed majority
-                      (Town) versus the informed minority (Mafia).
+                      (Town) versus the informed minority (Mafia). The town wins by eliminating all Mafia, while the Mafia wins by reaching equal numbers.
                     </p>
                   </div>
                   <div className="space-y-2.5">
                     {BASICS_STEPS.map((s) => (
-                      <div key={s.step} className="p-3 bg-surface-2/60 border border-border rounded-xl flex gap-3">
-                        <div className="w-6 h-6 rounded-full bg-border flex items-center justify-center text-xs font-mono font-bold text-text shrink-0">
+                      <div key={s.step} className="p-3 bg-surface-2 border border-border rounded-none flex gap-3">
+                        <div className="w-6 h-6 border border-border bg-black flex items-center justify-center text-xs font-bold text-white shrink-0">
                           {s.step}
                         </div>
                         <div>
@@ -199,75 +203,72 @@ export function HelpSheet({ isOpen, onClose, initialTab = 'basics', gameView }: 
               {activeTab === 'my-role' && (
                 <div className="space-y-4">
                   {gameView?.me?.isGod ? (
-                    <div className="p-4 bg-god/10 border border-god/30 rounded-xl space-y-2">
+                    <div className="p-4 bg-surface-2 border border-border rounded-none space-y-2">
                       <div className="flex items-center gap-2">
-                        <Badge color="god">THE NARRATOR</Badge>
+                        <Badge color="god">The Narrator</Badge>
                       </div>
-                      <h3 className="font-heading text-base font-bold text-god">God Mode Active</h3>
-                      <p className="text-xs text-muted">
-                        You hold the reins of the match. You oversee all secret picks, manual assignments, and phase controls.
+                      <h3 className="text-sm font-bold text-white">God Mode Active</h3>
+                      <p className="text-xs text-muted leading-relaxed">
+                        You oversee the entire game flow. Control phases, inspect secret logs, and advance rounds using the top control bar.
                       </p>
                     </div>
                   ) : !roleDef ? (
-                    <div className="p-6 text-center border border-dashed border-border rounded-xl space-y-2">
-                      <Moon className="w-8 h-8 text-muted mx-auto" />
-                      <div className="text-sm font-semibold text-text">No Role Assigned Yet</div>
+                    <div className="p-6 text-center border border-dashed border-border rounded-none space-y-2">
+                      <Moon className="w-8 h-8 text-white mx-auto" />
+                      <div className="text-xs font-semibold text-text">No Role Assigned Yet</div>
                       <p className="text-xs text-muted">
                         Roles are distributed secretly once the host starts the match.
                       </p>
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      {/* Shoulder Surfing Guard */}
-                      <div className="p-3 bg-surface-2 border border-border rounded-xl flex items-center justify-between">
-                        <div className="text-xs text-muted">Privacy Mode (Shoulder-surf guard)</div>
+                      {/* Privacy Guard */}
+                      <div className="p-3 bg-surface-2 border border-border rounded-none flex items-center justify-between">
+                        <div className="text-xs text-muted">Shoulder-surf privacy shield</div>
                         <button
                           type="button"
                           onMouseDown={() => setShowRoleSecret(true)}
                           onMouseUp={() => setShowRoleSecret(false)}
                           onTouchStart={() => setShowRoleSecret(true)}
                           onTouchEnd={() => setShowRoleSecret(false)}
-                          className="px-3 py-1 bg-border hover:bg-border/80 text-text rounded-lg text-xs font-medium"
+                          className="px-3 py-1 bg-white text-black rounded-none text-xs font-medium"
                         >
                           {showRoleSecret ? 'Revealed' : 'Hold to View'}
                         </button>
                       </div>
 
                       <div
-                        className={`p-4 rounded-xl border border-border transition-all duration-300 ${
+                        className={`p-4 rounded-none border border-border transition-all duration-200 bg-surface-2 ${
                           showRoleSecret ? 'filter-none' : 'filter blur-sm select-none'
                         }`}
-                        style={{ backgroundColor: `${roleDef.colour}10`, borderColor: `${roleDef.colour}40` }}
                       >
                         <div className="flex items-center justify-between mb-2">
-                          <h3 className="font-heading text-lg font-bold" style={{ color: roleDef.colour }}>
+                          <h3 className="text-base font-bold text-white tracking-tight">
                             {roleDef.name}
                           </h3>
-                          <Badge color={roleDef.team === 'mafia' ? 'mafia' : roleDef.team === 'town' ? 'doctor' : 'jester'}>
-                            {roleDef.team.toUpperCase()}
-                          </Badge>
+                          <Badge color="mafia">{roleDef.team}</Badge>
                         </div>
                         <p className="text-xs text-text mb-3 leading-relaxed">{roleDef.summary}</p>
                         <div className="space-y-2 text-xs">
                           <div>
-                            <span className="font-semibold text-text">Night Action: </span>
+                            <span className="font-semibold text-white">Night Action: </span>
                             <span className="text-muted">{roleDef.howToPlay}</span>
                           </div>
                           <div>
-                            <span className="font-semibold text-text">Win Goal: </span>
+                            <span className="font-semibold text-white">Victory Goal: </span>
                             <span className="text-muted">{roleDef.winCondition}</span>
                           </div>
                         </div>
 
                         {/* Mafia Teammates */}
                         {gameView?.me?.teammates && gameView.me.teammates.length > 0 && (
-                          <div className="mt-4 pt-3 border-t border-border/50">
-                            <div className="text-xs font-semibold text-mafia mb-1">Syndicate Teammates:</div>
+                          <div className="mt-4 pt-3 border-t border-border">
+                            <div className="text-xs font-semibold text-white mb-1">Syndicate Partners:</div>
                             <div className="flex flex-wrap gap-1.5">
                               {gameView.me.teammates.map((tid) => {
                                 const p = gameView.players.find((x) => x.id === tid);
                                 return (
-                                  <span key={tid} className="px-2 py-0.5 rounded bg-mafia/20 text-mafia text-xs">
+                                  <span key={tid} className="px-2 py-0.5 border border-border bg-black text-white text-xs">
                                     {p?.name || 'Teammate'}
                                   </span>
                                 );
@@ -278,11 +279,11 @@ export function HelpSheet({ isOpen, onClose, initialTab = 'basics', gameView }: 
                       </div>
 
                       {/* Tips */}
-                      <div className="p-3 bg-surface-2 border border-border rounded-xl space-y-1.5">
-                        <div className="text-xs font-semibold text-text">Strategic Tips:</div>
+                      <div className="p-3 bg-surface-2 border border-border rounded-none space-y-1.5">
+                        <div className="text-xs font-semibold text-white">Tactical Tips:</div>
                         {roleDef.tips.map((tip, i) => (
-                          <div key={i} className="text-xs text-muted flex gap-1.5">
-                            <span className="text-day-amber">▪</span>
+                          <div key={i} className="text-xs text-muted flex gap-2">
+                            <span className="text-white">·</span>
                             <span>{tip}</span>
                           </div>
                         ))}
@@ -296,15 +297,15 @@ export function HelpSheet({ isOpen, onClose, initialTab = 'basics', gameView }: 
               {activeTab === 'roles' && (
                 <div className="space-y-3">
                   <div className="text-xs text-muted">
-                    Roles active in this room ({gameView?.settings?.roles ? 'configured by host' : 'defaults'}):
+                    All game roles:
                   </div>
                   {Object.values(ROLES)
                     .filter((r) => r.id !== 'god')
                     .map((r) => (
-                      <div key={r.id} className="p-3 bg-surface-2 border border-border rounded-xl space-y-1">
+                      <div key={r.id} className="p-3 bg-surface-2 border border-border rounded-none space-y-1">
                         <div className="flex items-center justify-between">
-                          <span className="font-heading text-xs font-bold text-text">{r.name}</span>
-                          <span className="text-[10px] font-semibold uppercase px-2 py-0.5 rounded bg-bg border border-border" style={{ color: r.colour }}>
+                          <span className="text-xs font-semibold text-text">{r.name}</span>
+                          <span className="text-[11px] capitalize px-2 py-0.5 border border-border bg-black text-white">
                             {r.team}
                           </span>
                         </div>
@@ -317,34 +318,34 @@ export function HelpSheet({ isOpen, onClose, initialTab = 'basics', gameView }: 
               {/* Tab 4: Room Rules */}
               {activeTab === 'rules' && (
                 <div className="space-y-3">
-                  <div className="text-xs text-muted">Active room configuration in plain words:</div>
+                  <div className="text-xs text-muted">Active match rules:</div>
                   <div className="space-y-2 text-xs">
-                    <div className="p-2.5 bg-surface-2 border border-border rounded-lg">
-                      <span className="font-semibold text-text">Voting Tie: </span>
+                    <div className="p-2.5 bg-surface-2 border border-border">
+                      <span className="font-semibold text-white">Voting Tie: </span>
                       <span className="text-muted">
                         {gameView?.settings?.tieRule === 'revote_then_none'
                           ? 'One revote between tied candidates, else nobody'
                           : gameView?.settings?.tieRule === 'random'
-                          ? 'Randomly picks one of the tied players'
-                          : 'Nobody is eliminated on a tie'}
+                          ? 'Randomly picks one of the tied candidates'
+                          : 'Nobody eliminated on a tie'}
                       </span>
                     </div>
-                    <div className="p-2.5 bg-surface-2 border border-border rounded-lg">
-                      <span className="font-semibold text-text">Role Reveal on Death: </span>
+                    <div className="p-2.5 bg-surface-2 border border-border">
+                      <span className="font-semibold text-white">Role Reveal on Death: </span>
                       <span className="text-muted">
                         {gameView?.settings?.revealRoleOnDeath === 'full'
                           ? 'Exact role revealed upon death'
                           : gameView?.settings?.revealRoleOnDeath === 'alignment'
                           ? 'Only team alignment revealed'
-                          : 'Hidden until game ends'}
+                          : 'Concealed until match ends'}
                       </span>
                     </div>
-                    <div className="p-2.5 bg-surface-2 border border-border rounded-lg">
-                      <span className="font-semibold text-text">Doctor Self-Save: </span>
-                      <span className="text-muted">{gameView?.settings?.doctorSelfSave || 'once'}</span>
+                    <div className="p-2.5 bg-surface-2 border border-border">
+                      <span className="font-semibold text-white">Doctor Self-Save: </span>
+                      <span className="text-muted capitalize">{gameView?.settings?.doctorSelfSave || 'once'}</span>
                     </div>
-                    <div className="p-2.5 bg-surface-2 border border-border rounded-lg">
-                      <span className="font-semibold text-text">Police Findings: </span>
+                    <div className="p-2.5 bg-surface-2 border border-border">
+                      <span className="font-semibold text-white">Police Findings: </span>
                       <span className="text-muted">
                         {gameView?.settings?.policeResultDelay === 0
                           ? 'Immediate report upon confirm'
@@ -358,14 +359,14 @@ export function HelpSheet({ isOpen, onClose, initialTab = 'basics', gameView }: 
               {/* Tab 5: Game Log */}
               {activeTab === 'log' && (
                 <div className="space-y-2">
-                  <div className="text-xs text-muted mb-2">Chronological public event ledger:</div>
+                  <div className="text-xs text-muted mb-2">Public event archive:</div>
                   {(!gameView?.log || gameView.log.length === 0) ? (
-                    <div className="text-center py-6 text-xs text-muted">No public events logged yet.</div>
+                    <div className="text-center py-6 text-xs text-muted">No public events recorded yet.</div>
                   ) : (
                     gameView.log.map((entry) => (
-                      <div key={entry.id} className="p-2.5 bg-surface-2 border border-border rounded-lg text-xs space-y-0.5">
-                        <div className="flex items-center justify-between text-[10px] text-muted font-mono">
-                          <span>ROUND {entry.round} · {entry.phase.toUpperCase()}</span>
+                      <div key={entry.id} className="p-2.5 bg-surface-2 border border-border text-xs space-y-0.5">
+                        <div className="flex items-center justify-between text-[11px] text-muted">
+                          <span>Round {entry.round} · {entry.phase}</span>
                         </div>
                         <div className="text-text">{entry.text}</div>
                       </div>
@@ -378,22 +379,22 @@ export function HelpSheet({ isOpen, onClose, initialTab = 'basics', gameView }: 
               {activeTab === 'notes' && (
                 <div className="space-y-4">
                   <div>
-                    <div className="text-xs font-semibold text-text mb-1">Suspect Roster (Private):</div>
+                    <div className="text-xs font-semibold text-white mb-1">Suspect Tags (Private):</div>
                     <div className="space-y-1.5 max-h-48 overflow-y-auto">
                       {gameView?.players?.map((p) => {
                         const tag = playerTags[p.id] || 'neutral';
                         return (
-                          <div key={p.id} className="flex items-center justify-between p-2 bg-surface-2 border border-border rounded-lg text-xs">
+                          <div key={p.id} className="flex items-center justify-between p-2 bg-surface-2 border border-border text-xs">
                             <span className="text-text font-medium">{p.name}</span>
                             <button
                               type="button"
                               onClick={() => toggleTag(p.id)}
-                              className={`px-2 py-0.5 rounded text-[11px] font-semibold uppercase transition-colors ${
+                              className={`px-2 py-0.5 border text-xs capitalize transition-colors rounded-none ${
                                 tag === 'trust'
-                                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                                  ? 'bg-white text-black border-white font-medium'
                                   : tag === 'suspect'
-                                  ? 'bg-mafia/20 text-mafia border border-mafia/30'
-                                  : 'bg-surface text-muted border border-border'
+                                  ? 'bg-zinc-800 text-white border-zinc-400 font-medium'
+                                  : 'bg-black text-muted border-border'
                               }`}
                             >
                               {tag}
@@ -405,15 +406,15 @@ export function HelpSheet({ isOpen, onClose, initialTab = 'basics', gameView }: 
                   </div>
 
                   <div>
-                    <div className="text-xs font-semibold text-text mb-1">Private Detective Scratchpad:</div>
+                    <div className="text-xs font-semibold text-white mb-1">Private Detective Scratchpad:</div>
                     <textarea
                       value={privateNotes}
                       onChange={(e) => saveNotes(e.target.value)}
-                      placeholder="Record observations, suspect claims, contradictions..."
+                      placeholder="Record observations, contradictions, deductions..."
                       rows={5}
-                      className="w-full bg-surface-2 border border-border rounded-xl p-3 text-xs text-text placeholder-muted/60 focus:outline-none focus:ring-1 focus:ring-day-amber"
+                      className="w-full bg-surface-2 border border-border rounded-none p-3 text-xs text-text placeholder-muted/50 focus:outline-none focus:border-white"
                     />
-                    <span className="text-[10px] text-muted">Stored locally in your browser only. Never transmitted.</span>
+                    <span className="text-[11px] text-muted">Stored locally in your browser. Never shared over peer network.</span>
                   </div>
                 </div>
               )}
@@ -424,9 +425,9 @@ export function HelpSheet({ isOpen, onClose, initialTab = 'basics', gameView }: 
                   <div className="text-xs text-muted mb-2">Available keyboard shortcuts:</div>
                   <div className="space-y-1.5">
                     {SHORTCUTS.map((s) => (
-                      <div key={s.id} className="flex items-center justify-between p-2 bg-surface-2 border border-border rounded-lg text-xs">
+                      <div key={s.id} className="flex items-center justify-between p-2 bg-surface-2 border border-border text-xs">
                         <span className="text-muted">{s.description}</span>
-                        <Kbd className="text-text">{s.label}</Kbd>
+                        <Kbd className="text-white">{s.label}</Kbd>
                       </div>
                     ))}
                   </div>

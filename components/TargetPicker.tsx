@@ -1,8 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Crosshair, Shield, Search, Flame, Ban, Check, AlertCircle } from 'lucide-react';
+import { Ban, Shield, AlertCircle } from 'lucide-react';
 import { PlayerView } from '@/lib/types';
 import { RoleDef } from '@/lib/content';
 import { Avatar, Button, Kbd, Modal } from './ui';
@@ -32,7 +31,9 @@ export function TargetPicker({
   disabled = false,
 }: TargetPickerProps) {
   const [pendingTarget, setPendingTarget] = useState<PlayerView | null>(null);
-  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pendingSpecial, setPendingSpecial] = useState<'skip' | 'hold' | null>(null);
+
+  const confirmOpen = Boolean(pendingTarget || pendingSpecial);
 
   // Manage scope when confirm dialog is open
   useEffect(() => {
@@ -54,20 +55,27 @@ export function TargetPicker({
 
   const handleCardClick = (p: PlayerView) => {
     if (disabled) return;
-    if (mode === 'night' && roleDef?.needsConfirm) {
-      setPendingTarget(p);
-      setConfirmOpen(true);
-    } else {
-      onSelect(p.id);
-    }
+    setPendingTarget(p);
+  };
+
+  const handleSpecialClick = (type: 'skip' | 'hold') => {
+    if (disabled) return;
+    setPendingSpecial(type);
   };
 
   const handleConfirmAction = () => {
     if (pendingTarget) {
       onSelect(pendingTarget.id);
-      setConfirmOpen(false);
       setPendingTarget(null);
+    } else if (pendingSpecial) {
+      onSelect(pendingSpecial);
+      setPendingSpecial(null);
     }
+  };
+
+  const handleCancelAction = () => {
+    setPendingTarget(null);
+    setPendingSpecial(null);
   };
 
   // Keyboard shortcut handlers (1-9, 0)
@@ -89,7 +97,7 @@ export function TargetPicker({
     ['s', 'S'],
     () => {
       if (allowSkip && !disabled && !confirmOpen) {
-        onSelect('skip');
+        handleSpecialClick('skip');
       }
     },
     { scope: 'screen', enabled: allowSkip && !disabled && !confirmOpen }
@@ -100,7 +108,7 @@ export function TargetPicker({
     ['x', 'X'],
     () => {
       if (allowHoldFire && !disabled && !confirmOpen) {
-        onSelect('hold');
+        handleSpecialClick('hold');
       }
     },
     { scope: 'screen', enabled: allowHoldFire && !disabled && !confirmOpen }
@@ -118,80 +126,51 @@ export function TargetPicker({
   useShortcut(
     ['n', 'N', 'Escape'],
     () => {
-      if (confirmOpen) {
-        setConfirmOpen(false);
-        setPendingTarget(null);
-      }
+      if (confirmOpen) handleCancelAction();
     },
     { scope: 'dialog', enabled: confirmOpen }
   );
 
-  // Ring Icon & color by role
-  const getActionRing = () => {
-    if (mode === 'voting') return { color: '#F2B84B', icon: Check };
-    if (!roleDef) return { color: '#ECEEF4', icon: Check };
-    switch (roleDef.id) {
-      case 'mafia':
-      case 'godfather':
-        return { color: '#E5383B', icon: Crosshair };
-      case 'doctor':
-        return { color: '#F4F6FA', icon: Shield };
-      case 'police':
-        return { color: '#5B8CFF', icon: Search };
-      case 'vigilante':
-        return { color: '#E5383B', icon: Flame };
-      default:
-        return { color: '#F2B84B', icon: Check };
-    }
-  };
-
-  const actionStyle = getActionRing();
-  const ActionIcon = actionStyle.icon;
-
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {/* Player Target Cards Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3.5">
         {eligiblePlayers.map((p, idx) => {
           const isSelected = selectedId === p.id;
           return (
-            <motion.div
+            <div
               key={p.id}
-              whileTap={disabled ? {} : { scale: 0.97 }}
               onClick={() => handleCardClick(p)}
-              className={`relative flex flex-col items-center p-3.5 rounded-2xl border transition-all cursor-pointer select-none text-center ${
+              className={`relative flex flex-col items-center p-4 rounded-none border transition-colors cursor-pointer select-none text-center ${
                 isSelected
-                  ? 'bg-surface-2 border-text shadow-lg'
-                  : 'bg-surface hover:bg-surface-2/60 border-border hover:border-muted'
-              } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  ? 'bg-surface-2 border-white text-white shadow-md'
+                  : 'bg-surface hover:bg-zinc-900 border-border hover:border-zinc-500'
+              } ${disabled ? 'opacity-40 cursor-not-allowed' : ''}`}
             >
               {/* Keyboard Index Tag */}
-              <div className="absolute top-2 left-2">
+              <div className="absolute top-2.5 left-2.5">
                 <Kbd>{idx === 9 ? '0' : idx + 1}</Kbd>
               </div>
 
-              {/* Selection Halo / Ring */}
-              <div className="relative my-2">
-                <Avatar avatarId={p.avatar} size={56} />
-                {isSelected && (
-                  <motion.div
-                    layoutId="selection-ring"
-                    className="absolute -inset-1.5 rounded-full border-2 flex items-center justify-center animate-pulse"
-                    style={{ borderColor: actionStyle.color }}
-                  >
-                    <div
-                      className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-bg shadow-md"
-                      style={{ backgroundColor: actionStyle.color }}
-                    >
-                      <ActionIcon className="w-3 h-3" />
-                    </div>
-                  </motion.div>
-                )}
+              {/* Status indicator on top right if selected */}
+              {isSelected && (
+                <div className="absolute top-2.5 right-2.5">
+                  <span className="px-2 py-0.5 text-xs font-semibold bg-white text-black">
+                    Selected
+                  </span>
+                </div>
+              )}
+
+              {/* Square Avatar with Vibrant Full Colors */}
+              <div className="relative my-3">
+                <Avatar avatarId={p.avatar} size={60} className="rounded-none" />
               </div>
 
-              <div className="text-xs font-semibold text-text truncate max-w-full">{p.name}</div>
-              <div className="text-[10px] text-muted font-mono mt-0.5">Player #{idx + 1}</div>
-            </motion.div>
+              <div className="text-sm md:text-base font-bold text-text truncate max-w-full">
+                {p.name}
+              </div>
+              <div className="text-xs text-muted font-mono mt-0.5">Slot #{idx + 1}</div>
+            </div>
           );
         })}
       </div>
@@ -200,44 +179,91 @@ export function TargetPicker({
       <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
         {allowSkip && (
           <Button
-            variant={selectedId === 'skip' ? 'accent' : 'secondary'}
-            onClick={() => onSelect('skip')}
+            variant={selectedId === 'skip' ? 'primary' : 'secondary'}
+            size="md"
+            onClick={() => handleSpecialClick('skip')}
             disabled={disabled}
             kbd="S"
           >
-            <Ban className="w-4 h-4 mr-1" />
+            <Ban className="w-4 h-4 mr-1.5" />
             <span>Skip Vote</span>
           </Button>
         )}
 
         {allowHoldFire && (
           <Button
-            variant={selectedId === 'hold' ? 'accent' : 'secondary'}
-            onClick={() => onSelect('hold')}
+            variant={selectedId === 'hold' ? 'primary' : 'secondary'}
+            size="md"
+            onClick={() => handleSpecialClick('hold')}
             disabled={disabled}
             kbd="X"
           >
-            <Shield className="w-4 h-4 mr-1" />
-            <span>Hold Fire</span>
+            <Shield className="w-4 h-4 mr-1.5" />
+            <span>Hold Fire Tonight</span>
           </Button>
         )}
       </div>
 
-      {/* Confirmation Modal */}
-      <Modal isOpen={confirmOpen} onClose={() => setConfirmOpen(false)} title="Confirm Action">
-        <div className="p-2 space-y-4">
-          <div className="flex items-center gap-3 p-3 bg-surface-2 rounded-xl border border-border">
-            <AlertCircle className="w-5 h-5 text-day-amber shrink-0" />
-            <div className="text-xs text-text leading-relaxed">
-              Are you sure you wish to {roleDef?.nightVerb?.toLowerCase() || 'target'}{' '}
-              <strong className="text-day-amber font-semibold">{pendingTarget?.name}</strong> tonight?
+      {/* Target Confirmation Modal */}
+      <Modal
+        isOpen={Boolean(pendingTarget)}
+        onClose={handleCancelAction}
+        title={mode === 'voting' ? 'Confirm Vote Ballot' : 'Confirm Night Target'}
+      >
+        <div className="space-y-4">
+          <div className="p-3.5 bg-surface-2 border border-border flex items-center gap-3">
+            <AlertCircle className="w-5 h-5 text-white shrink-0" />
+            <div className="text-sm text-text leading-relaxed">
+              {mode === 'voting' ? (
+                <span>
+                  Are you sure you want to cast your ballot to eliminate{' '}
+                  <strong className="text-white underline font-bold">{pendingTarget?.name}</strong> today?
+                </span>
+              ) : (
+                <span>
+                  Are you sure you want to {roleDef?.nightVerb?.toLowerCase() || 'target'}{' '}
+                  <strong className="text-white underline font-bold">{pendingTarget?.name}</strong> tonight?
+                </span>
+              )}
             </div>
           </div>
-          <div className="flex items-center justify-end gap-2 pt-2">
-            <Button variant="secondary" onClick={() => setConfirmOpen(false)} kbd="N">
+          <div className="flex items-center justify-end gap-3 pt-2">
+            <Button variant="secondary" onClick={handleCancelAction} kbd="N">
               Cancel
             </Button>
-            <Button variant="accent" onClick={handleConfirmAction} kbd="Y">
+            <Button variant="primary" onClick={handleConfirmAction} kbd="Y">
+              Confirm
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Special Action Confirmation Modal (Skip Vote / Hold Fire) */}
+      <Modal
+        isOpen={Boolean(pendingSpecial)}
+        onClose={handleCancelAction}
+        title={pendingSpecial === 'skip' ? 'Confirm Skip Vote' : 'Confirm Hold Fire'}
+      >
+        <div className="space-y-4">
+          <div className="p-3.5 bg-surface-2 border border-border flex items-center gap-3">
+            <AlertCircle className="w-5 h-5 text-white shrink-0" />
+            <div className="text-sm text-text leading-relaxed">
+              {pendingSpecial === 'skip' ? (
+                <span>
+                  Are you sure you wish to <strong className="text-white">Skip elimination</strong> today? No player will receive your ballot.
+                </span>
+              ) : (
+                <span>
+                  Are you sure you wish to <strong className="text-white">Hold your fire</strong> tonight? Your ammunition will be preserved.
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center justify-end gap-3 pt-2">
+            <Button variant="secondary" onClick={handleCancelAction} kbd="N">
+              Cancel
+            </Button>
+            <Button variant="primary" onClick={handleConfirmAction} kbd="Y">
               Confirm
             </Button>
           </div>
