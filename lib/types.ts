@@ -84,6 +84,7 @@ export interface Settings {
   deadChat: boolean;
   deadSeeRoles: boolean;
   revealRoleList: boolean;
+  circleSitting: boolean;
   roles: RolesConfig;
 }
 

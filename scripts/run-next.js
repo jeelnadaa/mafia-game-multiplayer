@@ -40,8 +40,7 @@ function isWritable(dir) {
   // Probe specifically for exFAT phantom locked routes.d.ts (must be openable with 'w')
   try {
     fs.mkdirSync(typesDir, { recursive: true });
-    const openFn = fs.rawOpenSync || fs.openSync;
-    const fd = openFn(routesFile, 'w');
+    const fd = fs.openSync(routesFile, 'w');
     fs.closeSync(fd);
     try { fs.unlinkSync(routesFile); } catch (__) {}
   } catch (_) {

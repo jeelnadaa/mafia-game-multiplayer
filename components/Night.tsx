@@ -226,6 +226,7 @@ export function Night({
                 mode="night"
                 allowHoldFire={role === 'vigilante'}
                 disabled={isConfirmed}
+                teammatePicks={me?.teammatePicks}
               />
 
               {/* Confirm Action Button & Status Bar */}

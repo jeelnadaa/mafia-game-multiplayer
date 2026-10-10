@@ -10,6 +10,7 @@ import { Day } from '@/components/Day';
 import { End } from '@/components/End';
 import { God } from '@/components/God';
 import { HelpSheet, HelpTab } from '@/components/HelpSheet';
+import { CircleSittingArena } from '@/components/CircleSittingArena';
 import { Button, Avatar } from '@/components/ui';
 import { AlertCircle, RotateCcw, Moon } from 'lucide-react';
 import { useShortcut } from '@/lib/shortcuts';
@@ -300,7 +301,23 @@ export default function RoomPage() {
               />
             )}
 
-            {(phase === 'roleReveal' || phase === 'night') && (
+            {/* CIRCLE SITTING ARENA: 3D Round Table Seating Mode */}
+            {gameView.settings?.circleSitting &&
+              phase !== 'lobby' &&
+              phase !== 'gameOver' && (
+                <CircleSittingArena
+                  gameView={gameView}
+                  onNightAction={(targetId) => sendIntent('nightAction', { targetId })}
+                  onConfirmNightAction={(targetId) => sendIntent('confirmNightAction', { targetId })}
+                  onVote={(targetId) => sendIntent('vote', { targetId })}
+                  onReadyToVote={() => sendIntent('readyToVote')}
+                  onSendChat={(channel, text) => sendChat(channel, text)}
+                  onOpenHelp={handleOpenHelp}
+                />
+              )}
+
+            {/* STANDARD MODE: Night & Day separate views */}
+            {!gameView.settings?.circleSitting && (phase === 'roleReveal' || phase === 'night') && (
               <Night
                 gameView={gameView}
                 onNightAction={(targetId) => sendIntent('nightAction', { targetId })}
@@ -310,14 +327,15 @@ export default function RoomPage() {
               />
             )}
 
-            {(phase === 'morning' || phase === 'discussion' || phase === 'voting' || phase === 'voteResult') && (
-              <Day
-                gameView={gameView}
-                onVote={(targetId) => sendIntent('vote', { targetId })}
-                onReadyToVote={() => sendIntent('readyToVote')}
-                onSendChat={(channel, text) => sendChat(channel, text)}
-              />
-            )}
+            {!gameView.settings?.circleSitting &&
+              (phase === 'morning' || phase === 'discussion' || phase === 'voting' || phase === 'voteResult') && (
+                <Day
+                  gameView={gameView}
+                  onVote={(targetId) => sendIntent('vote', { targetId })}
+                  onReadyToVote={() => sendIntent('readyToVote')}
+                  onSendChat={(channel, text) => sendChat(channel, text)}
+                />
+              )}
 
             {phase === 'gameOver' && (
               <End

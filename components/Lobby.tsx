@@ -201,12 +201,28 @@ export function Lobby({
                   </h3>
                 </div>
 
-                {isHost && (
-                  <label className="flex items-center gap-2 text-xs md:text-sm text-muted cursor-pointer hover:text-text select-none">
-                    <span>Narrator (God) Mode</span>
-                    <Switch checked={Boolean(me?.isGod)} onChange={(val) => onToggleGod(val)} />
-                  </label>
-                )}
+                <div className="flex items-center gap-4">
+                  {isHost ? (
+                    <label className="flex items-center gap-2 text-xs md:text-sm text-muted cursor-pointer hover:text-text select-none">
+                      <span>Circle Sitting</span>
+                      <Switch
+                        checked={Boolean(settings.circleSitting ?? true)}
+                        onChange={(val) => onUpdateSettings({ circleSitting: val })}
+                      />
+                    </label>
+                  ) : (
+                    <span className="text-[11px] px-2 py-0.5 bg-surface-2 border border-border text-muted font-mono">
+                      {settings.circleSitting ? 'Circle Seating: ON' : 'Circle Seating: OFF'}
+                    </span>
+                  )}
+
+                  {isHost && (
+                    <label className="flex items-center gap-2 text-xs md:text-sm text-muted cursor-pointer hover:text-text select-none">
+                      <span>Narrator (God) Mode</span>
+                      <Switch checked={Boolean(me?.isGod)} onChange={(val) => onToggleGod(val)} />
+                    </label>
+                  )}
+                </div>
               </div>
 
               {/* Player Cards */}

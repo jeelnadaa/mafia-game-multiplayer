@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Ban, Shield, AlertCircle } from 'lucide-react';
+import { Ban, Shield, AlertCircle, Crosshair } from 'lucide-react';
 import { PlayerView } from '@/lib/types';
 import { RoleDef } from '@/lib/content';
 import { Avatar, Button, Kbd, Modal } from './ui';
@@ -17,6 +17,7 @@ interface TargetPickerProps {
   allowSkip?: boolean;
   allowHoldFire?: boolean;
   disabled?: boolean;
+  teammatePicks?: Record<string, string | null>;
 }
 
 export function TargetPicker({
@@ -29,6 +30,7 @@ export function TargetPicker({
   allowSkip = false,
   allowHoldFire = false,
   disabled = false,
+  teammatePicks,
 }: TargetPickerProps) {
   const [pendingTarget, setPendingTarget] = useState<PlayerView | null>(null);
   const [pendingSpecial, setPendingSpecial] = useState<'skip' | 'hold' | null>(null);
@@ -137,13 +139,22 @@ export function TargetPicker({
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3.5">
         {eligiblePlayers.map((p, idx) => {
           const isSelected = selectedId === p.id;
+          const teammateWhoTargeted = teammatePicks
+            ? Object.entries(teammatePicks).find(([mId, targetId]) => targetId === p.id && mId !== myPlayerId)
+            : null;
+          const teammatePlayer = teammateWhoTargeted
+            ? players.find((x) => x.id === teammateWhoTargeted[0])
+            : null;
+
           return (
             <div
               key={p.id}
               onClick={() => handleCardClick(p)}
               className={`relative flex flex-col items-center p-4 rounded-none border transition-colors cursor-pointer select-none text-center ${
                 isSelected
-                  ? 'bg-surface-2 border-white text-white shadow-md'
+                  ? 'bg-surface-2 border-white ring-2 ring-white text-white shadow-xl'
+                  : teammatePlayer
+                  ? 'bg-surface border-red-500/80 shadow-md'
                   : 'bg-surface hover:bg-zinc-900 border-border hover:border-zinc-500'
               } ${disabled ? 'opacity-40 cursor-not-allowed' : ''}`}
             >
@@ -152,14 +163,20 @@ export function TargetPicker({
                 <Kbd>{idx === 9 ? '0' : idx + 1}</Kbd>
               </div>
 
-              {/* Status indicator on top right if selected */}
-              {isSelected && (
-                <div className="absolute top-2.5 right-2.5">
-                  <span className="px-2 py-0.5 text-xs font-semibold bg-white text-black">
+              {/* Status indicator on top right */}
+              <div className="absolute top-2.5 right-2.5 flex flex-col items-end gap-1">
+                {isSelected && (
+                  <span className="px-2 py-0.5 text-xs font-semibold bg-white text-black shadow-sm">
                     Selected
                   </span>
-                </div>
-              )}
+                )}
+                {teammatePlayer && (
+                  <span className="px-1.5 py-0.5 text-[10px] font-semibold bg-red-600 text-white border border-red-400 flex items-center gap-1 shadow-md animate-bounce">
+                    <Crosshair className="w-3 h-3 text-white" />
+                    <span>{teammatePlayer.name}&apos;s Pick</span>
+                  </span>
+                )}
+              </div>
 
               {/* Square Avatar with Vibrant Full Colors */}
               <div className="relative my-3">

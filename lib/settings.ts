@@ -42,6 +42,7 @@ export const DEFAULT_SETTINGS: Settings = {
   deadChat: true,
   deadSeeRoles: true,
   revealRoleList: true,
+  circleSitting: true,
   roles: {
     mafia: { count: 2 },
     godfather: { enabled: true, count: 1 },
@@ -54,6 +55,15 @@ export const DEFAULT_SETTINGS: Settings = {
 
 export const SETTINGS_SCHEMA: SettingField[] = [
   // General
+  {
+    key: 'circleSitting',
+    group: 'General',
+    label: 'Circle Sitting Mode',
+    tooltip: 'Semi-3D round-table arena where all players sit in a circle in consistent order.',
+    type: 'toggle',
+    default: true,
+    plain: (v) => (v ? 'Enabled (Round Table)' : 'Disabled (Standard Cards)'),
+  },
   {
     key: 'maxPlayers',
     group: 'General',
