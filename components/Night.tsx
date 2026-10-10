@@ -222,7 +222,10 @@ export function Night({
                 myPlayerId={me?.id || ''}
                 roleDef={roleDef}
                 selectedId={me?.nightPick || null}
-                onSelect={(targetId) => onNightAction(targetId)}
+                onSelect={(targetId) => {
+                  onNightAction(targetId);
+                  onConfirmNightAction?.(targetId);
+                }}
                 mode="night"
                 allowHoldFire={role === 'vigilante'}
                 disabled={isConfirmed}

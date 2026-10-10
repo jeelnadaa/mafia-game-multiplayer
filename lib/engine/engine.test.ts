@@ -65,7 +65,8 @@ describe('Mafia Engine: Rules & Validation', () => {
     const assigned = assignRoles(players, DEFAULT_SETTINGS, rng);
     expect(assigned).toHaveLength(5);
     const roles = assigned.map((p) => p.role);
-    expect(roles.filter((r) => r === 'mafia' || r === 'godfather').length).toBeGreaterThanOrEqual(1);
+    expect(roles.filter((r) => r === 'mafia').length).toBe(1);
+    expect(roles.filter((r) => r === 'godfather').length).toBe(0);
   });
 
   it('correctly calculates Town, Mafia, and Jester win states', () => {

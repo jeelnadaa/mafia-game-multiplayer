@@ -275,26 +275,34 @@ export function CenterTimer({
   size = 'md',
 }: {
   phaseEndsAt: number | null | undefined;
-  serverNow: number | null | undefined;
+  serverNow?: number | null;
   label?: string;
   className?: string;
   size?: 'sm' | 'md' | 'lg';
 }) {
-  const [clientNow, setClientNow] = React.useState(() => Date.now());
+  const [now, setNow] = React.useState(() => Date.now());
+  const offsetRef = React.useRef(0);
+
+  // Synchronize server-to-client clock offset whenever serverNow is provided
+  React.useEffect(() => {
+    if (typeof serverNow === 'number' && serverNow > 0) {
+      offsetRef.current = serverNow - Date.now();
+    }
+  }, [serverNow]);
 
   React.useEffect(() => {
     if (!phaseEndsAt) return;
     const interval = setInterval(() => {
-      setClientNow(Date.now());
-    }, 250);
+      setNow(Date.now());
+    }, 200);
     return () => clearInterval(interval);
   }, [phaseEndsAt]);
 
   if (!phaseEndsAt) return null;
 
-  const clockOffset = serverNow ? serverNow - clientNow : 0;
-  const effectiveNow = clientNow + clockOffset;
-  const remainingSeconds = Math.max(0, Math.ceil((phaseEndsAt - effectiveNow) / 1000));
+  const effectiveNow = now + offsetRef.current;
+  const remainingMs = Math.max(0, phaseEndsAt - effectiveNow);
+  const remainingSeconds = Math.ceil(remainingMs / 1000);
   const isUrgent = remainingSeconds <= 10 && remainingSeconds > 0;
 
   const sizeClasses = {

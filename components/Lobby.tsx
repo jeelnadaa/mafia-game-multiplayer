@@ -420,6 +420,32 @@ export function Lobby({
                     )}
                   </div>
 
+                  {/* Godfather */}
+                  <div className="p-4 bg-surface-2 border border-border flex items-center justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold text-white">Godfather</span>
+                        <Badge color="mafia">Boss</Badge>
+                      </div>
+                      <div className="text-xs text-muted mt-1">Appears innocent to police</div>
+                    </div>
+                    {isHost && (
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          checked={Boolean(settings.roles.godfather?.enabled)}
+                          onChange={(val) =>
+                            onUpdateSettings({
+                              roles: {
+                                ...settings.roles,
+                                godfather: { enabled: val, count: val ? 1 : 0 },
+                              },
+                            })
+                          }
+                        />
+                      </div>
+                    )}
+                  </div>
+
                   {/* Doctor */}
                   <div className="p-4 bg-surface-2 border border-border flex items-center justify-between">
                     <div>

@@ -44,12 +44,12 @@ export const DEFAULT_SETTINGS: Settings = {
   revealRoleList: true,
   circleSitting: true,
   roles: {
-    mafia: { count: 2 },
-    godfather: { enabled: true, count: 1 },
+    mafia: { count: 1 },
+    godfather: { enabled: false, count: 0 },
     doctor: { enabled: true, count: 1 },
     police: { enabled: true, count: 1 },
-    vigilante: { enabled: false, count: 1 },
-    jester: { enabled: false, count: 1 },
+    vigilante: { enabled: false, count: 0 },
+    jester: { enabled: false, count: 0 },
   },
 };
 

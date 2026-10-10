@@ -277,6 +277,71 @@ export function useRoom(
       const now = Date.now();
       const callingPlayer = state.players.find((p) => p.id === playerId);
 
+      const tryAdvanceNight = (st: GameState): GameState => {
+        const subPhase = st.night.subPhase || 'mafia';
+        const eligible = getActiveRolePlayers(subPhase, st);
+        if (eligible.length === 0) {
+          const nextRole = getNextNightRole(subPhase, st);
+          if (nextRole) {
+            const duration = getSubPhaseDuration(nextRole, st.settings);
+            st.night.subPhase = nextRole;
+            st.night.confirmed = {};
+            st.phaseEndsAt = now + duration * 1000;
+            return st;
+          } else {
+            const rng = () => Math.random();
+            const { nextState: resolvedState } = resolveNight(st, rng, now);
+            return resolvedState.winner
+              ? { ...resolvedState, phase: 'gameOver', phaseEndsAt: null }
+              : { ...resolvedState, phase: 'morning', phaseEndsAt: now + 7000 };
+          }
+        }
+
+        let canAdvance = eligible.every(
+          (p) => Boolean(st.night.picks[p.id]) || Boolean(st.night.confirmed[p.id])
+        );
+
+        if (subPhase === 'mafia' && canAdvance) {
+          const mafiaPicks = eligible.map((m) => st.night.picks[m.id]).filter(Boolean);
+          if (st.settings.mafiaKillMode === 'unanimous' && eligible.length > 1) {
+            const allSame =
+              mafiaPicks.length === eligible.length && mafiaPicks.every((pick) => pick === mafiaPicks[0]);
+            if (!allSame) {
+              canAdvance = false;
+            }
+          }
+        }
+
+        if (canAdvance) {
+          const nextRole = getNextNightRole(subPhase, st);
+          if (nextRole) {
+            const duration = getSubPhaseDuration(nextRole, st.settings);
+            st.night.subPhase = nextRole;
+            st.night.confirmed = {};
+            st.phaseEndsAt = now + duration * 1000;
+          } else {
+            // All night roles are done their selection! Round gets over immediately.
+            const rng = () => Math.random();
+            const { nextState: resolvedState } = resolveNight(st, rng, now);
+            if (resolvedState.winner) {
+              st = {
+                ...resolvedState,
+                phase: 'gameOver',
+                phaseEndsAt: null,
+              };
+            } else {
+              st = {
+                ...resolvedState,
+                phase: 'morning',
+                phaseEndsAt: now + 7000,
+              };
+            }
+          }
+        }
+
+        return st;
+      };
+
       switch (intentType) {
         case 'setReady': {
           nextState.players = nextState.players.map((p) =>
@@ -305,7 +370,34 @@ export function useRoom(
 
         case 'updateSettings': {
           if (!callingPlayer?.isHost) return; // Host only
-          nextState.settings = { ...nextState.settings, ...payload };
+          nextState.settings = {
+            ...nextState.settings,
+            ...payload,
+            roles: payload?.roles
+              ? {
+                  ...nextState.settings.roles,
+                  ...payload.roles,
+                  mafia: payload.roles.mafia
+                    ? { ...nextState.settings.roles.mafia, ...payload.roles.mafia }
+                    : nextState.settings.roles.mafia,
+                  godfather: payload.roles.godfather
+                    ? { ...nextState.settings.roles.godfather, ...payload.roles.godfather }
+                    : nextState.settings.roles.godfather,
+                  doctor: payload.roles.doctor
+                    ? { ...nextState.settings.roles.doctor, ...payload.roles.doctor }
+                    : nextState.settings.roles.doctor,
+                  police: payload.roles.police
+                    ? { ...nextState.settings.roles.police, ...payload.roles.police }
+                    : nextState.settings.roles.police,
+                  vigilante: payload.roles.vigilante
+                    ? { ...nextState.settings.roles.vigilante, ...payload.roles.vigilante }
+                    : nextState.settings.roles.vigilante,
+                  jester: payload.roles.jester
+                    ? { ...nextState.settings.roles.jester, ...payload.roles.jester }
+                    : nextState.settings.roles.jester,
+                }
+              : nextState.settings.roles,
+          };
           nextState.version++;
           break;
         }
@@ -348,64 +440,19 @@ export function useRoom(
         case 'nightAction': {
           if (nextState.phase !== 'night') return;
           nextState.night.picks[playerId] = payload.targetId; // targetId or 'hold'
+          nextState.night.confirmed[playerId] = true;
+          nextState = tryAdvanceNight(nextState);
           nextState.version++;
           break;
         }
 
         case 'confirmNightAction': {
           if (nextState.phase !== 'night') return;
-          const subPhase = nextState.night.subPhase || 'mafia';
-          const eligible = getActiveRolePlayers(subPhase, nextState);
-          const isEligible = eligible.some((p) => p.id === playerId);
-          if (!isEligible) return;
-
           if (payload?.targetId !== undefined) {
             nextState.night.picks[playerId] = payload.targetId;
           }
-
           nextState.night.confirmed[playerId] = true;
-
-          // Check if all active members of this role have confirmed
-          let canAdvance = eligible.every((p) => nextState.night.confirmed[p.id]);
-
-          // For Mafia: verify target agreement if unanimous mode
-          if (subPhase === 'mafia' && canAdvance) {
-            const mafiaPicks = eligible.map((m) => nextState.night.picks[m.id]).filter(Boolean);
-            if (nextState.settings.mafiaKillMode === 'unanimous' && eligible.length > 1) {
-              const allSame =
-                mafiaPicks.length === eligible.length && mafiaPicks.every((pick) => pick === mafiaPicks[0]);
-              if (!allSame) {
-                canAdvance = false;
-              }
-            }
-          }
-
-          if (canAdvance) {
-            const nextRole = getNextNightRole(subPhase, nextState);
-            if (nextRole) {
-              const duration = getSubPhaseDuration(nextRole, nextState.settings);
-              nextState.night.subPhase = nextRole;
-              nextState.night.confirmed = {};
-              nextState.phaseEndsAt = now + duration * 1000;
-            } else {
-              // Night completed, resolve night!
-              const rng = () => Math.random();
-              const { nextState: resolvedState } = resolveNight(nextState, rng, now);
-              if (resolvedState.winner) {
-                nextState = {
-                  ...resolvedState,
-                  phase: 'gameOver',
-                  phaseEndsAt: null,
-                };
-              } else {
-                nextState = {
-                  ...resolvedState,
-                  phase: 'morning',
-                  phaseEndsAt: now + 7000,
-                };
-              }
-            }
-          }
+          nextState = tryAdvanceNight(nextState);
           nextState.version++;
           break;
         }
@@ -422,8 +469,8 @@ export function useRoom(
           const allVoted = alivePlayers.length > 0 && alivePlayers.every((p) => Boolean(nextState.votes[p.id]));
 
           if (allVoted) {
-            // Speed up voting conclusion to 1.5s so players see the final tally before moving to voteResult
-            nextState.phaseEndsAt = Math.min(nextState.phaseEndsAt || now + 1500, now + 1500);
+            // Speed up voting conclusion to 1s so players see the final tally before moving to voteResult
+            nextState.phaseEndsAt = Math.min(nextState.phaseEndsAt || now + 1000, now + 1000);
           }
           nextState.version++;
           break;
