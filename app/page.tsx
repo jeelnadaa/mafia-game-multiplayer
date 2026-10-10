@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Play, HelpCircle, ArrowRight } from 'lucide-react';
+import { HelpCircle, ArrowRight } from 'lucide-react';
 import { Button, Avatar, Kbd } from '@/components/ui';
 import { HelpSheet } from '@/components/HelpSheet';
 import { generateRoomCode } from '@/lib/net';
@@ -178,10 +178,9 @@ export default function HomePage() {
                 variant="primary"
                 size="lg"
                 onClick={handleCreateGame}
-                className="w-full font-semibold"
+                className="w-full font-semibold justify-center text-center"
               >
-                <Play className="w-3.5 h-3.5 mr-2 fill-current" />
-                <span>Create New Game</span>
+                Create New Game
               </Button>
 
               {/* Divider */}

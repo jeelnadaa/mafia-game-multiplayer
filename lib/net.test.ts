@@ -1,4 +1,17 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+
+function expect(actual: any) {
+  return {
+    toBe: (expected: any) => assert.strictEqual(actual, expected),
+    toEqual: (expected: any) => assert.deepStrictEqual(actual, expected),
+    toHaveLength: (length: number) => assert.strictEqual(actual?.length, length),
+    toBeGreaterThan: (n: number) => assert.ok(actual > n, `Expected ${actual} > ${n}`),
+    not: {
+      toBe: (expected: any) => assert.notStrictEqual(actual, expected),
+    },
+  };
+}
 import {
   ClientHelloSchema,
   ClientIntentSchema,

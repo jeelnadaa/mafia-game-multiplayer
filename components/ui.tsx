@@ -61,7 +61,7 @@ export function Button({
       title={title}
       className={`${baseStyles} ${sizeStyles[size]} ${variantStyles[variant]} ${className}`}
     >
-      <span>{children}</span>
+      <span className="inline-flex items-center justify-center text-center">{children}</span>
       {kbd && <Kbd>{kbd}</Kbd>}
     </button>
   );

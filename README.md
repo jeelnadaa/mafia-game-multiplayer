@@ -45,7 +45,7 @@ Open **[http://localhost:3000](http://localhost:3000)** in your browser.
 ```bash
 npm test
 ```
-Runs the Vitest test suite testing game rules, win conditions, role masking, private logs, turn progression, and WebRTC networking.
+Runs the automated test suite verifying game rules, win conditions, role masking, private logs, turn progression, and protocol schema validation.
 
 ### 4. Build for Production
 ```bash

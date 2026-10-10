@@ -17,5 +17,6 @@ require.extensions['.ts'] = function (module, filename) {
   module._compile(out, filename);
 };
 
-// Execute engine unit tests
+// Execute test suites
 require('../lib/engine/engine.test.ts');
+require('../lib/net.test.ts');
