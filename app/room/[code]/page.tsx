@@ -10,29 +10,74 @@ import { Day } from '@/components/Day';
 import { End } from '@/components/End';
 import { God } from '@/components/God';
 import { HelpSheet, HelpTab } from '@/components/HelpSheet';
-import { Button } from '@/components/ui';
+import { Button, Avatar } from '@/components/ui';
 import { AlertCircle, RotateCcw, Moon } from 'lucide-react';
 import { useShortcut } from '@/lib/shortcuts';
+import { clearRoomData } from '@/lib/storage';
 
 export default function RoomPage() {
   const params = useParams();
   const router = useRouter();
   const code = (params?.code as string)?.toUpperCase() || '';
 
-  const [name, setName] = useState('Player');
-  const [avatar, setAvatar] = useState(1);
+  const [name, setName] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('mafia-name') || '';
+    }
+    return '';
+  });
+  const [avatar, setAvatar] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('mafia-avatar');
+      return saved ? parseInt(saved, 10) : 1;
+    }
+    return 1;
+  });
+
+  // Host enters automatically because they configured their profile on the home page.
+  // Direct link visitors must enter their name and confirm joining.
+  const [hasJoined, setHasJoined] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const savedHostRaw = localStorage.getItem(`mafia-host:${code}`);
+      const isHostSaved = localStorage.getItem(`mafia-is-host:${code}`) === 'true';
+      const isHostParam = window.location.search.includes('host=true');
+      return Boolean(savedHostRaw) || isHostSaved || isHostParam;
+    }
+    return false;
+  });
+
   const [helpOpen, setHelpOpen] = useState(false);
   const [helpInitialTab, setHelpInitialTab] = useState<HelpTab>('basics');
 
-  // Retrieve player profile from localStorage
+  // Synchronize profile updates from localStorage on mount
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const savedName = localStorage.getItem('mafia-name');
       const savedAvatar = localStorage.getItem('mafia-avatar');
+      if (savedAvatar) {
+        const parsed = parseInt(savedAvatar, 10);
+        if (parsed >= 1 && parsed <= 12) setAvatar(parsed);
+      }
+      const savedName = localStorage.getItem('mafia-name');
       if (savedName) setName(savedName);
-      if (savedAvatar) setAvatar(parseInt(savedAvatar, 10));
     }
   }, []);
+
+  // Synchronize profile updates to localStorage
+  const handleSaveProfile = (newName: string, newAvatar: number) => {
+    setName(newName);
+    setAvatar(newAvatar);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('mafia-name', newName);
+      localStorage.setItem('mafia-avatar', String(newAvatar));
+    }
+  };
+
+  const handleJoinSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const finalName = name.trim() || 'Player';
+    handleSaveProfile(finalName, avatar);
+    setHasJoined(true);
+  };
 
   const {
     gameView,
@@ -48,7 +93,16 @@ export default function RoomPage() {
     kickPlayer,
     setGodMode,
     updateSettings,
-  } = useRoom(code, name, avatar);
+    updateProfile,
+    leaveRoom,
+  } = useRoom(code, name.trim() || 'Player', avatar, { enabled: hasJoined });
+
+  // If rejected because name is already taken, immediately bring back join form
+  useEffect(() => {
+    if (error && error.includes('already taken')) {
+      setHasJoined(false);
+    }
+  }, [error]);
 
   // Global shortcut 'H' or '?' toggles help
   useShortcut(
@@ -75,19 +129,98 @@ export default function RoomPage() {
     setHelpOpen(true);
   };
 
-  // Connection Error Screen
+  // 1. Pre-Join Screen for Visitors (Ask for name & avatar before checking availability)
+  if (!hasJoined) {
+    return (
+      <main className="min-h-screen flex items-center justify-center p-4 bg-transparent">
+        <div className="w-full max-w-md bg-surface border border-border p-6 md:p-8 space-y-6">
+          {/* Header */}
+          <div className="flex items-center justify-between pb-3 border-b border-border">
+            <div>
+              <span className="text-xs text-muted block">Direct P2P Mesh</span>
+              <h1 className="text-xl font-bold text-text">Join Room</h1>
+            </div>
+            <div className="px-3 py-1 bg-surface-2 border border-border font-mono text-sm font-bold tracking-widest text-text">
+              {code}
+            </div>
+          </div>
+
+          {/* Avatar Selector */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-medium text-muted">Choose Your Avatar</label>
+              <span className="text-xs text-muted">Avatar #{avatar}</span>
+            </div>
+            <div className="grid grid-cols-6 gap-2">
+              {Array.from({ length: 12 }, (_, i) => i + 1).map((id) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setAvatar(id)}
+                  className={`p-1 border transition-colors flex items-center justify-center rounded-none ${
+                    avatar === id
+                      ? 'border-white bg-white/10 ring-1 ring-white'
+                      : 'border-border hover:border-zinc-500 bg-surface-2'
+                  }`}
+                >
+                  <Avatar avatarId={id} size={38} className="rounded-none" />
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Name Input Form */}
+          <form onSubmit={handleJoinSubmit} className="space-y-4">
+            {error && (
+              <div className="p-3 bg-red-950/60 border border-red-500/60 text-red-200 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 text-red-400" />
+                <span>{error}</span>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-muted">Your Codename</label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g. Detective Vance"
+                maxLength={20}
+                autoFocus
+                className="w-full bg-surface-2 border border-border rounded-none px-4 py-2.5 text-sm text-text placeholder-muted/50 focus:outline-none focus:border-white focus:bg-zinc-900 transition-colors"
+              />
+            </div>
+
+            <div className="flex flex-col gap-2 pt-2">
+              <Button type="submit" variant="primary" size="lg" className="w-full font-semibold justify-center text-center">
+                Join Room
+              </Button>
+              <Button variant="ghost" size="md" onClick={() => router.push('/')} className="w-full text-muted justify-center text-center">
+                Return Home
+              </Button>
+            </div>
+          </form>
+        </div>
+      </main>
+    );
+  }
+
+  // 2. Connection Error Screen
   if (error) {
     return (
-      <main className="min-h-screen flex items-center justify-center p-4 bg-bg text-center">
+      <main className="min-h-screen flex items-center justify-center p-4 bg-transparent text-center">
         <div className="max-w-md w-full bg-surface border border-border rounded-none p-6 space-y-4">
           <div className="inline-flex items-center justify-center p-3 border border-border bg-surface-2 text-white">
             <AlertCircle className="w-6 h-6" />
           </div>
           <h2 className="text-sm font-mono font-bold uppercase tracking-widest text-text">
-            CONNECTION INTERRUPTED
+            ROOM UNAVAILABLE
           </h2>
           <p className="text-xs font-mono text-muted leading-relaxed">{error}</p>
-          <div className="flex justify-center gap-3 pt-2">
+          <div className="flex flex-wrap justify-center gap-3 pt-2">
+            <Button variant="secondary" onClick={() => setHasJoined(false)}>
+              <span>CHANGE CODENAME</span>
+            </Button>
             <Button variant="secondary" onClick={() => window.location.reload()}>
               <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
               <span>RETRY</span>
@@ -101,10 +234,10 @@ export default function RoomPage() {
     );
   }
 
-  // Connecting Screen
+  // 3. Connecting / Verifying Room Availability Screen
   if (isConnecting || !gameView) {
     return (
-      <main className="min-h-screen flex items-center justify-center p-4 bg-bg text-center">
+      <main className="min-h-screen flex items-center justify-center p-4 bg-transparent text-center">
         <div className="space-y-4 max-w-sm w-full bg-surface border border-border p-8">
           <div className="w-12 h-12 border border-border bg-surface-2 flex items-center justify-center text-white mx-auto animate-pulse">
             <Moon className="w-6 h-6 fill-current" />
@@ -113,8 +246,11 @@ export default function RoomPage() {
             <h2 className="text-xs font-mono font-bold uppercase tracking-widest text-text">
               CONNECTING TO ROOM {code}
             </h2>
-            <p className="text-xs font-mono text-muted mt-1">ESTABLISHING WEBRTC PEER CHANNEL...</p>
+            <p className="text-xs font-mono text-muted mt-1">CHECKING ROOM AVAILABILITY & HOST STATUS...</p>
           </div>
+          <Button variant="ghost" size="sm" onClick={() => setHasJoined(false)} className="w-full text-muted justify-center">
+            Cancel
+          </Button>
         </div>
       </main>
     );
@@ -130,6 +266,9 @@ export default function RoomPage() {
         onOpenHelp={handleOpenHelp}
         rtt={rtt}
         isReconnecting={!isConnected}
+        isHost={isHost}
+        onGodAction={(action) => sendIntent('godAction', { action })}
+        onLeave={leaveRoom}
       />
 
       {/* Main Game Screen Routing */}
@@ -154,6 +293,10 @@ export default function RoomPage() {
                 onKick={kickPlayer}
                 onToggleGod={setGodMode}
                 onUpdateSettings={updateSettings}
+                onUpdateProfile={(profile) => {
+                  handleSaveProfile(profile.name || name, profile.avatar);
+                  updateProfile(profile);
+                }}
               />
             )}
 
@@ -181,7 +324,10 @@ export default function RoomPage() {
                 gameView={gameView}
                 isHost={isHost}
                 onRematch={() => sendIntent('rematch')}
-                onLeave={() => router.push('/')}
+                onLeave={() => {
+                  clearRoomData(code);
+                  router.push('/');
+                }}
                 onSendChat={(channel, text) => sendChat(channel, text)}
               />
             )}
@@ -192,7 +338,10 @@ export default function RoomPage() {
                 gameView={gameView}
                 isHost={isHost}
                 onRematch={() => {}}
-                onLeave={() => router.push('/')}
+                onLeave={() => {
+                  clearRoomData(code);
+                  router.push('/');
+                }}
                 onSendChat={(channel, text) => sendChat(channel, text)}
               />
             )}

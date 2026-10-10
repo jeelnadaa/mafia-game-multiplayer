@@ -267,6 +267,72 @@ export function CountdownRing({
   );
 }
 
+export function CenterTimer({
+  phaseEndsAt,
+  serverNow,
+  label,
+  className = '',
+  size = 'md',
+}: {
+  phaseEndsAt: number | null | undefined;
+  serverNow: number | null | undefined;
+  label?: string;
+  className?: string;
+  size?: 'sm' | 'md' | 'lg';
+}) {
+  const [clientNow, setClientNow] = React.useState(() => Date.now());
+
+  React.useEffect(() => {
+    if (!phaseEndsAt) return;
+    const interval = setInterval(() => {
+      setClientNow(Date.now());
+    }, 250);
+    return () => clearInterval(interval);
+  }, [phaseEndsAt]);
+
+  if (!phaseEndsAt) return null;
+
+  const clockOffset = serverNow ? serverNow - clientNow : 0;
+  const effectiveNow = clientNow + clockOffset;
+  const remainingSeconds = Math.max(0, Math.ceil((phaseEndsAt - effectiveNow) / 1000));
+  const isUrgent = remainingSeconds <= 10 && remainingSeconds > 0;
+
+  const sizeClasses = {
+    sm: 'px-3 py-1 text-xs gap-1.5',
+    md: 'px-4 py-1.5 text-xs md:text-sm gap-2',
+    lg: 'px-6 py-2.5 text-sm md:text-base gap-3',
+  };
+
+  const numberSizes = {
+    sm: 'text-sm font-bold',
+    md: 'text-base md:text-lg font-bold',
+    lg: 'text-xl md:text-2xl font-bold font-mono',
+  };
+
+  return (
+    <div className={`inline-flex flex-col items-center justify-center select-none ${className}`}>
+      <div
+        className={`inline-flex items-center border rounded-none transition-colors duration-150 ${sizeClasses[size]} ${
+          isUrgent
+            ? 'border-white bg-white text-black animate-pulse shadow-xl'
+            : 'border-border bg-surface-2 text-text shadow-sm'
+        }`}
+      >
+        <span
+          className={`font-sans tracking-wider uppercase font-semibold text-[10px] md:text-xs ${
+            isUrgent ? 'text-zinc-800' : 'text-muted'
+          }`}
+        >
+          {label || 'Remaining'}
+        </span>
+        <span className={`font-mono tracking-wider ${numberSizes[size]}`}>
+          {remainingSeconds}s
+        </span>
+      </div>
+    </div>
+  );
+}
+
 export function Modal({
   isOpen,
   onClose,

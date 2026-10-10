@@ -2,25 +2,54 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Volume2, VolumeX, HelpCircle, Copy, Check, ArrowLeft, LogOut } from 'lucide-react';
+import { Volume2, VolumeX, HelpCircle, Copy, Check, ArrowLeft, LogOut, FastForward } from 'lucide-react';
 import { ClientGameView } from '@/lib/types';
 import { ROLES } from '@/lib/content';
-import { CountdownRing, Kbd, Modal, Button } from './ui';
+import { CountdownRing, CenterTimer, Kbd, Modal, Button } from './ui';
 import { toggleMute, getIsMuted } from '@/lib/sfx';
 import { getRoomShareUrl } from '@/lib/net';
+import { clearRoomData } from '@/lib/storage';
+import { useShortcut } from '@/lib/shortcuts';
 
 interface TopBarProps {
   gameView: ClientGameView;
   onOpenHelp: (tab?: 'basics' | 'my-role' | 'roles' | 'rules' | 'log' | 'notes' | 'keys') => void;
   rtt?: number;
   isReconnecting?: boolean;
+  isHost?: boolean;
+  onGodAction?: (action: 'next' | 'pause' | 'extend' | 'skip') => void;
+  onLeave?: () => void;
 }
 
-export function TopBar({ gameView, onOpenHelp, rtt = 18, isReconnecting = false }: TopBarProps) {
+export function TopBar({
+  gameView,
+  onOpenHelp,
+  rtt = 18,
+  isReconnecting = false,
+  isHost = false,
+  onGodAction,
+  onLeave,
+}: TopBarProps) {
   const router = useRouter();
   const [copied, setCopied] = useState(false);
   const [muted, setMuted] = useState(getIsMuted());
   const [leaveModalOpen, setLeaveModalOpen] = useState(false);
+  const [advanceModalOpen, setAdvanceModalOpen] = useState(false);
+
+  // Host-only shortcuts to fast-forward or control phases
+  const isPlayingActivePhase = gameView.phase !== 'lobby' && gameView.phase !== 'gameOver';
+  useShortcut('Shift+N', () => setAdvanceModalOpen(true), {
+    enabled: Boolean(isHost && isPlayingActivePhase),
+    scope: 'screen',
+  });
+  useShortcut('Shift+P', () => onGodAction?.('pause'), {
+    enabled: Boolean(isHost && isPlayingActivePhase),
+    scope: 'screen',
+  });
+  useShortcut('Shift+X', () => onGodAction?.('extend'), {
+    enabled: Boolean(isHost && isPlayingActivePhase),
+    scope: 'screen',
+  });
 
   const handleCopyLink = () => {
     const url = getRoomShareUrl(gameView.code);
@@ -38,6 +67,11 @@ export function TopBar({ gameView, onOpenHelp, rtt = 18, isReconnecting = false 
 
   const handleConfirmLeave = () => {
     setLeaveModalOpen(false);
+    if (onLeave) {
+      onLeave();
+    } else {
+      clearRoomData(gameView.code);
+    }
     router.push('/');
   };
 
@@ -111,9 +145,9 @@ export function TopBar({ gameView, onOpenHelp, rtt = 18, isReconnecting = false 
             </div>
           </div>
 
-          {/* Center: Phase & Round / Countdown Box */}
+          {/* Center: Phase & Round / Prominent Center Timer */}
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2.5 px-4 py-1.5 bg-surface-2 border border-border">
+            <div className="flex items-center gap-2.5 px-3 md:px-4 py-1.5 bg-surface-2 border border-border">
               <span className="text-xs md:text-sm font-semibold text-text">
                 {getPhaseDisplay(gameView.phase)}
               </span>
@@ -124,8 +158,26 @@ export function TopBar({ gameView, onOpenHelp, rtt = 18, isReconnecting = false 
               )}
             </div>
 
-            {remainingSeconds > 0 && (
-              <CountdownRing remainingSeconds={remainingSeconds} totalSeconds={45} size={36} />
+            <CenterTimer
+              phaseEndsAt={gameView.phaseEndsAt}
+              serverNow={gameView.serverNow}
+              label="Phase Timer"
+              size="sm"
+            />
+
+            {/* Host-only Fast-Forward button */}
+            {isHost && isPlayingActivePhase && (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setAdvanceModalOpen(true)}
+                title="Host shortcut: Fast-forward phase immediately"
+                kbd="Shift+N"
+                className="hidden sm:flex items-center gap-1.5 text-xs py-1.5 px-3 border-zinc-500 hover:border-white"
+              >
+                <FastForward className="w-3.5 h-3.5" />
+                <span>Fast-Forward</span>
+              </Button>
             )}
           </div>
 
@@ -193,6 +245,44 @@ export function TopBar({ gameView, onOpenHelp, rtt = 18, isReconnecting = false 
             </Button>
             <Button variant="primary" onClick={handleConfirmLeave} kbd="Enter">
               Leave Room
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Fast-Forward Custom Confirmation Modal (Host Only) */}
+      <Modal
+        isOpen={advanceModalOpen}
+        onClose={() => setAdvanceModalOpen(false)}
+        title="Fast-Forward to Next Phase?"
+      >
+        <div className="space-y-5">
+          <div className="p-4 bg-surface-2 border border-border flex items-start gap-3">
+            <FastForward className="w-5 h-5 text-white shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <div className="text-sm font-semibold text-text">Host Phase Fast-Forward</div>
+              <p className="text-xs text-muted leading-relaxed">
+                Advance directly to the next phase without waiting for the timer to finish.
+              </p>
+              <div className="p-2 bg-black border border-border text-[11px] text-muted mt-2">
+                <strong>Automatic advancement:</strong> Normal matches progress on their own when the timer expires. Use this optional host shortcut only to finish phases fast.
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-3 pt-2">
+            <Button variant="secondary" onClick={() => setAdvanceModalOpen(false)} kbd="Esc">
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => {
+                setAdvanceModalOpen(false);
+                onGodAction?.('next');
+              }}
+              kbd="Enter"
+            >
+              Confirm Fast-Forward
             </Button>
           </div>
         </div>

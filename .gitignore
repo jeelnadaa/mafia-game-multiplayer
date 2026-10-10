@@ -8,6 +8,7 @@
 
 # Next.js build output (includes exFAT fallbacks: .next2, .next3, …)
 /.next*/
+/.safe_types/
 /out/
 
 # Production

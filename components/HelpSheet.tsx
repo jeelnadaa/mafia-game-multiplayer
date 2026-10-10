@@ -426,7 +426,14 @@ export function HelpSheet({ isOpen, onClose, initialTab = 'basics', gameView }: 
                   <div className="space-y-1.5">
                     {SHORTCUTS.map((s) => (
                       <div key={s.id} className="flex items-center justify-between p-2 bg-surface-2 border border-border text-xs">
-                        <span className="text-muted">{s.description}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-muted">{s.description}</span>
+                          {s.hostOnly && (
+                            <span className="px-1.5 py-0.2 bg-zinc-800 border border-zinc-600 text-[10px] font-mono text-zinc-300">
+                              Host Only
+                            </span>
+                          )}
+                        </div>
                         <Kbd className="text-white">{s.label}</Kbd>
                       </div>
                     ))}

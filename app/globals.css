@@ -86,37 +86,41 @@ body {
   background: #3f3f46;
 }
 
-/* Cross Line Background Marquee Animations */
+/* Cross Line Background Marquee Animations - Hardware Accelerated for 60+ FPS */
 @keyframes marquee {
   0% {
-    transform: translateX(0%);
+    transform: translate3d(0%, 0, 0);
   }
   100% {
-    transform: translateX(-50%);
+    transform: translate3d(-50%, 0, 0);
   }
 }
 
 @keyframes marquee-reverse {
   0% {
-    transform: translateX(-50%);
+    transform: translate3d(-50%, 0, 0);
   }
   100% {
-    transform: translateX(0%);
+    transform: translate3d(0%, 0, 0);
   }
 }
 
 .animate-cross-marquee {
   display: flex;
   width: max-content;
-  animation: marquee 45s linear infinite;
+  animation: marquee 50s linear infinite;
   will-change: transform;
+  backface-visibility: hidden;
+  transform: translate3d(0, 0, 0);
 }
 
 .animate-cross-marquee-reverse {
   display: flex;
   width: max-content;
-  animation: marquee-reverse 45s linear infinite;
+  animation: marquee-reverse 50s linear infinite;
   will-change: transform;
+  backface-visibility: hidden;
+  transform: translate3d(0, 0, 0);
 }
 
 /* Respect reduced motion */

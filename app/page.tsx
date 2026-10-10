@@ -8,6 +8,8 @@ import { HelpSheet } from '@/components/HelpSheet';
 import { generateRoomCode } from '@/lib/net';
 import { useShortcut } from '@/lib/shortcuts';
 
+import { cleanExpiredGameData } from '@/lib/storage';
+
 export default function HomePage() {
   const router = useRouter();
   const [name, setName] = useState('');
@@ -15,9 +17,10 @@ export default function HomePage() {
   const [joinCode, setJoinCode] = useState('');
   const [helpOpen, setHelpOpen] = useState(false);
 
-  // Restore saved player profile
+  // Restore saved player profile & purge expired/completed games
   useEffect(() => {
     if (typeof window !== 'undefined') {
+      cleanExpiredGameData();
       const savedName = localStorage.getItem('mafia-name');
       const savedAvatar = localStorage.getItem('mafia-avatar');
       if (savedName) setName(savedName);
@@ -40,7 +43,10 @@ export default function HomePage() {
     const finalName = name.trim() || 'Host';
     saveProfile(finalName, avatar);
     const code = generateRoomCode();
-    router.push(`/room/${code}`);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(`mafia-is-host:${code}`, 'true');
+    }
+    router.push(`/room/${code}?host=true`);
   };
 
   const handleJoinGame = (e: React.FormEvent) => {
@@ -49,7 +55,7 @@ export default function HomePage() {
     if (!cleanCode) return;
     const finalName = name.trim() || 'Player';
     saveProfile(finalName, avatar);
-    router.push(`/room/${cleanCode}?join=true`);
+    router.push(`/room/${cleanCode}`);
   };
 
   return (

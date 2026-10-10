@@ -8,6 +8,7 @@ import { SETTINGS_SCHEMA, ROLE_PRESETS } from '@/lib/settings';
 import { validateSettings } from '@/lib/engine/rules';
 import { Button, Badge, Switch, Stepper, Avatar, Modal, Kbd } from './ui';
 import { getRoomShareUrl } from '@/lib/net';
+import { useShortcut } from '@/lib/shortcuts';
 
 interface LobbyProps {
   gameView: ClientGameView;
@@ -17,6 +18,7 @@ interface LobbyProps {
   onKick: (playerId: string) => void;
   onToggleGod: (isGod: boolean) => void;
   onUpdateSettings: (partial: Partial<Settings>) => void;
+  onUpdateProfile?: (profile: { name?: string; avatar: number }) => void;
 }
 
 export function Lobby({
@@ -27,6 +29,7 @@ export function Lobby({
   onKick,
   onToggleGod,
   onUpdateSettings,
+  onUpdateProfile,
 }: LobbyProps) {
   const [showQr, setShowQr] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -38,6 +41,20 @@ export function Lobby({
 
   const { settings, players, me } = gameView;
   const validation = validateSettings(settings, players.length);
+
+  // Host only start shortcut
+  useShortcut(
+    ['Ctrl+Enter', 'Meta+Enter'],
+    () => {
+      if (isHost && validation.valid) {
+        setStartConfirmOpen(true);
+      }
+    },
+    { enabled: isHost, scope: 'screen' }
+  );
+
+  // Ready toggle shortcut
+  useShortcut('Shift+Enter', () => onToggleReady(), { scope: 'screen' });
 
   const playingCount = players.filter((p) => !p.isGod).length;
   const mafiaTotal = settings.roles.mafia.count + (settings.roles.godfather.enabled ? settings.roles.godfather.count : 0);
@@ -133,6 +150,43 @@ export function Lobby({
                   <span>QR</span>
                 </Button>
               </div>
+            </div>
+          </div>
+
+          {/* Your Profile & Avatar Selector */}
+          <div className="bg-surface border border-border p-6 space-y-3">
+            <div className="flex items-center justify-between pb-2 border-b border-border">
+              <span className="text-sm font-bold text-text">Your Avatar & Identity</span>
+              <span className="text-xs text-muted">Avatar #{me?.avatar || 1}</span>
+            </div>
+            <div className="flex items-center gap-4">
+              <Avatar avatarId={me?.avatar || 1} size={52} className="rounded-none border-white/80" />
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-semibold text-text truncate">{me?.name || 'You'}</div>
+                <div className="text-xs text-muted mt-0.5">Click any color box to switch avatar:</div>
+              </div>
+            </div>
+            <div className="grid grid-cols-6 gap-2 pt-1">
+              {Array.from({ length: 12 }, (_, i) => i + 1).map((id) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => {
+                    if (typeof localStorage !== 'undefined') {
+                      localStorage.setItem('mafia-avatar', String(id));
+                    }
+                    onUpdateProfile?.({ avatar: id });
+                  }}
+                  title={`Avatar #${id}`}
+                  className={`p-1 border transition-colors flex items-center justify-center rounded-none ${
+                    (me?.avatar || 1) === id
+                      ? 'border-white bg-white/10 ring-1 ring-white'
+                      : 'border-border hover:border-zinc-500 bg-surface-2'
+                  }`}
+                >
+                  <Avatar avatarId={id} size={32} className="rounded-none pointer-events-none" />
+                </button>
+              ))}
             </div>
           </div>
 

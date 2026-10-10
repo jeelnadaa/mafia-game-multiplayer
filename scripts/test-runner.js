@@ -20,3 +20,4 @@ require.extensions['.ts'] = function (module, filename) {
 // Execute test suites
 require('../lib/engine/engine.test.ts');
 require('../lib/net.test.ts');
+require('../lib/storage.test.ts');

@@ -13,8 +13,9 @@ import {
   getNextNightRole,
   getSubPhaseDuration,
 } from './engine/phases';
-import { assignRoles, validateSettings } from './engine/rules';
+import { assignRoles, validateSettings, checkWinCondition } from './engine/rules';
 import { initSound, playNightBell, playDayChime, playGavelStrike, playFanfare } from './sfx';
+import { saveHostState, clearRoomData, cleanExpiredGameData } from './storage';
 
 export interface UseRoomReturn {
   gameView: ClientGameView | null;
@@ -30,13 +31,20 @@ export interface UseRoomReturn {
   kickPlayer: (playerId: string) => void;
   setGodMode: (isGod: boolean) => void;
   updateSettings: (partial: Partial<Settings>) => void;
+  updateProfile: (profile: { name?: string; avatar: number }) => void;
+  leaveRoom: () => void;
 }
 
-export function useRoom(roomCode: string, playerName = 'Player', playerAvatar = 1): UseRoomReturn {
+export function useRoom(
+  roomCode: string,
+  playerName = 'Player',
+  playerAvatar = 1,
+  options?: { enabled?: boolean }
+): UseRoomReturn {
   const [gameView, setGameView] = useState<ClientGameView | null>(null);
   const [isHost, setIsHost] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
-  const [isConnecting, setIsConnecting] = useState(true);
+  const [isConnecting, setIsConnecting] = useState(options?.enabled !== false);
   const [error, setError] = useState<string | null>(null);
   const [rtt, setRtt] = useState(18);
 
@@ -48,9 +56,10 @@ export function useRoom(roomCode: string, playerName = 'Player', playerAvatar = 
   const tickWorkerRef = useRef<{ terminate: () => void } | null>(null);
   const lastPhaseRef = useRef<string>('');
 
-  // 1. Initialize Audio and Identity
+  // 1. Initialize Audio, Identity, and Purge Expired Game Data
   useEffect(() => {
     initSound();
+    cleanExpiredGameData();
     let savedToken = localStorage.getItem(`mafia-token:${roomCode}`);
     if (!savedToken) {
       savedToken = generateToken();
@@ -64,10 +73,8 @@ export function useRoom(roomCode: string, playerName = 'Player', playerAvatar = 
     const now = Date.now();
     hostStateRef.current = state;
 
-    // Save to host storage
-    if (typeof localStorage !== 'undefined') {
-      localStorage.setItem(`mafia-host:${state.code}`, JSON.stringify(state));
-    }
+    // Save to host storage with timestamped expiration tracking
+    saveHostState(state.code, state);
 
     // Host's own view
     const hostView = buildViewFor(state, myPlayerIdRef.current, now);
@@ -96,6 +103,138 @@ export function useRoom(roomCode: string, playerName = 'Player', playerAvatar = 
     }
   }, []);
 
+  // Comprehensive player disconnect & leave handler
+  const handlePlayerDisconnect = useCallback(
+    (playerId: string) => {
+      const state = hostStateRef.current;
+      if (!state) return;
+
+      const player = state.players.find((p) => p.id === playerId);
+      if (!player) return;
+
+      const now = Date.now();
+      let nextState = { ...state };
+      const newLogs = [...(state.log || [])];
+
+      if (state.phase === 'lobby') {
+        // In Lobby: remove player from roster completely
+        nextState.players = state.players.filter((p) => p.id !== playerId);
+        newLogs.push({
+          id: `log-leave-${playerId}-${now}`,
+          round: 0,
+          phase: 'lobby',
+          text: `${player.name} left the room.`,
+          timestamp: now,
+          type: 'info' as const,
+        });
+        nextState.log = newLogs;
+        nextState.version = state.version + 1;
+        hostStateRef.current = nextState;
+        pushViews(nextState);
+        return;
+      }
+
+      // In Active Game: mark player as departed
+      const roleRevealed = player.role ? ` (${player.role.toUpperCase()})` : '';
+      newLogs.push({
+        id: `log-leave-${playerId}-${now}`,
+        round: state.round,
+        phase: state.phase,
+        text: `${player.name}${roleRevealed} disconnected and left the game.`,
+        timestamp: now,
+        type: 'death' as const,
+      });
+
+      const updatedPlayers = state.players.map((p) =>
+        p.id === playerId
+          ? {
+              ...p,
+              connected: false,
+              alive: false,
+              diedBy: 'left' as const,
+              diedInRound: state.round,
+            }
+          : p
+      );
+
+      // Clean up disconnected player's votes, picks, and ready states
+      const updatedVotes = { ...state.votes };
+      delete updatedVotes[playerId];
+
+      const updatedNightPicks = { ...state.night.picks };
+      delete updatedNightPicks[playerId];
+
+      const updatedNightConfirmed = { ...state.night.confirmed };
+      delete updatedNightConfirmed[playerId];
+
+      const updatedReadyToVote = state.readyToVote.filter((id) => id !== playerId);
+
+      nextState = {
+        ...state,
+        players: updatedPlayers,
+        votes: updatedVotes,
+        night: {
+          ...state.night,
+          picks: updatedNightPicks,
+          confirmed: updatedNightConfirmed,
+        },
+        readyToVote: updatedReadyToVote,
+        log: newLogs,
+      };
+
+      // Re-evaluate win condition immediately upon disconnect!
+      const winner = checkWinCondition(updatedPlayers);
+      if (winner) {
+        nextState.winner = winner;
+        nextState.phase = 'gameOver';
+        nextState.phaseEndsAt = null;
+        newLogs.push({
+          id: `log-win-${now}`,
+          round: state.round,
+          phase: 'gameOver',
+          text:
+            winner === 'town'
+              ? 'Town wins! All Mafia threats have been eliminated or left the city.'
+              : winner === 'mafia'
+              ? 'Mafia wins! The syndicate outnumbers the town.'
+              : 'Jester wins!',
+          timestamp: now,
+          type: 'phase' as const,
+        });
+        nextState.log = newLogs;
+      } else {
+        const alivePlaying = updatedPlayers.filter((p) => p.alive && !p.isGod);
+        if (alivePlaying.length < 2) {
+          nextState.phase = 'gameOver';
+          nextState.phaseEndsAt = null;
+          newLogs.push({
+            id: `log-not-enough-${now}`,
+            round: state.round,
+            phase: 'gameOver',
+            text: 'Game ended: Not enough players remaining to continue.',
+            timestamp: now,
+            type: 'phase' as const,
+          });
+          nextState.log = newLogs;
+        } else if (state.phase === 'discussion' && updatedReadyToVote.length >= alivePlaying.length) {
+          nextState.phase = 'voting';
+          nextState.phaseEndsAt = now + state.settings.votingDuration * 1000;
+          nextState.votes = {};
+        } else if (state.phase === 'voting') {
+          const allVoted = alivePlaying.every((p) => Boolean(updatedVotes[p.id]));
+          if (allVoted) {
+            nextState.phaseEndsAt = Math.min(nextState.phaseEndsAt || now + 1500, now + 1500);
+          }
+        }
+      }
+
+      nextState.version = state.version + 1;
+      hostStateRef.current = nextState;
+      pushViews(nextState);
+    },
+    [pushViews]
+  );
+
   // Host Intent Handler
   const handleHostIntent = useCallback(
     (playerId: string, intentType: IntentType, payload: any) => {
@@ -104,6 +243,7 @@ export function useRoom(roomCode: string, playerName = 'Player', playerAvatar = 
 
       let nextState = { ...state };
       const now = Date.now();
+      const callingPlayer = state.players.find((p) => p.id === playerId);
 
       switch (intentType) {
         case 'setReady': {
@@ -114,13 +254,32 @@ export function useRoom(roomCode: string, playerName = 'Player', playerAvatar = 
           break;
         }
 
+        case 'updateProfile': {
+          const newAvatar = Number(payload?.avatar);
+          const newName = payload?.name ? String(payload.name).trim() : undefined;
+          nextState.players = nextState.players.map((p) => {
+            if (p.id === playerId) {
+              return {
+                ...p,
+                avatar: newAvatar && newAvatar >= 1 && newAvatar <= 12 ? newAvatar : p.avatar,
+                name: newName || p.name,
+              };
+            }
+            return p;
+          });
+          nextState.version++;
+          break;
+        }
+
         case 'updateSettings': {
+          if (!callingPlayer?.isHost) return; // Host only
           nextState.settings = { ...nextState.settings, ...payload };
           nextState.version++;
           break;
         }
 
         case 'setGod': {
+          if (!callingPlayer?.isHost) return; // Host only
           nextState.players = nextState.players.map((p) =>
             p.id === playerId ? { ...p, isGod: Boolean(payload) } : p
           );
@@ -129,6 +288,7 @@ export function useRoom(roomCode: string, playerName = 'Player', playerAvatar = 
         }
 
         case 'kick': {
+          if (!callingPlayer?.isHost) return; // Host only
           nextState.players = nextState.players.filter((p) => p.id !== payload);
           if (connectionsRef.current[payload]) {
             connectionsRef.current[payload].send({ type: 'kicked' });
@@ -140,6 +300,7 @@ export function useRoom(roomCode: string, playerName = 'Player', playerAvatar = 
         }
 
         case 'start': {
+          if (!callingPlayer?.isHost) return; // Host only
           const validation = validateSettings(nextState.settings, nextState.players.length);
           if (!validation.valid) return;
 
@@ -255,8 +416,7 @@ export function useRoom(roomCode: string, playerName = 'Player', playerAvatar = 
         }
 
         case 'godAction': {
-          const player = nextState.players.find((p) => p.id === playerId);
-          if (!player?.isHost && !player?.isGod) return;
+          if (!callingPlayer?.isHost && !callingPlayer?.isGod) return; // Host or Narrator only
 
           if (payload.action === 'next') {
             nextState = maybeAdvance({ ...nextState, phaseEndsAt: now }, now, () => Math.random());
@@ -270,6 +430,7 @@ export function useRoom(roomCode: string, playerName = 'Player', playerAvatar = 
         }
 
         case 'rematch': {
+          if (!callingPlayer?.isHost) return; // Host only
           nextState.phase = 'lobby';
           nextState.round = 0;
           nextState.winner = undefined;
@@ -285,11 +446,16 @@ export function useRoom(roomCode: string, playerName = 'Player', playerAvatar = 
           nextState.version++;
           break;
         }
+
+        case 'leave': {
+          handlePlayerDisconnect(playerId);
+          return;
+        }
       }
 
       pushViews(nextState);
     },
-    [pushViews]
+    [pushViews, handlePlayerDisconnect]
   );
 
   // Host Chat Handler with Channel Validation
@@ -335,13 +501,32 @@ export function useRoom(roomCode: string, playerName = 'Player', playerAvatar = 
 
   // Initialize Room (Host or Peer Client)
   useEffect(() => {
+    if (options?.enabled === false) {
+      setIsConnecting(false);
+      return;
+    }
+
     let active = true;
+    let connectTimeout: any = null;
     const code = roomCode.toUpperCase();
     const token = localStorage.getItem(`mafia-token:${code}`) || generateToken();
 
-    // Check if host state exists in localStorage
+    // Check if this browser is host
     const savedHostRaw = typeof localStorage !== 'undefined' ? localStorage.getItem(`mafia-host:${code}`) : null;
-    const isHostCandidate = Boolean(savedHostRaw) || !window.location.search.includes('join');
+    const isHostSaved = typeof localStorage !== 'undefined' && localStorage.getItem(`mafia-is-host:${code}`) === 'true';
+    const isHostParam = typeof window !== 'undefined' && window.location.search.includes('host=true');
+    const isHostCandidate = Boolean(savedHostRaw) || isHostSaved || isHostParam;
+
+    const effectiveName =
+      playerName && playerName !== 'Player'
+        ? playerName
+        : (typeof localStorage !== 'undefined' && localStorage.getItem('mafia-name')) || playerName || 'Host';
+    const effectiveAvatar =
+      playerAvatar && playerAvatar > 1
+        ? playerAvatar
+        : (typeof localStorage !== 'undefined' && parseInt(localStorage.getItem('mafia-avatar') || '', 10)) ||
+          playerAvatar ||
+          1;
 
     if (isHostCandidate) {
       setIsHost(true);
@@ -350,11 +535,22 @@ export function useRoom(roomCode: string, playerName = 'Player', playerAvatar = 
       if (savedHostRaw) {
         try {
           initialGameState = JSON.parse(savedHostRaw);
+          // Always synchronize host player's current codename & avatar
+          initialGameState.players = initialGameState.players.map((p) =>
+            p.id === myPlayerIdRef.current || p.isHost
+              ? { ...p, name: effectiveName, avatar: effectiveAvatar }
+              : p
+          );
         } catch {
-          initialGameState = createInitialState(code, myPlayerIdRef.current, token, playerName, playerAvatar);
+          initialGameState = createInitialState(code, myPlayerIdRef.current, token, effectiveName, effectiveAvatar);
         }
       } else {
-        initialGameState = createInitialState(code, myPlayerIdRef.current, token, playerName, playerAvatar);
+        initialGameState = createInitialState(code, myPlayerIdRef.current, token, effectiveName, effectiveAvatar);
+      }
+
+      // Mark this browser as host for this room
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(`mafia-is-host:${code}`, 'true');
       }
 
       hostStateRef.current = initialGameState;
@@ -389,11 +585,53 @@ export function useRoom(roomCode: string, playerName = 'Player', playerAvatar = 
         peer.on('connection', (conn) => {
           conn.on('data', (data: any) => {
             if (data?.type === 'hello') {
+              const state = hostStateRef.current;
+              if (!state) return;
+
+              const clientName = (data.name && String(data.name).trim()) || `Player ${state.players.length + 1}`;
+              const clientAvatar = Number(data.avatar) || 1;
+
+              const existingIndex = state.players.findIndex(
+                (p) => p.token === data.token || p.id === conn.peer
+              );
+
+              // Reject if game already running and this is a new player
+              if (state.phase !== 'lobby' && existingIndex === -1) {
+                conn.send({ type: 'reject', reason: 'started' });
+                setTimeout(() => {
+                  try { conn.close(); } catch (_) {}
+                }, 500);
+                return;
+              }
+
+              // Reject if room is full
+              if (state.players.length >= state.settings.maxPlayers && existingIndex === -1) {
+                conn.send({ type: 'reject', reason: 'full' });
+                setTimeout(() => {
+                  try { conn.close(); } catch (_) {}
+                }, 500);
+                return;
+              }
+
+              // Reject if codename is already taken by another player in this room
+              const isNameTaken = state.players.some((p) => {
+                if (p.token === data.token || p.id === conn.peer) return false;
+                return p.name.trim().toLowerCase() === clientName.toLowerCase();
+              });
+
+              if (isNameTaken) {
+                conn.send({ type: 'reject', reason: 'duplicate_name' });
+                setTimeout(() => {
+                  try { conn.close(); } catch (_) {}
+                }, 500);
+                return;
+              }
+
               const newPlayer: Player = {
                 id: conn.peer,
                 token: data.token || generateToken(),
-                name: data.name,
-                avatar: data.avatar || 1,
+                name: clientName,
+                avatar: clientAvatar,
                 isHost: false,
                 isGod: false,
                 ready: false,
@@ -404,29 +642,24 @@ export function useRoom(roomCode: string, playerName = 'Player', playerAvatar = 
 
               connectionsRef.current[conn.peer] = conn;
 
-              if (hostStateRef.current) {
-                const existingIndex = hostStateRef.current.players.findIndex(
-                  (p) => p.token === data.token || p.id === conn.peer
-                );
-                let updatedPlayers = [...hostStateRef.current.players];
-
-                if (existingIndex !== -1) {
-                  updatedPlayers[existingIndex] = {
-                    ...updatedPlayers[existingIndex],
-                    connected: true,
-                    name: data.name,
-                  };
-                } else {
-                  updatedPlayers.push(newPlayer);
-                }
-
-                const updated = {
-                  ...hostStateRef.current,
-                  players: updatedPlayers,
-                  version: hostStateRef.current.version + 1,
+              let updatedPlayers = [...state.players];
+              if (existingIndex !== -1) {
+                updatedPlayers[existingIndex] = {
+                  ...updatedPlayers[existingIndex],
+                  connected: true,
+                  name: clientName,
+                  avatar: clientAvatar,
                 };
-                pushViews(updated);
+              } else {
+                updatedPlayers.push(newPlayer);
               }
+
+              const updated = {
+                ...state,
+                players: updatedPlayers,
+                version: state.version + 1,
+              };
+              pushViews(updated);
             } else if (data?.type === 'intent') {
               handleHostIntent(conn.peer, data.intentType, data.payload);
             } else if (data?.type === 'chat') {
@@ -438,28 +671,50 @@ export function useRoom(roomCode: string, playerName = 'Player', playerAvatar = 
 
           conn.on('close', () => {
             delete connectionsRef.current[conn.peer];
+            handlePlayerDisconnect(conn.peer);
+          });
+
+          conn.on('error', () => {
+            delete connectionsRef.current[conn.peer];
+            handlePlayerDisconnect(conn.peer);
           });
         });
       });
     } else {
       // Client Mode
       setIsHost(false);
+      setIsConnecting(true);
+      setError(null);
+
+      connectTimeout = setTimeout(() => {
+        if (!clientConnRef.current || !clientConnRef.current.open) {
+          setError(`Room ${code} is unavailable or host is offline.`);
+          setIsConnecting(false);
+          try { clientConnRef.current?.close(); } catch (_) {}
+        }
+      }, 8500);
+
       import('peerjs').then(({ default: Peer }) => {
-        if (!active) return;
+        if (!active) {
+          if (connectTimeout) clearTimeout(connectTimeout);
+          return;
+        }
         const peer = new Peer({ debug: 0 });
         peerRef.current = peer;
 
         peer.on('open', (id) => {
           const conn = peer.connect(`mafia-v1-${code}`, { reliable: true });
           clientConnRef.current = conn;
+
           conn.on('open', () => {
+            if (connectTimeout) clearTimeout(connectTimeout);
             setIsConnected(true);
             setIsConnecting(false);
             conn.send({
               type: 'hello',
               code,
-              name: playerName,
-              avatar: playerAvatar,
+              name: effectiveName,
+              avatar: effectiveAvatar,
               token,
             });
           });
@@ -470,6 +725,16 @@ export function useRoom(roomCode: string, playerName = 'Player', playerAvatar = 
             } else if (msg?.type === 'kicked') {
               setError('You were removed from the room.');
               setIsConnected(false);
+            } else if (msg?.type === 'reject') {
+              if (connectTimeout) clearTimeout(connectTimeout);
+              const reasonMap: Record<string, string> = {
+                started: 'Game is already in progress.',
+                full: 'Room is full (maximum 16 players).',
+                duplicate_name: `The codename "${effectiveName}" is already taken in this room. Please choose another name.`,
+              };
+              setError(reasonMap[msg.reason] || 'Unable to join room.');
+              setIsConnected(false);
+              setIsConnecting(false);
             }
           });
 
@@ -480,7 +745,8 @@ export function useRoom(roomCode: string, playerName = 'Player', playerAvatar = 
         });
 
         peer.on('error', () => {
-          setError('Failed to establish peer connection.');
+          if (connectTimeout) clearTimeout(connectTimeout);
+          setError(`Room ${code} is unavailable or host is offline.`);
           setIsConnecting(false);
         });
       });
@@ -488,10 +754,11 @@ export function useRoom(roomCode: string, playerName = 'Player', playerAvatar = 
 
     return () => {
       active = false;
+      if (connectTimeout) clearTimeout(connectTimeout);
       tickWorkerRef.current?.terminate();
       peerRef.current?.destroy();
     };
-  }, [roomCode, playerName, playerAvatar, pushViews, handleHostIntent, handleHostChat]);
+  }, [roomCode, playerName, playerAvatar, options?.enabled, pushViews, handleHostIntent, handleHostChat]);
 
   // Exposed Actions
   const sendIntent = useCallback(
@@ -553,6 +820,18 @@ export function useRoom(roomCode: string, playerName = 'Player', playerAvatar = 
     [sendIntent]
   );
 
+  const updateProfile = useCallback(
+    (profile: { name?: string; avatar: number }) => {
+      sendIntent('updateProfile', profile);
+    },
+    [sendIntent]
+  );
+
+  const leaveRoom = useCallback(() => {
+    sendIntent('leave');
+    clearRoomData(roomCode);
+  }, [sendIntent, roomCode]);
+
   return {
     gameView,
     isHost,
@@ -567,6 +846,8 @@ export function useRoom(roomCode: string, playerName = 'Player', playerAvatar = 
     kickPlayer,
     setGodMode,
     updateSettings,
+    updateProfile,
+    leaveRoom,
   };
 }
 

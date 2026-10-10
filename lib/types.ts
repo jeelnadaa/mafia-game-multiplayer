@@ -95,6 +95,7 @@ export interface GameState {
   phaseEndsAt: number | null;
   paused: boolean;
   hostAwayAt?: number;
+  updatedAt?: number;
   settings: Settings;
   players: Player[];
   night: {
@@ -195,7 +196,8 @@ export type IntentType =
   | 'vote'
   | 'godAction'
   | 'rematch'
-  | 'leave';
+  | 'leave'
+  | 'updateProfile';
 
 export interface IntentMessage {
   reqId: string;

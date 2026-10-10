@@ -85,6 +85,22 @@ describe('Mafia Engine: Rules & Validation', () => {
 
     // Jester voted out -> Jester wins instantly
     expect(checkWinCondition(townPlayers, true)).toBe('jester');
+
+    // 1 Mafia leaves -> game ends because mafia left (Town wins)
+    const playersWithMafiaLeaving: Player[] = [
+      { id: 'p1', token: 't1', name: 'Citizen Vance', avatar: 1, isHost: false, isGod: false, ready: true, connected: true, lastSeen: 0, role: 'civilian', alive: true },
+      { id: 'p2', token: 't2', name: 'Doctor Smith', avatar: 2, isHost: false, isGod: false, ready: true, connected: true, lastSeen: 0, role: 'doctor', alive: true },
+      { id: 'p3', token: 't3', name: 'Mafia Boss', avatar: 3, isHost: false, isGod: false, ready: true, connected: false, lastSeen: 0, role: 'mafia', alive: false, diedBy: 'left' },
+    ];
+    expect(checkWinCondition(playersWithMafiaLeaving)).toBe('town');
+
+    // Civilians leave -> Mafia left outnumbers or equals town (Mafia wins)
+    const playersWithCivLeaving: Player[] = [
+      { id: 'p1', token: 't1', name: 'Citizen Vance', avatar: 1, isHost: false, isGod: false, ready: true, connected: false, lastSeen: 0, role: 'civilian', alive: false, diedBy: 'left' },
+      { id: 'p2', token: 't2', name: 'Doctor Smith', avatar: 2, isHost: false, isGod: false, ready: true, connected: true, lastSeen: 0, role: 'doctor', alive: true },
+      { id: 'p3', token: 't3', name: 'Mafia Boss', avatar: 3, isHost: false, isGod: false, ready: true, connected: true, lastSeen: 0, role: 'mafia', alive: true },
+    ];
+    expect(checkWinCondition(playersWithCivLeaving)).toBe('mafia');
   });
 });
 

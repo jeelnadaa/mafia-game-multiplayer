@@ -5,6 +5,7 @@ import { Trophy, RotateCcw, LogOut, Skull, MessageSquare, Send, Eye } from 'luci
 import { ClientGameView } from '@/lib/types';
 import { ROLES } from '@/lib/content';
 import { Button, Avatar, Modal } from './ui';
+import { clearRoomData } from '@/lib/storage';
 
 interface EndProps {
   gameView: ClientGameView;
@@ -38,6 +39,7 @@ export function End({ gameView, isHost, onRematch, onLeave, onSendChat }: EndPro
 
   const handleConfirmLeave = () => {
     setLeaveConfirmOpen(false);
+    clearRoomData(gameView.code);
     onLeave();
   };
 

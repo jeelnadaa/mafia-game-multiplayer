@@ -6,7 +6,7 @@ import { Moon, Shield, Users, MessageSquare, Send, Check, FileText, Skull, Alert
 import { ClientGameView } from '@/lib/types';
 import { ROLES, RoleDef } from '@/lib/content';
 import { TargetPicker } from './TargetPicker';
-import { Button, Badge, Modal } from './ui';
+import { Button, Badge, Modal, CenterTimer } from './ui';
 import { useShortcut } from '@/lib/shortcuts';
 
 interface NightProps {
@@ -125,6 +125,16 @@ export function Night({
           </div>
         </div>
 
+        {/* Prominent Center Countdown Timer */}
+        <div className="flex justify-center">
+          <CenterTimer
+            phaseEndsAt={gameView.phaseEndsAt}
+            serverNow={gameView.serverNow}
+            label={`${roleDef?.name || 'Night'} Ends In`}
+            size="md"
+          />
+        </div>
+
         <div className="flex items-center gap-3">
           {roleDef && (
             <Badge color="mafia">{roleDef.name}</Badge>
@@ -191,11 +201,19 @@ export function Night({
                     : 'Vigilante Night Watch'}
                 </span>
 
-                {me?.shotsRemaining !== undefined && (
-                  <span className="text-xs md:text-sm font-semibold text-white">
-                    Ammo: {me.shotsRemaining} remaining
-                  </span>
-                )}
+                <div className="flex items-center gap-3">
+                  <CenterTimer
+                    phaseEndsAt={gameView.phaseEndsAt}
+                    serverNow={gameView.serverNow}
+                    label="Action Timer"
+                    size="sm"
+                  />
+                  {me?.shotsRemaining !== undefined && (
+                    <span className="text-xs md:text-sm font-semibold text-white">
+                      Ammo: {me.shotsRemaining} remaining
+                    </span>
+                  )}
+                </div>
               </div>
 
               {/* Target Picker Grid */}

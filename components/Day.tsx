@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { Sun, MessageSquare, Gavel, CheckCircle, Send, Users } from 'lucide-react';
 import { ClientGameView } from '@/lib/types';
 import { TargetPicker } from './TargetPicker';
-import { Button, Avatar, Kbd, Modal } from './ui';
+import { Button, Avatar, Kbd, Modal, CenterTimer } from './ui';
 import { useShortcut } from '@/lib/shortcuts';
 
 interface DayProps {
@@ -92,7 +92,7 @@ export function Day({ gameView, onVote, onReadyToVote, onSendChat }: DayProps) {
       {/* Discussion Phase */}
       {phase === 'discussion' && (
         <div className="space-y-6">
-          {/* Discussion Header */}
+          {/* Discussion Header with Center Timer */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-surface border border-border p-5 md:p-7">
             <div className="flex items-center gap-3">
               <Sun className="w-6 h-6 text-white" />
@@ -104,6 +104,16 @@ export function Day({ gameView, onVote, onReadyToVote, onSendChat }: DayProps) {
                   Debate claims, share evidence, and decide who faces the town vote.
                 </p>
               </div>
+            </div>
+
+            {/* Prominent Center Countdown Timer */}
+            <div className="flex justify-center">
+              <CenterTimer
+                phaseEndsAt={gameView.phaseEndsAt}
+                serverNow={gameView.serverNow}
+                label="Discussion Closes In"
+                size="md"
+              />
             </div>
 
             <Button
@@ -215,7 +225,7 @@ export function Day({ gameView, onVote, onReadyToVote, onSendChat }: DayProps) {
       {/* Voting Phase */}
       {phase === 'voting' && (
         <div className="space-y-6">
-          <div className="bg-surface border border-border p-5 md:p-7 text-center space-y-1.5">
+          <div className="bg-surface border border-border p-5 md:p-7 text-center space-y-3">
             <h2 className="text-2xl md:text-3xl font-sans font-bold text-text flex items-center justify-center gap-2.5">
               <Gavel className="w-6 h-6 text-white" />
               <span>Town Vote</span>
@@ -223,6 +233,16 @@ export function Day({ gameView, onVote, onReadyToVote, onSendChat }: DayProps) {
             <p className="text-sm text-muted">
               Cast your ballot to eliminate one Prime Suspect, or choose to Skip.
             </p>
+
+            {/* Prominent Center Countdown Timer */}
+            <div className="pt-1 flex justify-center">
+              <CenterTimer
+                phaseEndsAt={gameView.phaseEndsAt}
+                serverNow={gameView.serverNow}
+                label="Voting Closes In"
+                size="lg"
+              />
+            </div>
           </div>
 
           {/* 16:9 Widescreen Two-Column Layout on PC */}

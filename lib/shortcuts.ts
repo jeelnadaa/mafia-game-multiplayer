@@ -9,6 +9,7 @@ export interface ShortcutItem {
   group: 'Global' | 'Guide & Role' | 'Night & Vote' | 'Discussion' | 'Lobby' | 'God Mode';
   scope: ShortcutScope;
   description: string;
+  hostOnly?: boolean;
 }
 
 export const SHORTCUTS: ShortcutItem[] = [
@@ -40,13 +41,13 @@ export const SHORTCUTS: ShortcutItem[] = [
   // Lobby
   { id: 'toggle-ready', keys: ['Shift+Enter'], label: 'Shift+Enter', group: 'Lobby', scope: 'screen', description: 'Toggle ready state' },
   { id: 'copy-link', keys: ['Shift+C'], label: 'Shift+C', group: 'Lobby', scope: 'screen', description: 'Copy invite link' },
-  { id: 'start-game', keys: ['Ctrl+Enter', 'Meta+Enter'], label: 'Ctrl+Enter', group: 'Lobby', scope: 'screen', description: 'Start game (Host only)' },
-  // God Mode
-  { id: 'god-next', keys: ['Shift+N'], label: 'Shift+N', group: 'God Mode', scope: 'screen', description: 'Advance next phase' },
-  { id: 'god-end', keys: ['Shift+E'], label: 'Shift+E', group: 'God Mode', scope: 'screen', description: 'Force end night / vote' },
-  { id: 'god-pause', keys: ['Shift+P'], label: 'Shift+P', group: 'God Mode', scope: 'screen', description: 'Pause / resume timer' },
-  { id: 'god-extend', keys: ['Shift+X'], label: 'Shift+X', group: 'God Mode', scope: 'screen', description: 'Extend timer +30s' },
-  { id: 'god-skip', keys: ['Shift+S'], label: 'Shift+S', group: 'God Mode', scope: 'screen', description: 'Skip phase' },
+  { id: 'start-game', keys: ['Ctrl+Enter', 'Meta+Enter'], label: 'Ctrl+Enter', group: 'Lobby', scope: 'screen', description: 'Start game (Host only)', hostOnly: true },
+  // Host Fast-Forward & God Mode
+  { id: 'god-next', keys: ['Shift+N'], label: 'Shift+N', group: 'God Mode', scope: 'screen', description: 'Fast-forward to next phase (Host only)', hostOnly: true },
+  { id: 'god-end', keys: ['Shift+E'], label: 'Shift+E', group: 'God Mode', scope: 'screen', description: 'Force end phase (Host only)', hostOnly: true },
+  { id: 'god-pause', keys: ['Shift+P'], label: 'Shift+P', group: 'God Mode', scope: 'screen', description: 'Pause / resume timer (Host only)', hostOnly: true },
+  { id: 'god-extend', keys: ['Shift+X'], label: 'Shift+X', group: 'God Mode', scope: 'screen', description: 'Extend timer +30s (Host only)', hostOnly: true },
+  { id: 'god-skip', keys: ['Shift+S'], label: 'Shift+S', group: 'God Mode', scope: 'screen', description: 'Skip phase (Host only)', hostOnly: true },
 ];
 
 // Active scope stack manager - start with 'screen' as the active working scope
