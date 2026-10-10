@@ -259,3 +259,72 @@ fsModules.forEach((mod) => {
   }
 });
 
+// 6. Expose rawOpenSync and patch openSync/open for .next/types/ exFAT phantom locks
+const pathUtil = require('path');
+const safeTypesDir = pathUtil.resolve(__dirname, '..', '.safe_types');
+try { fs.mkdirSync(safeTypesDir, { recursive: true }); } catch (_) {}
+
+function redirectTypesPath(p) {
+  if (typeof p === 'string' && (p.includes('.next\\types') || p.includes('.next/types'))) {
+    const filename = pathUtil.basename(p);
+    return pathUtil.join(safeTypesDir, filename);
+  }
+  return p;
+}
+
+fsModules.forEach((mod) => {
+  const origOpenSync = mod.openSync;
+  mod.rawOpenSync = origOpenSync;
+  if (origOpenSync) {
+    mod.openSync = function (path, flags, mode) {
+      try {
+        return origOpenSync.call(mod, path, flags, mode);
+      } catch (err) {
+        if (err && err.code === 'EPERM') {
+          const redirected = redirectTypesPath(path);
+          if (redirected !== path) {
+            return origOpenSync.call(mod, redirected, flags, mode);
+          }
+        }
+        throw err;
+      }
+    };
+  }
+
+  const origOpen = mod.open;
+  mod.rawOpen = origOpen;
+  if (origOpen) {
+    mod.open = function (path, flags, mode, callback) {
+      const cb = typeof mode === 'function' ? mode : callback;
+      const m = typeof mode === 'function' ? undefined : mode;
+
+      return origOpen.call(mod, path, flags, m, (err, fd) => {
+        if (err && err.code === 'EPERM') {
+          const redirected = redirectTypesPath(path);
+          if (redirected !== path) {
+            return origOpen.call(mod, redirected, flags, m, cb);
+          }
+        }
+        return cb(err, fd);
+      });
+    };
+  }
+
+  if (mod.promises && mod.promises.open) {
+    const origPromiseOpen = mod.promises.open;
+    mod.promises.open = async function (path, flags, mode) {
+      try {
+        return await origPromiseOpen.call(mod.promises, path, flags, mode);
+      } catch (err) {
+        if (err && err.code === 'EPERM') {
+          const redirected = redirectTypesPath(path);
+          if (redirected !== path) {
+            return await origPromiseOpen.call(mod.promises, redirected, flags, mode);
+          }
+        }
+        throw err;
+      }
+    };
+  }
+});
+

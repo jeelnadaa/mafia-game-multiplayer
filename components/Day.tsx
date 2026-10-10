@@ -190,12 +190,22 @@ export function Day({ gameView, onVote, onReadyToVote, onSendChat }: DayProps) {
               <div className="flex-1 overflow-y-auto p-3 space-y-3 text-sm">
                 {gameView.chat
                   .filter((m) => m.channel === 'public')
-                  .map((m) => (
-                    <div key={m.id} className="leading-relaxed">
-                      <span className="font-bold text-white mr-2">[{m.senderName}]:</span>
-                      <span className="text-text">{m.text}</span>
-                    </div>
-                  ))}
+                  .map((m) =>
+                    m.senderId === 'system' ? (
+                      <div
+                        key={m.id}
+                        className="p-2.5 bg-zinc-900 border border-zinc-700 text-xs font-mono text-amber-300 flex items-start gap-2 shadow-sm rounded-none"
+                      >
+                        <span className="font-bold text-amber-400 shrink-0">[SYSTEM]:</span>
+                        <span className="leading-relaxed text-white font-medium">{m.text}</span>
+                      </div>
+                    ) : (
+                      <div key={m.id} className="leading-relaxed">
+                        <span className="font-bold text-white mr-2">[{m.senderName}]:</span>
+                        <span className="text-text">{m.text}</span>
+                      </div>
+                    )
+                  )}
                 {gameView.chat.filter((m) => m.channel === 'public').length === 0 && (
                   <div className="text-muted text-center pt-32 text-sm">
                     The town hall is quiet. Present claims or defenses to begin discussion.

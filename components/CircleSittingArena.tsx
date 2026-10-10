@@ -18,6 +18,8 @@ import {
   Eye,
   Radio,
   Flame,
+  Sun,
+  Gavel,
 } from 'lucide-react';
 import { ClientGameView, PlayerView, ChatChannel, ChatMessage } from '@/lib/types';
 import { ROLES } from '@/lib/content';
@@ -222,7 +224,29 @@ export function CircleSittingArena({
             ) : (
               tabMessages.map((msg) => {
                 const isMe = msg.senderId === me?.id;
+                const isSystem = msg.senderId === 'system';
                 const senderPlayer = players.find((p) => p.id === msg.senderId);
+
+                if (isSystem) {
+                  return (
+                    <div
+                      key={msg.id}
+                      className="p-2.5 bg-zinc-950 border border-zinc-700 text-xs text-amber-300 font-mono flex items-start gap-2 shadow-sm rounded-none"
+                    >
+                      <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between text-[10px] text-zinc-400 font-bold uppercase tracking-wider mb-0.5">
+                          <span>SYSTEM TRANSMISSION</span>
+                          <span>
+                            {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                        <p className="leading-relaxed break-words text-white font-medium">{msg.text}</p>
+                      </div>
+                    </div>
+                  );
+                }
+
                 return (
                   <div
                     key={msg.id}
@@ -345,18 +369,44 @@ export function CircleSittingArena({
               {/* Inner Inlaid Wood Compass Ring */}
               <div className="w-[180px] h-[180px] sm:w-[240px] sm:h-[240px] lg:w-[270px] lg:h-[270px] rounded-full border border-zinc-800/80 bg-zinc-950/60 flex flex-col items-center justify-center shadow-inner relative">
                 
-                {/* Center Mafia Seal */}
-                <div className="text-center p-3 space-y-1">
-                  <div className="text-[11px] font-mono tracking-widest text-zinc-500 uppercase">
-                    SEATED ARENA
+                {/* Center Mafia Seal / Phase Announcements */}
+                {phase === 'morning' ? (
+                  <div className="text-center p-3 space-y-1 z-10 animate-in fade-in zoom-in duration-300">
+                    <Sun className="w-6 h-6 text-amber-400 mx-auto animate-pulse" />
+                    <div className="text-[10px] font-mono tracking-widest text-amber-400 uppercase font-bold">
+                      DAWN IN THE CITY
+                    </div>
+                    <div className="text-xs font-semibold text-white line-clamp-3 max-w-[200px]">
+                      {gameView.log.filter((l) => l.round === round && l.phase === 'morning').length > 0
+                        ? gameView.log.filter((l) => l.round === round && l.phase === 'morning').slice(-1)[0].text
+                        : 'Nobody was harmed tonight.'}
+                    </div>
                   </div>
-                  <div className="text-sm sm:text-base font-black tracking-wider text-white">
-                    ROUND {round}
+                ) : phase === 'voteResult' ? (
+                  <div className="text-center p-3 space-y-1 z-10 animate-in fade-in zoom-in duration-300">
+                    <Gavel className="w-6 h-6 text-red-500 mx-auto" />
+                    <div className="text-[10px] font-mono tracking-widest text-red-400 uppercase font-bold">
+                      TOWN VERDICT
+                    </div>
+                    <div className="text-xs font-semibold text-white line-clamp-3 max-w-[200px]">
+                      {gameView.log.filter((l) => l.round === round && l.phase === 'voting').length > 0
+                        ? gameView.log.filter((l) => l.round === round && l.phase === 'voting').slice(-1)[0].text
+                        : 'The town votes have concluded.'}
+                    </div>
                   </div>
-                  <div className="text-[10px] text-zinc-400">
-                    {livingPlayers.length} OF {players.length} SURVIVING
+                ) : (
+                  <div className="text-center p-3 space-y-1">
+                    <div className="text-[11px] font-mono tracking-widest text-zinc-500 uppercase">
+                      SEATED ARENA
+                    </div>
+                    <div className="text-sm sm:text-base font-black tracking-wider text-white">
+                      ROUND {round}
+                    </div>
+                    <div className="text-[10px] text-zinc-400">
+                      {livingPlayers.length} OF {players.length} SURVIVING
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* Subtle Ambient Light Glow on Table */}
                 <div className="absolute inset-0 rounded-full bg-radial from-white/5 to-transparent pointer-events-none" />

@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { Crown, Shield, Users, Play, Copy, Check, QrCode, UserMinus, AlertTriangle } from 'lucide-react';
+import { Crown, Shield, Users, Play, Copy, Check, QrCode, UserMinus, AlertTriangle, MessageSquare, Send, Activity } from 'lucide-react';
 import { ClientGameView, Settings, PlayerView } from '@/lib/types';
 import { SETTINGS_SCHEMA, ROLE_PRESETS } from '@/lib/settings';
 import { validateSettings } from '@/lib/engine/rules';
@@ -19,6 +19,7 @@ interface LobbyProps {
   onToggleGod: (isGod: boolean) => void;
   onUpdateSettings: (partial: Partial<Settings>) => void;
   onUpdateProfile?: (profile: { name?: string; avatar: number }) => void;
+  onSendChat?: (channel: 'public', text: string) => void;
 }
 
 export function Lobby({
@@ -30,10 +31,12 @@ export function Lobby({
   onToggleGod,
   onUpdateSettings,
   onUpdateProfile,
+  onSendChat,
 }: LobbyProps) {
   const [showQr, setShowQr] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [activeTab, setActiveTab] = useState<'roles' | 'settings'>('roles');
+  const [activeTab, setActiveTab] = useState<'roles' | 'settings' | 'comms'>('roles');
+  const [lobbyChatInput, setLobbyChatInput] = useState('');
 
   // Confirmation Modals State
   const [startConfirmOpen, setStartConfirmOpen] = useState(false);
@@ -261,9 +264,41 @@ export function Lobby({
               </div>
             </div>
 
-            {/* Waiting indicator */}
-            <div className="pt-4 border-t border-border text-xs text-muted text-center">
-              All players can join instantly via the room link or code.
+            {/* Live Lobby Activity Feed */}
+            <div className="pt-3 border-t border-border space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-mono font-bold text-muted uppercase flex items-center gap-1.5">
+                  <Activity className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
+                  <span>Room Activity</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('comms')}
+                  className="text-[11px] text-muted hover:text-white underline cursor-pointer"
+                >
+                  Open Comms →
+                </button>
+              </div>
+
+              <div className="space-y-1.5 max-h-[110px] overflow-y-auto font-mono text-[11px]">
+                {gameView.log && gameView.log.length > 0 ? (
+                  gameView.log.slice(-4).reverse().map((entry) => (
+                    <div
+                      key={entry.id}
+                      className="p-1.5 bg-surface-2 border border-border/80 flex items-center justify-between text-text truncate"
+                    >
+                      <span className="truncate mr-2">{entry.text}</span>
+                      <span className="text-[10px] text-muted shrink-0">
+                        {new Date(entry.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                      </span>
+                    </div>
+                  ))
+                ) : (
+                  <div className="p-2 bg-surface-2/60 border border-border text-[11px] text-muted text-center">
+                    Waiting for players to join...
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -295,6 +330,23 @@ export function Lobby({
                   }`}
                 >
                   Rules & Timers
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('comms')}
+                  className={`px-4 py-2 text-sm font-medium border transition-colors flex items-center gap-1.5 ${
+                    activeTab === 'comms'
+                      ? 'bg-white text-black border-white font-bold'
+                      : 'bg-surface-2 text-muted border-border hover:border-zinc-500 hover:text-text'
+                  }`}
+                >
+                  <MessageSquare className="w-3.5 h-3.5" />
+                  <span>Comms & Logs</span>
+                  {gameView.chat.filter((m) => m.channel === 'public').length > 0 && (
+                    <span className="ml-1 px-1.5 py-0.2 bg-zinc-800 text-white text-[10px] rounded-none">
+                      {gameView.chat.filter((m) => m.channel === 'public').length}
+                    </span>
+                  )}
                 </button>
               </div>
 
@@ -538,6 +590,122 @@ export function Lobby({
                       )}
                     </div>
                   ))}
+                </div>
+              </div>
+            )}
+
+            {/* Comms & Activity Log Tab */}
+            {activeTab === 'comms' && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 h-[420px]">
+                  {/* Left Column: Official Transmission Event Logs */}
+                  <div className="bg-surface-2 border border-border p-3.5 flex flex-col justify-between overflow-hidden">
+                    <div className="flex items-center justify-between pb-2 border-b border-border">
+                      <span className="text-xs font-mono font-bold text-white uppercase flex items-center gap-1.5">
+                        <Activity className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>Room Event Logs</span>
+                      </span>
+                      <span className="text-[10px] text-muted font-mono">
+                        {gameView.log?.length || 0} events
+                      </span>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto space-y-1.5 py-2 font-mono text-xs pr-1">
+                      {gameView.log && gameView.log.length > 0 ? (
+                        [...gameView.log].reverse().map((entry) => (
+                          <div
+                            key={entry.id}
+                            className={`p-2 border text-xs leading-relaxed ${
+                              entry.type === 'death'
+                                ? 'bg-red-950/40 border-red-800 text-red-200'
+                                : entry.type === 'vote'
+                                ? 'bg-amber-950/40 border-amber-800 text-amber-200'
+                                : 'bg-surface border-border text-text'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between text-[10px] text-muted mb-0.5">
+                              <span className="uppercase">{entry.phase}</span>
+                              <span>
+                                {new Date(entry.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                              </span>
+                            </div>
+                            <div>{entry.text}</div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-muted text-center pt-24 text-xs">
+                          No room events recorded yet.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Right Column: Public Lobby Chat */}
+                  <div className="bg-surface-2 border border-border p-3.5 flex flex-col justify-between overflow-hidden">
+                    <div className="flex items-center justify-between pb-2 border-b border-border">
+                      <span className="text-xs font-mono font-bold text-white uppercase flex items-center gap-1.5">
+                        <MessageSquare className="w-3.5 h-3.5 text-white" />
+                        <span>Lobby Comms Wire</span>
+                      </span>
+                      <span className="text-[10px] text-muted font-mono">
+                        All Players
+                      </span>
+                    </div>
+
+                    {/* Chat Messages */}
+                    <div className="flex-1 overflow-y-auto space-y-2 py-2 text-xs pr-1">
+                      {gameView.chat
+                        .filter((m) => m.channel === 'public')
+                        .map((m) => (
+                          <div
+                            key={m.id}
+                            className={`p-2 border leading-relaxed ${
+                              m.senderId === 'system'
+                                ? 'bg-zinc-900 border-zinc-700 text-amber-300 font-mono'
+                                : 'bg-surface border-border text-text'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between text-[10px] text-muted mb-0.5">
+                              <span className="font-bold text-white">
+                                {m.senderId === 'system' ? '[SYSTEM]' : m.senderName}
+                              </span>
+                              <span>
+                                {new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </div>
+                            <div>{m.text}</div>
+                          </div>
+                        ))}
+                      {gameView.chat.filter((m) => m.channel === 'public').length === 0 && (
+                        <div className="text-muted text-center pt-24 text-xs">
+                          Comms wire quiet. Say hello to everyone!
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Chat Input */}
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        if (!lobbyChatInput.trim() || !onSendChat) return;
+                        onSendChat('public', lobbyChatInput.trim());
+                        setLobbyChatInput('');
+                      }}
+                      className="pt-2 border-t border-border flex gap-2"
+                    >
+                      <input
+                        type="text"
+                        value={lobbyChatInput}
+                        onChange={(e) => setLobbyChatInput(e.target.value)}
+                        placeholder="Type message to lobby..."
+                        maxLength={300}
+                        className="flex-1 bg-surface border border-border px-3 py-1.5 text-xs text-text placeholder-muted/60 focus:outline-none focus:border-white rounded-none"
+                      />
+                      <Button type="submit" variant="primary" size="sm" className="px-3">
+                        <Send className="w-3.5 h-3.5" />
+                      </Button>
+                    </form>
+                  </div>
                 </div>
               </div>
             )}

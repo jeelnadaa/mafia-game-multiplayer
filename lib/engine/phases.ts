@@ -145,18 +145,32 @@ export function resolveNight(
     return p;
   });
 
-  // Log entries
+  // Log entries and chat announcements
   const newLogs: LogEntry[] = [...state.log];
+  const newChat = [...(state.chat || [])];
+
   if (morningDeaths.length === 0) {
+    const safeText =
+      savedPlayers.length > 0 && settings.announceSave
+        ? 'A citizen was attacked in the dark, but was shielded by a Doctor!'
+        : 'The city awakens to calm skies. Nobody died tonight.';
     newLogs.push({
       id: `log-${round}-safe-${now}`,
       round,
       phase: 'morning',
-      text: savedPlayers.length > 0 && settings.announceSave
-        ? 'A citizen was attacked in the dark, but was shielded by a Doctor!'
-        : 'The city awakens to calm skies. Nobody died tonight.',
+      text: safeText,
       timestamp: now,
       type: savedPlayers.length > 0 ? 'save' : 'info',
+    });
+    newChat.push({
+      id: `msg-${round}-safe-${now}`,
+      senderId: 'system',
+      senderName: 'SYSTEM',
+      channel: 'public',
+      text: savedPlayers.length > 0 && settings.announceSave
+        ? '🛡️ Dawn Report: A citizen was attacked in the dark, but was shielded by a Doctor!'
+        : '🌅 Dawn Report: The city awakens to calm skies. Nobody died tonight.',
+      timestamp: now,
     });
   } else {
     morningDeaths.forEach((id) => {
@@ -174,6 +188,14 @@ export function resolveNight(
         text: `${victim?.name || 'A player'} was found eliminated${roleRevealed}.`,
         timestamp: now,
         type: 'death',
+      });
+      newChat.push({
+        id: `msg-${round}-death-${id}-${now}`,
+        senderId: 'system',
+        senderName: 'SYSTEM',
+        channel: 'public',
+        text: `💀 Dawn Report: ${victim?.name || 'A player'} was found eliminated${roleRevealed}.`,
+        timestamp: now,
       });
     });
   }
@@ -199,6 +221,7 @@ export function resolveNight(
       shotsUsed,
       policeInbox,
       log: newLogs,
+      chat: newChat.slice(-149),
       secretLog: [...state.secretLog, secretEntry],
       winner: winner || undefined,
       night: {
@@ -398,6 +421,7 @@ export function maybeAdvance(state: GameState, now: number, rng: () => number): 
       let jesterWon = false;
 
       const newLogs = [...state.log];
+      const newChat = [...(state.chat || [])];
 
       if (eliminatedId) {
         const victim = state.players.find((p) => p.id === eliminatedId);
@@ -423,22 +447,46 @@ export function maybeAdvance(state: GameState, now: number, rng: () => number): 
             ? ` (${victim?.role === 'mafia' || victim?.role === 'godfather' ? 'MAFIA' : 'TOWN'})`
             : '';
 
+        const verdictText = `By majority vote, ${victim?.name || 'A player'} was eliminated${roleRevealed}.`;
+
         newLogs.push({
           id: `log-${round}-vote-${eliminatedId}-${now}`,
           round,
           phase: 'voting',
-          text: `By majority vote, ${victim?.name || 'A player'} was eliminated${roleRevealed}.`,
+          text: verdictText,
           timestamp: now,
           type: 'vote',
         });
+
+        newChat.push({
+          id: `msg-${round}-vote-${eliminatedId}-${now}`,
+          senderId: 'system',
+          senderName: 'SYSTEM',
+          channel: 'public',
+          text: `⚖️ Town Verdict: ${verdictText}`,
+          timestamp: now,
+        });
       } else {
+        const noneText = skipWon
+          ? 'The town chose to skip voting.'
+          : 'The town votes were tied. Nobody was eliminated.';
+
         newLogs.push({
           id: `log-${round}-vote-none-${now}`,
           round,
           phase: 'voting',
-          text: skipWon ? 'The town chose to skip voting.' : 'The town votes were tied. Nobody was eliminated.',
+          text: noneText,
           timestamp: now,
           type: 'vote',
+        });
+
+        newChat.push({
+          id: `msg-${round}-vote-none-${now}`,
+          senderId: 'system',
+          senderName: 'SYSTEM',
+          channel: 'public',
+          text: `⚖️ Town Verdict: ${noneText}`,
+          timestamp: now,
         });
       }
 
@@ -449,6 +497,7 @@ export function maybeAdvance(state: GameState, now: number, rng: () => number): 
         players: updatedPlayers,
         winner: winner || undefined,
         log: newLogs,
+        chat: newChat.slice(-149),
         phase: 'voteResult',
         phaseEndsAt: now + 6000, // 6s result banner
         version: state.version + 1,

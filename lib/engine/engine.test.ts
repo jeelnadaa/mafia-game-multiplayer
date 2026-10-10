@@ -173,6 +173,50 @@ describe('Mafia Engine: Night Resolution & Voting', () => {
     expect(res.eliminatedId).toBe('p2');
     expect(res.skipWon).toBe(false);
   });
+
+  it('broadcasts morning casualties and voting verdicts to both event logs and chat', () => {
+    // 1. Morning resolution broadcasts
+    const { nextState: morningState } = resolveNight(baseState, () => 0.5, 1000);
+    const morningLog = morningState.log.find((l) => l.phase === 'morning');
+    expect(Boolean(morningLog)).toBe(true);
+    expect(morningLog?.text).toContain('Civ1');
+
+    const morningChat = morningState.chat.find((m) => m.channel === 'public' && m.senderId === 'system');
+    expect(Boolean(morningChat)).toBe(true);
+    expect(morningChat?.text).toContain('Civ1');
+
+    // 2. Voting resolution broadcasts via maybeAdvance
+    const votingState: GameState = {
+      ...baseState,
+      phase: 'voting',
+      phaseEndsAt: 1000,
+      round: 1,
+      votes: {
+        m1: 'c1',
+        d1: 'c1',
+        c2: 'c1',
+      },
+      players: [
+        { id: 'm1', token: 'tm1', name: 'Mafia1', avatar: 1, isHost: true, isGod: false, ready: true, connected: true, lastSeen: 0, role: 'mafia', alive: true },
+        { id: 'd1', token: 'td1', name: 'Doctor1', avatar: 2, isHost: false, isGod: false, ready: true, connected: true, lastSeen: 0, role: 'doctor', alive: true },
+        { id: 'c1', token: 'tc1', name: 'Civ1', avatar: 3, isHost: false, isGod: false, ready: true, connected: true, lastSeen: 0, role: 'civilian', alive: true },
+        { id: 'c2', token: 'tc2', name: 'Civ2', avatar: 4, isHost: false, isGod: false, ready: true, connected: true, lastSeen: 0, role: 'civilian', alive: true },
+      ],
+      log: [],
+      chat: [],
+    };
+
+    const advancedState = maybeAdvance(votingState, 2000, () => 0.5);
+    expect(advancedState.phase).toBe('voteResult');
+
+    const voteLog = advancedState.log.find((l) => l.type === 'vote');
+    expect(Boolean(voteLog)).toBe(true);
+    expect(voteLog?.text).toContain('Civ1');
+
+    const voteChat = advancedState.chat.find((m) => m.channel === 'public' && m.senderId === 'system');
+    expect(Boolean(voteChat)).toBe(true);
+    expect(voteChat?.text).toContain('Civ1');
+  });
 });
 
 describe('Mafia Engine: View Information Masking', () => {

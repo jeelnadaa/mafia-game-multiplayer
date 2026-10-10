@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useRoom } from '@/lib/useRoom';
 import { TopBar } from '@/components/TopBar';
@@ -259,6 +259,11 @@ export default function RoomPage() {
 
   const { phase, me } = gameView;
 
+  const handleLeaveRoom = useCallback(() => {
+    leaveRoom();
+    router.push('/');
+  }, [leaveRoom, router]);
+
   return (
     <div className="min-h-screen flex flex-col text-text bg-transparent">
       {/* Persistent Top Bar */}
@@ -269,7 +274,7 @@ export default function RoomPage() {
         isReconnecting={!isConnected}
         isHost={isHost}
         onGodAction={(action) => sendIntent('godAction', { action })}
-        onLeave={leaveRoom}
+        onLeave={handleLeaveRoom}
       />
 
       {/* Main Game Screen Routing */}
@@ -298,6 +303,7 @@ export default function RoomPage() {
                   handleSaveProfile(profile.name || name, profile.avatar);
                   updateProfile(profile);
                 }}
+                onSendChat={(channel, text) => sendChat(channel, text)}
               />
             )}
 
@@ -342,10 +348,7 @@ export default function RoomPage() {
                 gameView={gameView}
                 isHost={isHost}
                 onRematch={() => sendIntent('rematch')}
-                onLeave={() => {
-                  clearRoomData(code);
-                  router.push('/');
-                }}
+                onLeave={handleLeaveRoom}
                 onSendChat={(channel, text) => sendChat(channel, text)}
               />
             )}
@@ -356,10 +359,7 @@ export default function RoomPage() {
                 gameView={gameView}
                 isHost={isHost}
                 onRematch={() => {}}
-                onLeave={() => {
-                  clearRoomData(code);
-                  router.push('/');
-                }}
+                onLeave={handleLeaveRoom}
                 onSendChat={(channel, text) => sendChat(channel, text)}
               />
             )}

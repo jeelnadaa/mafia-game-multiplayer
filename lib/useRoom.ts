@@ -54,6 +54,7 @@ export function useRoom(
   const clientConnRef = useRef<any>(null);
   const connectionsRef = useRef<Record<string, any>>({});
   const tickWorkerRef = useRef<{ terminate: () => void } | null>(null);
+  const pingIntervalRef = useRef<any>(null);
   const lastPhaseRef = useRef<string>('');
 
   // 1. Initialize Audio, Identity, and Purge Expired Game Data
@@ -112,22 +113,43 @@ export function useRoom(
       const player = state.players.find((p) => p.id === playerId);
       if (!player) return;
 
+      // Close and clean up connection reference if open
+      if (connectionsRef.current[playerId]) {
+        try {
+          if (connectionsRef.current[playerId].open) {
+            connectionsRef.current[playerId].close();
+          }
+        } catch (_) {}
+        delete connectionsRef.current[playerId];
+      }
+
       const now = Date.now();
       let nextState = { ...state };
       const newLogs = [...(state.log || [])];
+      const newChat = [...(state.chat || [])];
 
       if (state.phase === 'lobby') {
         // In Lobby: remove player from roster completely
         nextState.players = state.players.filter((p) => p.id !== playerId);
+        const leaveText = `${player.name} left the room.`;
         newLogs.push({
           id: `log-leave-${playerId}-${now}`,
           round: 0,
           phase: 'lobby',
-          text: `${player.name} left the room.`,
+          text: leaveText,
           timestamp: now,
           type: 'info' as const,
         });
+        newChat.push({
+          id: `msg-leave-${now}-${Math.random().toString(36).slice(2, 6)}`,
+          senderId: 'system',
+          senderName: 'SYSTEM',
+          channel: 'public',
+          text: `🚪 ${leaveText}`,
+          timestamp: now,
+        });
         nextState.log = newLogs;
+        nextState.chat = newChat.slice(-149);
         nextState.version = state.version + 1;
         hostStateRef.current = nextState;
         pushViews(nextState);
@@ -136,13 +158,22 @@ export function useRoom(
 
       // In Active Game: mark player as departed
       const roleRevealed = player.role ? ` (${player.role.toUpperCase()})` : '';
+      const leaveText = `${player.name}${roleRevealed} disconnected and left the game.`;
       newLogs.push({
         id: `log-leave-${playerId}-${now}`,
         round: state.round,
         phase: state.phase,
-        text: `${player.name}${roleRevealed} disconnected and left the game.`,
+        text: leaveText,
         timestamp: now,
         type: 'death' as const,
+      });
+      newChat.push({
+        id: `msg-leave-${now}-${Math.random().toString(36).slice(2, 6)}`,
+        senderId: 'system',
+        senderName: 'SYSTEM',
+        channel: 'public',
+        text: `⚠️ ${leaveText}`,
+        timestamp: now,
       });
 
       const updatedPlayers = state.players.map((p) =>
@@ -180,6 +211,7 @@ export function useRoom(
         },
         readyToVote: updatedReadyToVote,
         log: newLogs,
+        chat: newChat.slice(-149),
       };
 
       // Re-evaluate win condition immediately upon disconnect!
@@ -558,12 +590,26 @@ export function useRoom(
       setIsConnected(true);
       setIsConnecting(false);
 
-      // Start authoritative Web Worker tick
+      // Start authoritative Web Worker tick with heartbeat watchdog
       tickWorkerRef.current = createTickWorker(() => {
         if (hostStateRef.current) {
-          const advanced = maybeAdvance(hostStateRef.current, Date.now(), () => Math.random());
-          if (advanced.version !== hostStateRef.current.version) {
-            pushViews(advanced);
+          const now = Date.now();
+          const state = hostStateRef.current;
+          let changed = false;
+
+          // Heartbeat watchdog: detect dropped peers after 6.5s of silence
+          state.players.forEach((p) => {
+            if (!p.isHost && p.connected && (now - (p.lastSeen || 0) > 6500)) {
+              handlePlayerDisconnect(p.id);
+              changed = true;
+            }
+          });
+
+          if (!changed && hostStateRef.current) {
+            const advanced = maybeAdvance(hostStateRef.current, now, () => Math.random());
+            if (advanced.version !== hostStateRef.current.version) {
+              pushViews(advanced);
+            }
           }
         }
       });
@@ -584,12 +630,22 @@ export function useRoom(
 
         peer.on('connection', (conn) => {
           conn.on('data', (data: any) => {
+            // Keepalive: mark peer active & connected
+            if (hostStateRef.current) {
+              const activeP = hostStateRef.current.players.find((p) => p.id === conn.peer);
+              if (activeP) {
+                activeP.lastSeen = Date.now();
+                activeP.connected = true;
+              }
+            }
+
             if (data?.type === 'hello') {
               const state = hostStateRef.current;
               if (!state) return;
 
               const clientName = (data.name && String(data.name).trim()) || `Player ${state.players.length + 1}`;
               const clientAvatar = Number(data.avatar) || 1;
+              const now = Date.now();
 
               const existingIndex = state.players.findIndex(
                 (p) => p.token === data.token || p.id === conn.peer
@@ -636,27 +692,70 @@ export function useRoom(
                 isGod: false,
                 ready: false,
                 connected: true,
-                lastSeen: Date.now(),
+                lastSeen: now,
                 alive: true,
               };
 
               connectionsRef.current[conn.peer] = conn;
 
               let updatedPlayers = [...state.players];
+              const newLogs = [...(state.log || [])];
+              const newChat = [...(state.chat || [])];
+
               if (existingIndex !== -1) {
+                const oldId = updatedPlayers[existingIndex].id;
+                if (oldId !== conn.peer && connectionsRef.current[oldId]) {
+                  delete connectionsRef.current[oldId];
+                }
                 updatedPlayers[existingIndex] = {
                   ...updatedPlayers[existingIndex],
+                  id: conn.peer,
                   connected: true,
+                  lastSeen: now,
                   name: clientName,
                   avatar: clientAvatar,
                 };
+                newLogs.push({
+                  id: `log-reconnect-${conn.peer}-${now}`,
+                  round: state.round,
+                  phase: state.phase,
+                  text: `${clientName} reconnected to the room.`,
+                  timestamp: now,
+                  type: 'info',
+                });
+                newChat.push({
+                  id: `msg-reconnect-${now}-${Math.random().toString(36).slice(2, 6)}`,
+                  senderId: 'system',
+                  senderName: 'SYSTEM',
+                  channel: 'public',
+                  text: `🔄 ${clientName} reconnected to the room.`,
+                  timestamp: now,
+                });
               } else {
                 updatedPlayers.push(newPlayer);
+                newLogs.push({
+                  id: `log-join-${conn.peer}-${now}`,
+                  round: state.round,
+                  phase: state.phase,
+                  text: `${clientName} joined the room.`,
+                  timestamp: now,
+                  type: 'info',
+                });
+                newChat.push({
+                  id: `msg-join-${now}-${Math.random().toString(36).slice(2, 6)}`,
+                  senderId: 'system',
+                  senderName: 'SYSTEM',
+                  channel: 'public',
+                  text: `👋 ${clientName} joined the room.`,
+                  timestamp: now,
+                });
               }
 
               const updated = {
                 ...state,
                 players: updatedPlayers,
+                log: newLogs,
+                chat: newChat.slice(-149),
                 version: state.version + 1,
               };
               pushViews(updated);
@@ -694,6 +793,24 @@ export function useRoom(
         }
       }, 8500);
 
+      const handleUnload = () => {
+        if (clientConnRef.current && clientConnRef.current.open) {
+          try {
+            clientConnRef.current.send({
+              type: 'intent',
+              reqId: generateToken(),
+              intentType: 'leave',
+            });
+            clientConnRef.current.close();
+          } catch (_) {}
+        }
+      };
+
+      if (typeof window !== 'undefined') {
+        window.addEventListener('beforeunload', handleUnload);
+        window.addEventListener('pagehide', handleUnload);
+      }
+
       import('peerjs').then(({ default: Peer }) => {
         if (!active) {
           if (connectTimeout) clearTimeout(connectTimeout);
@@ -717,11 +834,22 @@ export function useRoom(
               avatar: effectiveAvatar,
               token,
             });
+
+            // Start heartbeat pings every 2000ms
+            if (pingIntervalRef.current) clearInterval(pingIntervalRef.current);
+            pingIntervalRef.current = setInterval(() => {
+              if (conn.open) {
+                conn.send({ type: 'ping', t: Date.now() });
+              }
+            }, 2000);
           });
 
           conn.on('data', (msg: any) => {
             if (msg?.type === 'view') {
               setGameView(msg.view);
+            } else if (msg?.type === 'pong') {
+              const latency = Math.max(0, Date.now() - (msg.t || Date.now()));
+              setRtt(latency);
             } else if (msg?.type === 'kicked') {
               setError('You were removed from the room.');
               setIsConnected(false);
@@ -755,6 +883,7 @@ export function useRoom(
     return () => {
       active = false;
       if (connectTimeout) clearTimeout(connectTimeout);
+      if (pingIntervalRef.current) clearInterval(pingIntervalRef.current);
       tickWorkerRef.current?.terminate();
       peerRef.current?.destroy();
     };
@@ -829,6 +958,12 @@ export function useRoom(
 
   const leaveRoom = useCallback(() => {
     sendIntent('leave');
+    try {
+      if (clientConnRef.current && clientConnRef.current.open) {
+        clientConnRef.current.close();
+      }
+      peerRef.current?.destroy();
+    } catch (_) {}
     clearRoomData(roomCode);
   }, [sendIntent, roomCode]);
 
