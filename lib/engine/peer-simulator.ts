@@ -234,6 +234,10 @@ export class SimulatedRoom {
     this.broadcastViews();
   }
 
+  dispatchData(from: string, data: any) {
+    this.handleHostIncoming(from, data);
+  }
+
   private handleHostIncoming(from: string, data: any) {
     if (data?.type === 'hello') {
       const existing = this.hostState.players.find((p) => p.token === data.token);
@@ -268,6 +272,17 @@ export class SimulatedRoom {
         this.hostState.votes[from] = data.payload?.targetId || null;
       } else if (data.intentType === 'nightAction') {
         this.hostState.night.picks[from] = data.payload?.targetId || null;
+      } else if (data.intentType === 'setSuspicion') {
+        if (!this.hostState.suspicions) this.hostState.suspicions = {};
+        if (data.payload?.targetId) this.hostState.suspicions[from] = data.payload.targetId;
+      } else if (data.intentType === 'clearSuspicion') {
+        if (this.hostState.suspicions) delete this.hostState.suspicions[from];
+      } else if (data.intentType === 'sendReaction') {
+        if (!this.hostState.reactions) this.hostState.reactions = {};
+        this.hostState.reactions[from] = {
+          reaction: data.payload?.reaction,
+          timestamp: Date.now(),
+        };
       }
       this.hostState.version++;
       this.broadcastViews();

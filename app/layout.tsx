@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { BackgroundCrossLines } from '@/components/BackgroundCrossLines';
+import { PWAProvider } from '@/components/PWAProvider';
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://the-apes.vercel.app'),
@@ -47,7 +48,7 @@ export default function RootLayout({
     <html lang="en" className="dark">
       <body className="bg-bg text-text antialiased selection:bg-white selection:text-black min-h-screen flex flex-col relative">
         <BackgroundCrossLines />
-        {children}
+        <PWAProvider>{children}</PWAProvider>
       </body>
     </html>
   );

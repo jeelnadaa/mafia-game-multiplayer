@@ -23,10 +23,21 @@ import {
   Search,
   FileText,
 } from 'lucide-react';
-import { ClientGameView, PlayerView, ChatChannel, ChatMessage } from '@/lib/types';
+import { ClientGameView, PlayerView, ChatChannel, ChatMessage, QuickReaction } from '@/lib/types';
 import { ROLES } from '@/lib/content';
 import { Avatar, Button, Modal, CenterTimer, Kbd, Badge } from './ui';
 import { useShortcut } from '@/lib/shortcuts';
+import { getSeatPositions } from '@/lib/layout';
+import { voiceEngine } from '@/lib/voice';
+
+export const REACTION_GLYPHS: Record<QuickReaction, string> = {
+  suspicious: '⚠️ Suspect',
+  agree: '✓ Agree',
+  nope: '✗ Nope',
+  same: '= Same',
+  trust: '★ Trust',
+  question: '? Inquiry',
+};
 
 interface CircleSittingArenaProps {
   gameView: ClientGameView;
@@ -36,6 +47,9 @@ interface CircleSittingArenaProps {
   onReadyToVote: () => void;
   onSendChat: (channel: ChatChannel, text: string) => void;
   onOpenHelp: (tab?: any) => void;
+  onSetSuspicion?: (targetId: string) => void;
+  onClearSuspicion?: () => void;
+  onSendReaction?: (reaction: QuickReaction) => void;
 }
 
 export function CircleSittingArena({
@@ -46,12 +60,27 @@ export function CircleSittingArena({
   onReadyToVote,
   onSendChat,
   onOpenHelp,
+  onSetSuspicion,
+  onClearSuspicion,
+  onSendReaction,
 }: CircleSittingArenaProps) {
   const { phase, round, me, voteCounts, nightSubPhase } = gameView;
   const players = gameView.players || [];
   const readyToVoteList = gameView.readyToVote || [];
   const logList = gameView.log || [];
   const chatList = gameView.chat || [];
+
+  const [speakingPeers, setSpeakingPeers] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    return voiceEngine.subscribe((map) => setSpeakingPeers(map));
+  }, []);
+
+  const myIndex = Math.max(0, players.findIndex((p) => p.id === me?.id));
+  const seatPositions = useMemo(() => {
+    return getSeatPositions(players.length, 100, 100, myIndex, 8);
+  }, [players.length, myIndex]);
+
 
   // Active Chat Channel Tab
   const [activeChannel, setActiveChannel] = useState<ChatChannel>('public');
@@ -114,6 +143,12 @@ export function CircleSittingArena({
       if (player.id === me?.id) return;
       onVote(player.id);
       setPendingTarget(player);
+    } else if (phase === 'discussion' && me?.alive && !isGod && player.id !== me?.id) {
+      if (gameView.suspicions?.[me.id] === player.id) {
+        onClearSuspicion?.();
+      } else {
+        onSetSuspicion?.(player.id);
+      }
     }
   };
 
@@ -478,19 +513,12 @@ export function CircleSittingArena({
             </div>
 
             {/* ========================================================= */}
-            {/* PLAYERS SITTING IN THE CIRCLE IN IDENTICAL ORDER         */}
+            {/* PLAYERS SITTING IN THE CIRCLE IN DETERMINISTIC ELLIPSE     */}
             {/* ========================================================= */}
             {players.map((player, idx) => {
-              // Calculate deterministic circle coordinates
-              const total = players.length;
-              const angle = (2 * Math.PI * idx) / total - Math.PI / 2; // Start from top 12 o'clock
-              
-              // Responsive radius (percentage from center)
-              const radiusX = 42; // 42% width radius
-              const radiusY = 41; // 41% height radius
-
-              const posX = 50 + radiusX * Math.cos(angle);
-              const posY = 50 + radiusY * Math.sin(angle);
+              const seatPos = seatPositions[idx] || { x: 50, y: 50, leftPercent: 50, topPercent: 50 };
+              const posX = seatPos.leftPercent;
+              const posY = seatPos.topPercent;
 
               const isMe = player.id === me?.id;
               const isSelectedByMe = currentSelectionId === player.id;
@@ -505,6 +533,10 @@ export function CircleSittingArena({
 
               const isReady = readyToVoteList.includes(player.id);
               const playerVoteCount = voteCounts?.[player.id] || 0;
+              const isSpeaking = Boolean(speakingPeers[player.id]);
+              const playerReaction = gameView.reactions?.[player.id];
+              const playerSuspicionCount = gameView.suspicionCounts?.[player.id] || 0;
+              const isSuspectedByMe = gameView.suspicions?.[me?.id || ''] === player.id;
 
               return (
                 <div
@@ -516,7 +548,7 @@ export function CircleSittingArena({
                   }}
                   onClick={() => handleSeatClick(player)}
                   className={`absolute flex flex-col items-center transition-all duration-300 z-20 ${
-                    player.alive && (canActAtNight || canVoteAtDay)
+                    player.alive && (canActAtNight || canVoteAtDay || (phase === 'discussion' && !isMe))
                       ? 'cursor-pointer hover:scale-110'
                       : 'cursor-default'
                   }`}
@@ -557,6 +589,33 @@ export function CircleSittingArena({
                       </div>
                     )}
 
+                    {/* Speaking Indicator Badge */}
+                    {isSpeaking && (
+                      <div className="px-1.5 py-0.2 bg-emerald-950 text-emerald-300 border border-emerald-400 font-mono text-[9px] font-bold flex items-center gap-1 shadow-sm animate-pulse">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block animate-ping" />
+                        <span>Speaking</span>
+                      </div>
+                    )}
+
+                    {/* Quick Reaction Emote Floating Badge */}
+                    {playerReaction && (
+                      <div className="px-2 py-0.5 bg-zinc-950 text-amber-300 border border-amber-400 font-mono text-[10px] font-bold shadow-xl animate-bounce">
+                        {REACTION_GLYPHS[playerReaction.reaction as QuickReaction] || playerReaction.reaction}
+                      </div>
+                    )}
+
+                    {/* Suspicion Markers */}
+                    {playerSuspicionCount > 0 && (
+                      <div className="px-1.5 py-0.2 bg-amber-950/90 text-amber-300 font-mono text-[9px] font-bold border border-amber-600 shadow-md">
+                        ⚠️ {playerSuspicionCount} Suspect
+                      </div>
+                    )}
+                    {isSuspectedByMe && (
+                      <div className="px-1.5 py-0.2 bg-amber-500 text-black font-mono text-[9px] font-bold shadow-md">
+                        You Suspect
+                      </div>
+                    )}
+
                     {/* Voting Ballot Count Badge */}
                     {phase === 'voting' && playerVoteCount > 0 && (
                       <div className="px-1.5 py-0.5 bg-amber-500 text-black font-bold text-[10px] shadow-md">
@@ -570,6 +629,13 @@ export function CircleSittingArena({
                         Ready ✓
                       </div>
                     )}
+
+                    {/* Disconnected / Away Status Badge */}
+                    {!player.connected && (
+                      <div className="px-1 py-0.2 bg-zinc-900 text-zinc-400 font-mono text-[8px] font-bold border border-zinc-700">
+                        Away
+                      </div>
+                    )}
                   </div>
 
                   {/* 3D / Semi-3D Seated Character Visual */}
@@ -580,7 +646,7 @@ export function CircleSittingArena({
                       <div className="absolute -inset-3 rounded-full bg-white/20 border-2 border-white animate-pulse -z-10" />
                     )}
 
-                    {/* Chair Backing (Semi-3D Noir Chair) */}
+                    {/* Chair Backing (Semi-3D Noir Chair with Player Color Header) */}
                     <div
                       className={`relative w-14 h-16 sm:w-16 sm:h-18 border-2 flex flex-col items-center justify-between p-1.5 shadow-2xl transition-all ${
                         !player.alive
@@ -591,6 +657,10 @@ export function CircleSittingArena({
                           ? 'bg-surface border-zinc-300'
                           : 'bg-surface-2 border-border hover:border-zinc-500'
                       }`}
+                      style={{
+                        borderTopColor: player.color || undefined,
+                        borderTopWidth: player.color ? '3px' : undefined,
+                      }}
                     >
                       {/* Chair Top Studs / Rail */}
                       <div className="w-full flex items-center justify-between px-1">
@@ -601,16 +671,21 @@ export function CircleSittingArena({
                         <span className="w-1 h-1 bg-zinc-600 inline-block" />
                       </div>
 
-                      {/* Seated Head (Selected Avatar with Full Colors) */}
+                      {/* Seated Head (Selected Avatar with Full Colors & Voice Indicator) */}
                       <div className="relative my-0.5">
                         <Avatar
                           avatarId={player.avatar}
-                          size={36}
+                          size={44}
                           className={`rounded-none ${
                             !player.alive ? 'grayscale opacity-40' : ''
                           }`}
                         />
                         
+                        {/* Speaking Glow Ring on Avatar */}
+                        {isSpeaking && (
+                          <div className="absolute -inset-1 rounded-full border-2 border-emerald-400 animate-pulse pointer-events-none" />
+                        )}
+
                         {/* Dead Skull Overlay */}
                         {!player.alive && (
                           <div className="absolute inset-0 bg-black/70 flex items-center justify-center">
@@ -626,16 +701,21 @@ export function CircleSittingArena({
                     </div>
                   </div>
 
-                  {/* Player Name Plaque */}
+                  {/* Player Name Plaque with Unique Color Pip */}
                   <div
-                    className={`mt-1 px-1.5 py-0.5 max-w-[85px] sm:max-w-[100px] text-center border truncate text-[11px] font-semibold transition-colors ${
+                    className={`mt-1 px-1.5 py-0.5 max-w-[85px] sm:max-w-[105px] text-center border truncate text-[11px] font-semibold transition-colors flex items-center justify-center ${
                       !player.alive
                         ? 'bg-black text-zinc-500 border-zinc-900 line-through'
                         : isMe
                         ? 'bg-white text-black border-white font-bold'
                         : 'bg-black/90 text-text border-border'
                     }`}
+                    title={player.name}
                   >
+                    <span
+                      className="w-1.5 h-1.5 rounded-full inline-block shrink-0 mr-1"
+                      style={{ backgroundColor: player.color || '#a1a1aa' }}
+                    />
                     <span className="truncate block">
                       {isMe ? `${player.name} (You)` : player.name}
                     </span>
@@ -651,9 +731,9 @@ export function CircleSittingArena({
           </div>
 
           {/* Arena Bottom Auxiliary Control Toolbar */}
-          <div className="w-full flex flex-wrap items-center justify-between border-t border-border pt-3 z-10 gap-2 bg-surface/90">
-            {/* Left: Quick Special Actions */}
-            <div className="flex items-center gap-2">
+          <div className="w-full flex flex-col sm:flex-row items-center justify-between border-t border-border pt-3 z-10 gap-2 bg-surface/90">
+            {/* Left: Quick Special Actions & Reactions */}
+            <div className="flex flex-wrap items-center gap-2">
               {phase === 'voting' && me?.alive && !isGod && gameView.settings.allowSkipVote && (
                 <Button
                   variant={currentSelectionId === 'skip' ? 'primary' : 'secondary'}
@@ -688,6 +768,31 @@ export function CircleSittingArena({
                   <Check className="w-3.5 h-3.5 mr-1" />
                   <span>{readyToVoteList.includes(me?.id || '') ? 'Ready ✓' : 'Ready to Vote'}</span>
                 </Button>
+              )}
+
+              {/* Quick Reactions Bar for Living Players */}
+              {me?.alive && !isGod && (phase === 'discussion' || phase === 'voting') && (
+                <div className="flex items-center gap-1 overflow-x-auto py-0.5">
+                  {(['suspicious', 'agree', 'nope', 'same', 'trust', 'question'] as QuickReaction[]).map((r) => (
+                    <button
+                      key={r}
+                      type="button"
+                      onClick={() => onSendReaction?.(r)}
+                      className="px-2 py-1 bg-surface-2 border border-border text-[11px] font-mono text-muted hover:text-white hover:border-zinc-400 transition-colors shrink-0"
+                    >
+                      {REACTION_GLYPHS[r]}
+                    </button>
+                  ))}
+                  {gameView.suspicions && gameView.suspicions[me?.id || ''] && (
+                    <button
+                      type="button"
+                      onClick={onClearSuspicion}
+                      className="px-2 py-1 bg-amber-950/70 border border-amber-600 text-[11px] font-mono text-amber-300 hover:bg-amber-900 transition-colors shrink-0"
+                    >
+                      Clear Suspect
+                    </button>
+                  )}
+                </div>
               )}
             </div>
 

@@ -2,18 +2,26 @@ import { MetadataRoute } from 'next';
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'MAFIA: Shadows of the City',
+    name: 'Mafia: Shadows of the City',
     short_name: 'Mafia',
-    description: 'Real-time multiplayer WebRTC Mafia party game with no servers.',
+    description: 'Peer-to-peer WebRTC Mafia party game. No accounts, no tracking.',
     start_url: '/',
     display: 'standalone',
-    background_color: '#08090D',
-    theme_color: '#08090D',
+    background_color: '#09090b',
+    theme_color: '#09090b',
+    orientation: 'portrait',
     icons: [
       {
         src: '/icon.png',
-        sizes: '256x256',
+        sizes: '192x192',
         type: 'image/png',
+        purpose: 'maskable',
+      },
+      {
+        src: '/assets/logo-mark.png',
+        sizes: '512x512',
+        type: 'image/png',
+        purpose: 'any',
       },
     ],
   };

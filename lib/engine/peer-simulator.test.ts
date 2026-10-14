@@ -160,4 +160,78 @@ describe('In-Memory Peer Simulator: Multi-Peer Integration', () => {
       }
     }
   });
+
+  it('broadcasts suspicion markers accurately across all peers and recalculates suspicion counts', () => {
+    const room = new SimulatedRoom('SUSP1', 'Host', 1);
+    room.joinPlayer('p1', 'Player1', 2);
+    room.joinPlayer('p2', 'Player2', 3);
+    room.joinPlayer('p3', 'Player3', 4);
+
+    room.startGame();
+    room.hostState.phase = 'discussion';
+
+    // Player 1 suspects Player 3
+    room.dispatchData('p1', {
+      type: 'intent',
+      intentType: 'setSuspicion',
+      payload: { targetId: 'p3' },
+    });
+
+    // Player 2 also suspects Player 3
+    room.dispatchData('p2', {
+      type: 'intent',
+      intentType: 'setSuspicion',
+      payload: { targetId: 'p3' },
+    });
+
+    // Check views on all peers
+    const view1 = room.clientViews.get('p1');
+    const view2 = room.clientViews.get('p2');
+    const view3 = room.clientViews.get('p3');
+
+    expect(view1?.suspicionCounts?.['p3']).toBe(2);
+    expect(view2?.suspicionCounts?.['p3']).toBe(2);
+    expect(view3?.suspicionCounts?.['p3']).toBe(2);
+    expect(view1?.suspicions?.['p1']).toBe('p3');
+    expect(view2?.suspicions?.['p2']).toBe('p3');
+
+    // Player 1 clears suspicion
+    room.dispatchData('p1', {
+      type: 'intent',
+      intentType: 'clearSuspicion',
+    });
+
+    const updatedView3 = room.clientViews.get('p3');
+    expect(updatedView3?.suspicionCounts?.['p3']).toBe(1);
+    expect(updatedView3?.suspicions?.['p1']).toBeUndefined();
+  });
+
+  it('broadcasts quick reactions with rate-limiting to all peer views', () => {
+    const room = new SimulatedRoom('REACT1', 'Host', 1);
+    room.joinPlayer('p1', 'Player1', 2);
+    room.joinPlayer('p2', 'Player2', 3);
+    room.joinPlayer('p3', 'Player3', 4);
+
+    room.startGame();
+
+    // Player 1 sends quick reaction 'suspicious'
+    room.dispatchData('p1', {
+      type: 'intent',
+      intentType: 'sendReaction',
+      payload: { reaction: 'suspicious' },
+    });
+
+    const viewP2 = room.clientViews.get('p2');
+    expect(viewP2?.reactions?.['p1']?.reaction).toBe('suspicious');
+
+    // Player 2 sends quick reaction 'agree'
+    room.dispatchData('p2', {
+      type: 'intent',
+      intentType: 'sendReaction',
+      payload: { reaction: 'agree' },
+    });
+
+    const viewP1 = room.clientViews.get('p1');
+    expect(viewP1?.reactions?.['p2']?.reaction).toBe('agree');
+  });
 });

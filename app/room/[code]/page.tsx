@@ -103,6 +103,9 @@ export default function RoomPage() {
     setGodMode,
     updateSettings,
     updateProfile,
+    setSuspicion,
+    clearSuspicion,
+    sendReaction,
     leaveRoom,
   } = useRoom(code, name.trim() || 'Player', avatar, { enabled: hasJoined });
 
@@ -447,6 +450,9 @@ export default function RoomPage() {
                   onReadyToVote={() => sendIntent('readyToVote')}
                   onSendChat={(channel, text) => sendChat(channel, text)}
                   onOpenHelp={handleOpenHelp}
+                  onSetSuspicion={setSuspicion}
+                  onClearSuspicion={clearSuspicion}
+                  onSendReaction={sendReaction}
                 />
               )}
 

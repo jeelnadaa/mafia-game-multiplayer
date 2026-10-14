@@ -346,6 +346,8 @@ export function maybeAdvance(state: GameState, now: number, rng: () => number): 
         phase: 'night',
         round: 1,
         phaseEndsAt: now + duration * 1000,
+        suspicions: {},
+        reactions: {},
         night: {
           subPhase: firstRole,
           picks: {},
@@ -387,6 +389,8 @@ export function maybeAdvance(state: GameState, now: number, rng: () => number): 
         ...nextState,
         phase: 'morning',
         phaseEndsAt: now + 7000, // 7 seconds morning news
+        suspicions: {},
+        reactions: {},
         version: state.version + 1,
       };
     }
@@ -572,6 +576,8 @@ export function maybeAdvance(state: GameState, now: number, rng: () => number): 
         phase: 'night',
         phaseEndsAt: now + duration * 1000,
         votes: {},
+        suspicions: {},
+        reactions: {},
         revotePending: false,
         night: {
           subPhase: firstRole,

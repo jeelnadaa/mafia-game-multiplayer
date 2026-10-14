@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { ClientGameView, GameState, IntentType, Player, Settings, Role } from './types';
+import { ClientGameView, GameState, IntentType, Player, Settings, Role, QuickReaction } from './types';
 import { DEFAULT_SETTINGS, PLAYER_COLORS } from './settings';
 import {
   generateRoomCode,
@@ -42,6 +42,9 @@ export interface UseRoomReturn {
   setGodMode: (isGod: boolean) => void;
   updateSettings: (partial: Partial<Settings>) => void;
   updateProfile: (profile: { name?: string; avatar: number }) => void;
+  setSuspicion: (targetId: string) => void;
+  clearSuspicion: () => void;
+  sendReaction: (reaction: QuickReaction) => void;
   leaveRoom: () => void;
 }
 
@@ -560,6 +563,41 @@ export function useRoom(
             nextState.phaseEndsAt = now + nextState.settings.votingDuration * 1000;
             nextState.votes = {};
           }
+          nextState.version++;
+          break;
+        }
+
+        case 'setSuspicion': {
+          if (nextState.phase !== 'discussion' && nextState.phase !== 'voting') return;
+          const caller = nextState.players.find((p) => p.id === playerId);
+          if (!caller?.alive || caller.isGod) return;
+          if (!nextState.suspicions) nextState.suspicions = {};
+          if (payload?.targetId && payload.targetId !== playerId) {
+            nextState.suspicions[playerId] = payload.targetId;
+            nextState.version++;
+          }
+          break;
+        }
+
+        case 'clearSuspicion': {
+          if (!nextState.suspicions) return;
+          delete nextState.suspicions[playerId];
+          nextState.version++;
+          break;
+        }
+
+        case 'sendReaction': {
+          const caller = nextState.players.find((p) => p.id === playerId);
+          if (!caller?.alive || caller.isGod) return;
+          const validReactions = ['suspicious', 'agree', 'nope', 'same', 'trust', 'question'];
+          if (!validReactions.includes(payload?.reaction)) return;
+          if (!nextState.reactions) nextState.reactions = {};
+          const prev = nextState.reactions[playerId];
+          if (prev && now - prev.timestamp < 1000) return; // rate limit 1s
+          nextState.reactions[playerId] = {
+            reaction: payload.reaction,
+            timestamp: now,
+          };
           nextState.version++;
           break;
         }
@@ -1167,6 +1205,24 @@ export function useRoom(
     [sendIntent]
   );
 
+  const setSuspicion = useCallback(
+    (targetId: string) => {
+      sendIntent('setSuspicion', { targetId });
+    },
+    [sendIntent]
+  );
+
+  const clearSuspicion = useCallback(() => {
+    sendIntent('clearSuspicion');
+  }, [sendIntent]);
+
+  const sendReaction = useCallback(
+    (reaction: QuickReaction) => {
+      sendIntent('sendReaction', { reaction });
+    },
+    [sendIntent]
+  );
+
   const leaveRoom = useCallback(() => {
     sendIntent('leave');
     try {
@@ -1196,6 +1252,9 @@ export function useRoom(
     setGodMode,
     updateSettings,
     updateProfile,
+    setSuspicion,
+    clearSuspicion,
+    sendReaction,
     leaveRoom,
   };
 }
