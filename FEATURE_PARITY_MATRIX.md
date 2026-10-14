@@ -49,7 +49,7 @@
 | **F-43** | Tactical Tips Notes | `components/HelpSheet.tsx` | Tactical Tips in My Role | Local player | Role-specific advisory notes | `components/ui.test.tsx` | Typewriter margin notes on dossier card | **VERIFIED** |
 | **F-44** | WebRTC Audio Mesh (Voice) | `lib/voice.ts`, `components/VoiceOverlay.tsx` | Join Voice / Mute / Leave | Connected peers | WebRTC MediaStream + Opus | `lib/voice.ts` | Bottom Dock Mic (Off/Mute/Live) + Audio Sheet | **VERIFIED** |
 | **F-45** | Per-Player Voice Mute & Volume | `components/VoiceOverlay.tsx` | Voice roster sliders | All players | `voiceEngine.setPeerVolume` | Manual inspection | Slide-up Audio Sheet -> Participant rows | **VERIFIED** |
-| **F-46** | Push-to-Talk (PTT) | `lib/voice.ts` | Space / keydown PTT | Voice users | `voiceEngine.setPttActive` | `lib/voice.ts` | Slide-up Audio Sheet switch | **VERIFIED** |
+| **F-46** | Push-to-Talk (PTT) | `lib/voice.ts` | Hold Space or T / Touch Hold | Voice users | `voiceEngine.setPttActive` | `lib/voice.ts` | Slide-up Audio Sheet switch + Mic Dock | **VERIFIED** |
 | **F-47** | Procedural Lo-Fi Ambience & SFX | `lib/sfx.ts` | Background Lo-Fi chords + Bells | All players | Web Audio procedural synthesizer | `lib/sfx.ts` | Slide-up Audio Sheet volume sliders + Mute key | **VERIFIED** |
 | **F-48** | Case Closed Ceremony | `components/End.tsx` | Game over resolution | All players | Win evaluation & role reveal | `lib/engine/rules.test.ts` | 3-Beat Ceremony: Verdict light, Card flips, Awards | **VERIFIED** |
 | **F-49** | Citations & Awards Computation | `components/End.tsx`, `lib/stats.ts` | Lone Wolf, Sharpest Eye, etc. | Survivors/Winners | Deterministic match awards | `lib/stats.test.ts` | Stamped citation tags on revealed player cards | **VERIFIED** |

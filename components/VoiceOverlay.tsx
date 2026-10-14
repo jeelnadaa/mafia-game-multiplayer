@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Mic,
   MicOff,
@@ -15,7 +15,7 @@ import {
   Check,
 } from 'lucide-react';
 import { ClientGameView } from '@/lib/types';
-import { Avatar, Button, Switch } from './ui';
+import { Avatar, Button, Switch, Kbd } from './ui';
 import { voiceEngine } from '@/lib/voice';
 import { toggleMute, getIsMuted } from '@/lib/sfx';
 
@@ -38,6 +38,7 @@ export function VoiceOverlay({
 }: VoiceOverlayProps) {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [pttEnabled, setPttEnabled] = useState(false);
+  const [isPttActive, setIsPttActive] = useState(false);
   const [soundMuted, setSoundMuted] = useState(getIsMuted());
   const { players, me, voiceMuted = {} } = gameView;
 
@@ -59,7 +60,79 @@ export function VoiceOverlay({
   const handleTogglePtt = (enabled: boolean) => {
     setPttEnabled(enabled);
     voiceEngine.setPushToTalk(enabled);
+    if (!enabled) {
+      setIsPttActive(false);
+      voiceEngine.setPttActive(false);
+    }
   };
+
+  // Keyboard Push-to-Talk Listener: Space or T key
+  useEffect(() => {
+    if (!isVoiceActive || !pttEnabled) {
+      if (isPttActive) {
+        setIsPttActive(false);
+        voiceEngine.setPttActive(false);
+      }
+      return;
+    }
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const activeEl = document.activeElement as HTMLElement | null;
+      if (
+        activeEl &&
+        (activeEl.tagName === 'INPUT' ||
+          activeEl.tagName === 'TEXTAREA' ||
+          activeEl.tagName === 'SELECT' ||
+          activeEl.isContentEditable)
+      ) {
+        return;
+      }
+
+      if (e.code === 'Space' || e.key === ' ' || e.code === 'KeyT' || e.key === 't' || e.key === 'T') {
+        if (!e.repeat) {
+          if (e.code === 'Space' || e.key === ' ') {
+            e.preventDefault();
+          }
+          setIsPttActive(true);
+          voiceEngine.setPttActive(true);
+        }
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      const activeEl = document.activeElement as HTMLElement | null;
+      if (
+        activeEl &&
+        (activeEl.tagName === 'INPUT' ||
+          activeEl.tagName === 'TEXTAREA' ||
+          activeEl.tagName === 'SELECT' ||
+          activeEl.isContentEditable)
+      ) {
+        return;
+      }
+
+      if (e.code === 'Space' || e.key === ' ' || e.code === 'KeyT' || e.key === 't' || e.key === 'T') {
+        setIsPttActive(false);
+        voiceEngine.setPttActive(false);
+      }
+    };
+
+    const handleWindowBlur = () => {
+      setIsPttActive(false);
+      voiceEngine.setPttActive(false);
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('blur', handleWindowBlur);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('blur', handleWindowBlur);
+      voiceEngine.setPttActive(false);
+    };
+  }, [isVoiceActive, pttEnabled, isPttActive]);
 
   const handleSoundToggle = () => {
     const unmuted = toggleMute();
@@ -98,8 +171,43 @@ export function VoiceOverlay({
               <span className="text-[9px] text-bone-dim font-mono">Shift+M</span>
             </div>
           </button>
+        ) : pttEnabled ? (
+          // STATE 3A: PUSH-TO-TALK ENABLED
+          <button
+            type="button"
+            onPointerDown={() => {
+              setIsPttActive(true);
+              voiceEngine.setPttActive(true);
+            }}
+            onPointerUp={() => {
+              setIsPttActive(false);
+              voiceEngine.setPttActive(false);
+            }}
+            onPointerLeave={() => {
+              setIsPttActive(false);
+              voiceEngine.setPttActive(false);
+            }}
+            title="Push-to-Talk active: Hold Space or T (or hold this button) to talk"
+            className={`flex items-center gap-2 px-3.5 py-2 bg-ink-900 hover:bg-ink-800 border transition-all shadow-xl h-11 ${
+              isPttActive
+                ? 'border-lamp text-lamp shadow-[0_0_20px_rgba(217,164,65,0.4)]'
+                : 'border-line text-bone-dim hover:border-bone-dim'
+            }`}
+          >
+            <Mic className={`w-4 h-4 shrink-0 ${isPttActive ? 'text-lamp animate-pulse' : 'text-bone-dim'}`} />
+            <div className="text-left">
+              <span className={`font-mono text-[11px] font-extrabold tracking-wider block leading-none ${
+                isPttActive ? 'text-lamp' : 'text-bone-dim'
+              }`}>
+                {isPttActive ? 'PTT TRANSMITTING' : 'PTT READY'}
+              </span>
+              <span className="text-[9px] text-bone-dim font-mono">
+                {isPttActive ? 'Transmitting' : 'Hold Space / T'}
+              </span>
+            </div>
+          </button>
         ) : (
-          // STATE 3: LIVE
+          // STATE 3B: VOICE LIVE (OPEN MIC)
           <button
             type="button"
             onClick={onToggleVoiceMute}
@@ -210,14 +318,66 @@ export function VoiceOverlay({
                 </div>
               </div>
 
-              {/* Push to Talk Toggle */}
+              {/* Push to Talk Toggle & Key Guidance */}
               {isVoiceActive && (
-                <div className="flex items-center justify-between pt-2 border-t border-line/60">
-                  <div>
-                    <span className="text-xs font-medium text-bone block">Push-to-Talk (PTT)</span>
-                    <span className="text-[10px] text-bone-dim font-mono">Hold Space to transmit while talking</span>
+                <div className="pt-2 border-t border-line/60 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-xs font-medium text-bone block">Push-to-Talk (PTT)</span>
+                      <span className="text-[10px] text-bone-dim font-mono">
+                        Transmit only while holding key or button
+                      </span>
+                    </div>
+                    <Switch checked={pttEnabled} onChange={handleTogglePtt} />
                   </div>
-                  <Switch checked={pttEnabled} onChange={handleTogglePtt} />
+
+                  {pttEnabled && (
+                    <div className="p-3 bg-ink-950 border border-line space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[11px] font-mono text-bone-dim">PTT Keys:</span>
+                          <span className="px-1.5 py-0.5 text-[10px] font-mono font-bold text-lamp bg-ink-900 border border-line">
+                            Space
+                          </span>
+                          <span className="text-[10px] text-bone-dim font-mono">or</span>
+                          <span className="px-1.5 py-0.5 text-[10px] font-mono font-bold text-lamp bg-ink-900 border border-line">
+                            T
+                          </span>
+                        </div>
+                        {isPttActive ? (
+                          <span className="text-[10px] font-mono font-bold text-lamp animate-pulse flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-lamp" /> TRANSMITTING
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-mono text-bone-dim">Muted (Hold to Talk)</span>
+                        )}
+                      </div>
+
+                      {/* Touch / Click PTT Hold Bar for mobile and desktop */}
+                      <button
+                        type="button"
+                        onPointerDown={() => {
+                          setIsPttActive(true);
+                          voiceEngine.setPttActive(true);
+                        }}
+                        onPointerUp={() => {
+                          setIsPttActive(false);
+                          voiceEngine.setPttActive(false);
+                        }}
+                        onPointerLeave={() => {
+                          setIsPttActive(false);
+                          voiceEngine.setPttActive(false);
+                        }}
+                        className={`w-full py-2 px-3 text-xs font-mono font-bold uppercase tracking-wider border transition-all select-none ${
+                          isPttActive
+                            ? 'bg-lamp text-ink-950 border-lamp shadow-[0_0_15px_rgba(217,164,65,0.4)]'
+                            : 'bg-ink-900 text-bone-dim hover:text-bone border-line hover:border-bone-dim'
+                        }`}
+                      >
+                        {isPttActive ? '● Transmitting (Release to Mute)' : 'Hold to Talk (Click or Space / T)'}
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

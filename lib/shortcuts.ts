@@ -16,9 +16,9 @@ export const SHORTCUTS: ShortcutItem[] = [
   // Global
   { id: 'toggle-help', keys: ['?', 'h', 'H'], label: 'H / ?', group: 'Guide & Role', scope: 'global', description: 'Toggle How to Play & Role Guide' },
   { id: 'my-role', keys: ['i', 'I'], label: 'I', group: 'Guide & Role', scope: 'global', description: 'Open Guide directly to My Role' },
-  { id: 'peek-role', keys: ['r', 'R'], label: 'Hold R', group: 'Guide & Role', scope: 'screen', description: 'Hold to peek secret role HUD' },
   { id: 'escape', keys: ['Escape'], label: 'Esc', group: 'Global', scope: 'global', description: 'Close active drawer / modal or blur input' },
   { id: 'toggle-sound', keys: ['m', 'M'], label: 'M', group: 'Global', scope: 'global', description: 'Toggle audio sound effects' },
+  { id: 'ptt', keys: ['Space', 't', 'T'], label: 'Hold Space / T', group: 'Global', scope: 'global', description: 'Push-to-Talk: hold to transmit voice (when PTT is enabled)' },
   { id: 'focus-chat', keys: ['c', 'C', '/'], label: 'C or /', group: 'Global', scope: 'screen', description: 'Focus chat input' },
   // Help Sheet
   { id: 'tab-1', keys: ['1'], label: '1', group: 'Guide & Role', scope: 'sheet', description: 'Basics tab' },

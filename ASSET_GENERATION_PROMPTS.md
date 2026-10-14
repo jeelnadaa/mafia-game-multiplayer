@@ -2,7 +2,22 @@
 
 Companion to `UI_OVERHAUL_PROMPT.md` (Section 2.4). Use these prompts to generate the image assets the redesign needs. Read **Part 0** before running anything: the workflow matters as much as the prompts.
 
-> **Check the current model id** in the Gemini image-generation docs before scripting (e.g. `gemini-2.5-flash-image` at time of writing, or a newer "Nano Banana Pro" variant, which is preferred for fidelity and consistency). Prompts below are model-agnostic natural language. Nano Banana is conversational: it has no separate "negative prompt" field, so constraints are written as plain sentences ("Do not include…").
+## How to generate: use the built-in image tool first (no API key needed)
+
+This project is built with **Google Antigravity + Gemini**. Antigravity agents can generate images **natively with Nano Banana through their built-in image-generation tool, with no API key and no SDK setup.** So:
+
+1. **Do not ask the owner for an API key, and do not write API-calling code, unless Option B below is genuinely required.**
+2. **Discover the tool, don't assume its name.** Check your available tools for an image-generation capability (it is typically called something like `generate_image`; the exact name and parameters may differ by version). Test it once with a tiny prompt (e.g. "a flat grey square") to learn: where it saves files, what sizes/aspect ratios it supports, whether it accepts **reference/input images**, and whether it can **edit** a previous image. Record what you find in `assets/generated/TOOL_NOTES.md`.
+3. **Option A (preferred): built-in tool.**
+   - Put the aspect ratio and target use directly in the prompt text if the tool has no explicit aspect/size parameter (e.g. "Wide 16:9 composition", "Square 1:1", "Portrait 3:4").
+   - If the tool accepts reference images, attach the approved **Style Anchor** to every later request. If it does not, include the anchor's key traits in words and repeat the Style Preamble verbatim, and use the tool's edit/iterate ability for refinements.
+   - Generated files usually land in a tool-managed or "artifacts" location. **Copy the chosen files into the repo** (`assets/generated/raw/`), then post-process into the shipped location (`public/assets/...`). Never reference files that live outside the repo.
+   - The built-in tool may return fixed output sizes and no true transparency; follow the transparency strategy in Part 0 and post-process everything.
+4. **Option B (only if no built-in image tool exists in this environment):** use the Gemini image API via the script in this file, with a key supplied by the owner through an environment variable. Never commit it or ship it.
+5. **Option C (neither is possible):** do not stall. Build the CSS/SVG/procedural version of every asset and list each missing asset with its exact prompt in `ASSET_REQUESTS.md`, so it can be generated later.
+
+In all options: run it at **build/design time only**, never from the shipped app; review every output against the art bible; and record provenance (below).
+
 
 ---
 
@@ -17,11 +32,11 @@ Companion to `UI_OVERHAUL_PROMPT.md` (Section 2.4). Use these prompts to generat
    - *Emblems, stamps, redaction textures:* generate **light-on-pure-black** (or black-on-white for stamps), then convert luminance to alpha in post (`luminance → alpha`), and tint with CSS so the same asset works in any accent color.
    - *Characters/objects needing a cutout:* generate on a **flat, evenly lit neutral grey (#808080) background**, then matte with a proper segmentation/matte tool and verify edges on dark and light backgrounds.
 7. **Tileables** must say "seamless, tileable" and then be checked: offset the image by 50% in both axes, look for seams, fix with clone/heal or regenerate.
-8. **Aspect ratio and size** are set via the API's image config (not only the prompt). Generate at the largest practical size, then downscale to **2× the real display size** and compress (WebP/AVIF).
-9. **Save provenance** for every final asset in `assets/generated/MANIFEST.json`: model id, date, full final prompt, reference images used, post-processing steps, output path.
+8. **Aspect ratio and size** are set via the tool/API image config where available, and always restated in the prompt text (the built-in tool may not expose a size parameter). Generate at the largest practical size, then downscale to **2× the real display size** and compress (WebP/AVIF).
+9. **Save provenance** for every final asset in `assets/generated/MANIFEST.json`: tool used (e.g. "Antigravity built-in image tool / Nano Banana", or the API model id), date, full final prompt, reference images used, post-processing steps, output path.
 10. **Reject on sight:** neon or purple glow, glossy plastic look, unreadable fake text/gibberish letters, distorted hands/faces, real-person likeness, logos/brands/copyrighted characters, watermarks, cluttered compositions, anything that clashes with the palette.
 
-### Minimal generation script (verify against current SDK docs)
+### Option B only: minimal API generation script (skip this entirely if the built-in image tool works; verify against current SDK docs)
 ```js
 // scripts/generate-assets.mjs  (build-time only; never ship this or the key)
 import { GoogleGenAI } from "@google/genai";

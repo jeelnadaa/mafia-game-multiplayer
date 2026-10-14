@@ -141,7 +141,8 @@ When the design needs an image asset that cannot be done well in CSS/SVG/code, *
 **Ready-made prompts:** use `ASSET_GENERATION_PROMPTS.md` (included alongside this file). It contains the style preamble, the style-anchor workflow and exact prompts for textures, role emblems, backdrops, empty states, stamp textures, the 12-avatar set and 3D concept references. Follow its workflow rules and acceptance checklist.
 
 **Access and secrets**
-- The API key comes from an environment variable (e.g. `GEMINI_API_KEY`) that the person running you provides. **Never commit it, never put it in client code or the browser bundle, never log it.** Generation runs only in a local/CI **build-time script** (`scripts/generate-assets.mjs`), never at runtime in the shipped app.
+- **This project runs in Google Antigravity with Gemini. Use the agent's built-in image-generation tool (Nano Banana) first: it works without any API key.** Discover the tool in your tool list, test it once, note where it saves files, and copy results into the repo. Do not ask the owner for a key and do not write API code unless the built-in tool truly does not exist. Full procedure (Options A/B/C): `ASSET_GENERATION_PROMPTS.md`, "How to generate".
+- Only if you must use the API (Option B): the API key comes from an environment variable (e.g. `GEMINI_API_KEY`) that the person running you provides. **Never commit it, never put it in client code or the browser bundle, never log it.** Generation runs only in a local/CI **build-time script** (`scripts/generate-assets.mjs`), never at runtime in the shipped app.
 - If no key or access is available, **do not stall**: build the best procedural/CSS/SVG version, then list every missing asset in `ASSET_REQUESTS.md` with its exact prompt, size, format and where it plugs in, so it can be generated later without rework. The app must work with the fallback.
 
 **Good uses (generate these)**
