@@ -1,11 +1,20 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Trophy, RotateCcw, LogOut, Skull, MessageSquare, Send, Eye } from 'lucide-react';
+import { Trophy, RotateCcw, LogOut, Skull, MessageSquare, Send, Eye, Award, Share2 } from 'lucide-react';
+
 import { ClientGameView } from '@/lib/types';
 import { ROLES } from '@/lib/content';
 import { Button, Avatar, Modal } from './ui';
 import { clearRoomData } from '@/lib/storage';
+import {
+  recordMatchCompletion,
+  computeMatchAwards,
+  renderShareCardToBlob,
+  getPlayerStats,
+  getPlayerAchievements,
+  resetPlayerStats,
+} from '@/lib/stats';
 
 interface EndProps {
   gameView: ClientGameView;
@@ -43,21 +52,64 @@ export function End({ gameView, isHost, onRematch, onLeave, onSendChat }: EndPro
     onLeave();
   };
 
+  // Automatically record local stats once when game concludes
+  React.useEffect(() => {
+    if (isGameOver && winner && me?.role) {
+      const matchKey = `${gameView.code}_${gameView.round}_${winner}`;
+      recordMatchCompletion(matchKey, winner, me.role, Boolean(me.alive));
+    }
+  }, [isGameOver, winner, me?.role, me?.alive, gameView.code, gameView.round]);
+
+  const awards = React.useMemo(() => {
+    return computeMatchAwards(players, gameView.log || [], secretLog, winner);
+  }, [players, gameView.log, secretLog, winner]);
+
+  const [isSharing, setIsSharing] = useState(false);
+  const [statsModalOpen, setStatsModalOpen] = useState(false);
+
+  const handleShareCard = async () => {
+    setIsSharing(true);
+    try {
+      const blob = await renderShareCardToBlob(gameView, me?.name || 'Player', me?.role);
+      if (!blob) return;
+
+      const file = new File([blob], `mafia-dossier-${gameView.code}.png`, { type: 'image/png' });
+      if (typeof navigator !== 'undefined' && navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          title: 'Mafia: Shadows of the City — Match Docket',
+          text: `We just completed an operation in Mafia: Shadows of the City!`,
+          files: [file],
+        });
+      } else {
+        // Fallback: download the file
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `mafia-dossier-${gameView.code}.png`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+    } catch (_) {} finally {
+      setIsSharing(false);
+    }
+  };
+
   if (isGameOver) {
+    const playerStats = getPlayerStats();
+    const achievements = getPlayerAchievements();
+
     return (
       <div className="w-full max-w-[1650px] 2xl:max-w-[1850px] mx-auto p-4 md:p-8 lg:p-10 space-y-6">
         {/* 16:9 Widescreen Grid on PC */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-          {/* Victory Headline Banner (4 cols on Desktop) */}
+          {/* Victory Headline Banner & Match Awards (4 cols on Desktop) */}
           <div className="lg:col-span-4 bg-surface border border-border p-6 md:p-8 flex flex-col justify-between space-y-6">
             <div className="space-y-4">
               <div className="inline-flex items-center justify-center p-3.5 border border-border bg-surface-2 text-white">
                 <Trophy className="w-9 h-9" />
               </div>
               <div>
-                <span className="text-xs text-muted">
-                  Match Concluded
-                </span>
+                <span className="text-xs text-muted">Match Concluded</span>
                 <h2 className="text-2xl md:text-3xl font-sans font-bold text-white mt-1 tracking-tight">
                   {winner === 'town'
                     ? 'Town Prevails!'
@@ -73,10 +125,59 @@ export function End({ gameView, isHost, onRematch, onLeave, onSendChat }: EndPro
                   ? 'The syndicate has achieved parity or majority over the townspeople. Darkness reigns.'
                   : 'The Jester successfully deceived the town into a daytime execution, securing victory.'}
               </p>
+
+              {/* Match Awards Section */}
+              {awards.length > 0 && (
+                <div className="pt-3 border-t border-border space-y-2">
+                  <span className="text-[11px] font-mono uppercase text-muted font-bold tracking-wider">
+                    Official Citations & Awards
+                  </span>
+                  <div className="space-y-2">
+                    {awards.map((award) => (
+                      <div
+                        key={award.id}
+                        className="p-2.5 bg-surface-2 border border-border flex items-center justify-between gap-2"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                            <span className="text-amber-400">★</span>
+                            <span>{award.title}:</span>
+                            <span className="text-amber-300 truncate">{award.recipientName}</span>
+                          </div>
+                          <p className="text-[10px] text-muted leading-tight mt-0.5 line-clamp-2">
+                            {award.description}
+                          </p>
+                        </div>
+                        <Avatar avatarId={award.recipientAvatar} size={28} className="rounded-none shrink-0" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Action Buttons */}
-            <div className="pt-6 border-t border-border flex flex-col gap-3">
+            <div className="pt-6 border-t border-border flex flex-col gap-2.5">
+              <Button
+                variant="secondary"
+                size="md"
+                onClick={handleShareCard}
+                disabled={isSharing}
+                className="w-full font-bold text-xs"
+              >
+                <Share2 className="w-3.5 h-3.5 mr-1.5" />
+                <span>{isSharing ? 'Generating Card...' : 'Share Match Docket (PNG)'}</span>
+              </Button>
+
+              <Button
+                variant="secondary"
+                size="md"
+                onClick={() => setStatsModalOpen(true)}
+                className="w-full text-xs font-medium"
+              >
+                <span>Career Dossier & Stats</span>
+              </Button>
+
               {isHost && (
                 <Button
                   variant="primary"
@@ -89,16 +190,18 @@ export function End({ gameView, isHost, onRematch, onLeave, onSendChat }: EndPro
                 </Button>
               )}
               <Button
-                variant="secondary"
-                size="lg"
+                variant="ghost"
+                size="md"
                 onClick={() => setLeaveConfirmOpen(true)}
-                className="w-full text-sm font-medium"
+                className="w-full text-sm font-medium text-muted hover:text-white"
               >
                 <LogOut className="w-4 h-4 mr-2" />
                 <span>Leave Room</span>
               </Button>
             </div>
           </div>
+
+
 
           {/* Full Player Roles Reveal Roster (4 cols on Desktop) */}
           <div className="lg:col-span-4 bg-surface border border-border p-6 space-y-4 flex flex-col justify-between">
@@ -240,9 +343,83 @@ export function End({ gameView, isHost, onRematch, onLeave, onSendChat }: EndPro
             </div>
           </div>
         </Modal>
+
+        {/* Career Dossier & Stats Modal */}
+        <Modal
+          isOpen={statsModalOpen}
+          onClose={() => setStatsModalOpen(false)}
+          title="Operative Career Dossier"
+        >
+          <div className="space-y-5">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="p-3 bg-surface-2 border border-border text-center">
+                <span className="text-xs text-muted block">Games</span>
+                <span className="text-xl font-bold font-mono text-white">{playerStats.gamesPlayed}</span>
+              </div>
+              <div className="p-3 bg-surface-2 border border-border text-center">
+                <span className="text-xs text-muted block">Win Rate</span>
+                <span className="text-xl font-bold font-mono text-emerald-400">
+                  {playerStats.gamesPlayed > 0 ? Math.round((playerStats.wins / playerStats.gamesPlayed) * 100) : 0}%
+                </span>
+              </div>
+              <div className="p-3 bg-surface-2 border border-border text-center">
+                <span className="text-xs text-muted block">Current Streak</span>
+                <span className="text-xl font-bold font-mono text-white">{playerStats.currentStreak}</span>
+              </div>
+              <div className="p-3 bg-surface-2 border border-border text-center">
+                <span className="text-xs text-muted block">Best Streak</span>
+                <span className="text-xl font-bold font-mono text-amber-400">{playerStats.bestStreak}</span>
+              </div>
+            </div>
+
+            {/* Achievements List */}
+            <div className="space-y-2">
+              <span className="text-xs font-mono font-bold text-muted uppercase">Decorations & Achievements</span>
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {achievements.map((ach) => (
+                  <div
+                    key={ach.id}
+                    className={`p-2.5 border text-xs flex items-center justify-between ${
+                      ach.unlocked ? 'bg-surface-2 border-white/60 text-white' : 'bg-surface border-border text-muted opacity-60'
+                    }`}
+                  >
+                    <div>
+                      <div className="font-bold flex items-center gap-1.5">
+                        <span>{ach.unlocked ? '★' : '☆'}</span>
+                        <span>{ach.title}</span>
+                      </div>
+                      <p className="text-[11px] text-muted">{ach.description}</p>
+                    </div>
+                    {ach.unlocked && <span className="text-[10px] font-mono text-emerald-400 font-bold">UNLOCKED</span>}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-2 border-t border-border">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  if (confirm('Reset your local player career stats?')) {
+                    resetPlayerStats();
+                    window.location.reload();
+                  }
+                }}
+                className="text-xs text-red-400 hover:text-red-300"
+              >
+                Reset Stats
+              </Button>
+              <Button variant="secondary" onClick={() => setStatsModalOpen(false)}>
+                Close
+              </Button>
+            </div>
+          </div>
+        </Modal>
       </div>
     );
   }
+
 
   /* Mid-Game Graveyard Lounge for Eliminated Dead Players */
   if (isDead) {

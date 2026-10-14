@@ -11,10 +11,14 @@ import { End } from '@/components/End';
 import { God } from '@/components/God';
 import { HelpSheet, HelpTab } from '@/components/HelpSheet';
 import { CircleSittingArena } from '@/components/CircleSittingArena';
+import { RoleReveal } from '@/components/RoleReveal';
+import { DawnAnnouncement } from '@/components/DawnAnnouncement';
 import { Button, Avatar } from '@/components/ui';
 import { AlertCircle, RotateCcw, Moon } from 'lucide-react';
 import { useShortcut } from '@/lib/shortcuts';
 import { clearRoomData } from '@/lib/storage';
+import { playNightBell, setPhaseAmbience } from '@/lib/sfx';
+
 
 export default function RoomPage() {
   const params = useParams();
@@ -93,6 +97,9 @@ export default function RoomPage() {
     startMatch,
     toggleReady,
     kickPlayer,
+    banPlayer,
+    toggleLockRoom,
+    skipPlayer,
     setGodMode,
     updateSettings,
     updateProfile,
@@ -104,12 +111,74 @@ export default function RoomPage() {
     router.push('/');
   }, [leaveRoom, router]);
 
+  // Section 3.1: Day/Night atmosphere shift, theme-color sync & phase banners
+  const [phaseBanner, setPhaseBanner] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!gameView) return;
+    const currentPhase = gameView.phase;
+    const roundNum = gameView.round;
+
+    let htmlPhase = 'lobby';
+    let themeColor = '#09090b';
+    let bannerText = '';
+
+    if (currentPhase === 'lobby') {
+      htmlPhase = 'lobby';
+      themeColor = '#09090b';
+    } else if (currentPhase === 'roleReveal') {
+      htmlPhase = 'night';
+      themeColor = '#07090e';
+      bannerText = 'ROLE REVEAL';
+    } else if (currentPhase === 'night') {
+      htmlPhase = 'night';
+      themeColor = '#07090e';
+      bannerText = `NIGHT ${roundNum}`;
+      playNightBell();
+      setPhaseAmbience('night');
+    } else if (currentPhase === 'morning' || currentPhase === 'discussion') {
+      htmlPhase = 'day';
+      themeColor = '#0c0a09';
+      bannerText = `DAY ${roundNum}`;
+      setPhaseAmbience('day');
+    } else if (currentPhase === 'voting' || currentPhase === 'voteResult') {
+      htmlPhase = 'voting';
+      themeColor = '#0d0707';
+      bannerText = 'TOWN VOTE';
+      setPhaseAmbience('voting');
+    } else if (currentPhase === 'gameOver') {
+      htmlPhase = 'gameover';
+      themeColor = '#09090b';
+      bannerText = 'GAME OVER';
+      setPhaseAmbience('gameover');
+    }
+
+    document.documentElement.dataset.phase = htmlPhase;
+
+    // Update browser theme-color meta tag for mobile status bar
+    let metaThemeColor = document.querySelector('meta[name="theme-color"]');
+    if (!metaThemeColor) {
+      metaThemeColor = document.createElement('meta');
+      metaThemeColor.setAttribute('name', 'theme-color');
+      document.head.appendChild(metaThemeColor);
+    }
+    metaThemeColor.setAttribute('content', themeColor);
+
+    // Show phase banner for 1.5s
+    if (bannerText && currentPhase !== 'lobby') {
+      setPhaseBanner(bannerText);
+      const timer = setTimeout(() => setPhaseBanner(null), 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [gameView?.phase, gameView?.round]);
+
   // If rejected because name is already taken, immediately bring back join form
   useEffect(() => {
     if (error && error.includes('already taken')) {
       setHasJoined(false);
     }
   }, [error]);
+
 
   // Global shortcut 'H' or '?' toggles help
   useShortcut(
@@ -290,7 +359,21 @@ export default function RoomPage() {
   const { phase, me } = gameView;
 
   return (
-    <div className="min-h-screen flex flex-col text-text bg-transparent">
+    <div className="min-h-screen flex flex-col text-text bg-transparent relative">
+      {/* Subtle Atmospheric Light Cone Overlay */}
+      <div className="phase-atmosphere-overlay" aria-hidden="true" />
+
+      {/* Temporary Phase Change Announcement Banner */}
+      {phaseBanner && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed top-16 inset-x-0 mx-auto w-max max-w-sm px-6 py-2 bg-black/90 border border-white text-white font-mono font-bold text-sm tracking-widest uppercase z-50 shadow-2xl animate-in fade-in zoom-in duration-300"
+        >
+          {phaseBanner}
+        </div>
+      )}
+
       {/* Persistent Top Bar */}
       <TopBar
         gameView={gameView}
@@ -322,6 +405,8 @@ export default function RoomPage() {
                 onStart={startMatch}
                 onToggleReady={toggleReady}
                 onKick={kickPlayer}
+                onBan={banPlayer}
+                onToggleLockRoom={toggleLockRoom}
                 onToggleGod={setGodMode}
                 onUpdateSettings={updateSettings}
                 onUpdateProfile={(profile) => {
@@ -332,9 +417,27 @@ export default function RoomPage() {
               />
             )}
 
+            {/* ROLE REVEAL SCREEN: Press-and-hold confidential dossier */}
+            {phase === 'roleReveal' && (
+              <RoleReveal
+                gameView={gameView}
+                onConfirmReady={toggleReady}
+              />
+            )}
+
+            {/* DAWN ANNOUNCEMENT SCREEN: Sequenced morning casualties & saves report */}
+            {phase === 'morning' && (
+              <DawnAnnouncement
+                gameView={gameView}
+                onProceed={() => sendIntent('godAction', { action: 'next' })}
+              />
+            )}
+
             {/* CIRCLE SITTING ARENA: 3D Round Table Seating Mode */}
             {gameView.settings?.circleSitting &&
               phase !== 'lobby' &&
+              phase !== 'roleReveal' &&
+              phase !== 'morning' &&
               phase !== 'gameOver' && (
                 <CircleSittingArena
                   gameView={gameView}
@@ -348,7 +451,7 @@ export default function RoomPage() {
               )}
 
             {/* STANDARD MODE: Night & Day separate views */}
-            {!gameView.settings?.circleSitting && (phase === 'roleReveal' || phase === 'night') && (
+            {!gameView.settings?.circleSitting && phase === 'night' && (
               <Night
                 gameView={gameView}
                 onNightAction={(targetId) => sendIntent('nightAction', { targetId })}
@@ -359,7 +462,7 @@ export default function RoomPage() {
             )}
 
             {!gameView.settings?.circleSitting &&
-              (phase === 'morning' || phase === 'discussion' || phase === 'voting' || phase === 'voteResult') && (
+              (phase === 'discussion' || phase === 'voting' || phase === 'voteResult') && (
                 <Day
                   gameView={gameView}
                   onVote={(targetId) => sendIntent('vote', { targetId })}
@@ -367,6 +470,7 @@ export default function RoomPage() {
                   onSendChat={(channel, text) => sendChat(channel, text)}
                 />
               )}
+
 
             {phase === 'gameOver' && (
               <End

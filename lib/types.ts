@@ -123,11 +123,14 @@ export interface GameState {
   votes: Record<string, string | 'skip' | null>;
   revotePending: boolean;
   readyToVote: string[];
+  suspicions?: Record<string, string>;
+  reactions?: Record<string, { reaction: string; timestamp: number }>;
   log: LogEntry[];
   secretLog: SecretLogEntry[];
   chat: ChatMessage[];
   winner?: 'town' | 'mafia' | 'jester';
 }
+
 
 export interface PlayerView {
   id: string;
@@ -190,7 +193,12 @@ export interface ClientGameView {
   secretLog?: SecretLogEntry[];
   isLocked?: boolean;
   effectiveSettingsHash?: string;
+  suspicions?: Record<string, string>;
+  suspicionCounts?: Record<string, number>;
+  reactions?: Record<string, { reaction: string; timestamp: number }>;
 }
+
+export type QuickReaction = 'suspicious' | 'agree' | 'nope' | 'same' | 'trust' | 'question';
 
 export type IntentType =
   | 'updateSettings'
@@ -209,10 +217,14 @@ export type IntentType =
   | 'policeConfirm'
   | 'readyToVote'
   | 'vote'
+  | 'setSuspicion'
+  | 'clearSuspicion'
+  | 'sendReaction'
   | 'godAction'
   | 'rematch'
   | 'leave'
   | 'updateProfile';
+
 
 export interface IntentMessage {
   reqId: string;

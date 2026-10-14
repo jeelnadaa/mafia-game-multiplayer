@@ -29,6 +29,133 @@
   --sal: env(safe-area-inset-left, 0px);
 }
 
+/* Phase-Driven Dynamic Atmosphere */
+html {
+  transition: background-color 800ms cubic-bezier(0.16, 1, 0.3, 1), color 800ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+html[data-phase="night"] {
+  --bg: #07090e;
+  --surface: #0c0f17;
+  --surface-2: #121824;
+  --border: #1e293b;
+  --border-light: #334155;
+  --text: #f1f5f9;
+  --muted: #94a3b8;
+  --accent-phase: #38bdf8;
+}
+
+html[data-phase="day"],
+html[data-phase="discussion"],
+html[data-phase="morning"] {
+  --bg: #0c0a09;
+  --surface: #141210;
+  --surface-2: #1c1917;
+  --border: #292524;
+  --border-light: #44403c;
+  --text: #fafaf9;
+  --muted: #a8a29e;
+  --accent-phase: #f59e0b;
+}
+
+html[data-phase="voting"] {
+  --bg: #0d0707;
+  --surface: #170d0d;
+  --surface-2: #241414;
+  --border: #3d1c1c;
+  --border-light: #572222;
+  --text: #fef2f2;
+  --muted: #b99393;
+  --accent-phase: #ef4444;
+}
+
+html[data-phase="gameover"] {
+  --bg: #09090b;
+  --surface: #111113;
+  --surface-2: #18181b;
+  --border: #27272a;
+  --border-light: #3f3f46;
+  --text: #fafafa;
+  --muted: #a1a1aa;
+  --accent-phase: #fafafa;
+}
+
+/* Atmospheric subtle lighting overlay */
+.phase-atmosphere-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  transition: opacity 800ms ease;
+  will-change: opacity;
+}
+
+html[data-phase="night"] .phase-atmosphere-overlay {
+  background: radial-gradient(circle 50vw at 50% 30%, rgba(56, 189, 248, 0.04) 0%, transparent 70%),
+              radial-gradient(circle 70vw at 50% 100%, rgba(15, 23, 42, 0.6) 0%, transparent 100%);
+  opacity: 1;
+}
+
+html[data-phase="day"] .phase-atmosphere-overlay,
+html[data-phase="discussion"] .phase-atmosphere-overlay,
+html[data-phase="morning"] .phase-atmosphere-overlay {
+  background: radial-gradient(ellipse 80vw 40vh at 50% 0%, rgba(245, 158, 11, 0.05) 0%, transparent 80%),
+              linear-gradient(to bottom, rgba(245, 158, 11, 0.02), transparent 400px);
+  opacity: 1;
+}
+
+html[data-phase="voting"] .phase-atmosphere-overlay {
+  background: radial-gradient(circle 60vw at 50% 50%, rgba(239, 68, 68, 0.04) 0%, transparent 75%);
+  opacity: 1;
+}
+
+/* Visual effects settings toggle: off disables overlays & transitions */
+html[data-vfx="off"] .phase-atmosphere-overlay {
+  display: none !important;
+}
+
+html[data-vfx="off"] {
+  transition: none !important;
+}
+
+/* Ink-stamp vote animation */
+@keyframes inkStamp {
+  0% {
+    transform: scale(2.2) rotate(-8deg);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(0.95) rotate(2deg);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+.animate-ink-stamp {
+  animation: inkStamp 220ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* 3D Card flip container styles */
+.perspective-1000 {
+  perspective: 1000px;
+}
+
+.transform-style-preserve-3d {
+  transform-style: preserve-3d;
+}
+
+.backface-hidden {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.rotate-y-180 {
+  transform: rotateY(180deg);
+}
+
 /* Prevent mobile iOS Safari auto-zoom on input focus */
 input,
 textarea,
@@ -44,6 +171,7 @@ input[type="submit"],
 input[type="reset"] {
   touch-action: manipulation;
 }
+
 
 html {
   font-size: 16px;

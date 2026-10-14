@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { Crown, Shield, Users, Play, Copy, Check, QrCode, UserMinus, AlertTriangle, MessageSquare, Send, Activity } from 'lucide-react';
+import { Crown, Shield, Users, Play, Copy, Check, QrCode, UserMinus, AlertTriangle, MessageSquare, Send, Activity, Lock, Ban } from 'lucide-react';
 import { ClientGameView, Settings, PlayerView } from '@/lib/types';
 import { SETTINGS_SCHEMA, ROLE_PRESETS, RULE_PRESETS } from '@/lib/settings';
 import { validateSettings } from '@/lib/engine/rules';
@@ -16,6 +16,8 @@ interface LobbyProps {
   onStart: () => void;
   onToggleReady: () => void;
   onKick: (playerId: string) => void;
+  onBan?: (playerId: string) => void;
+  onToggleLockRoom?: () => void;
   onToggleGod: (isGod: boolean) => void;
   onUpdateSettings: (partial: Partial<Settings>) => void;
   onUpdateProfile?: (profile: { name?: string; avatar: number }) => void;
@@ -28,6 +30,8 @@ export function Lobby({
   onStart,
   onToggleReady,
   onKick,
+  onBan,
+  onToggleLockRoom,
   onToggleGod,
   onUpdateSettings,
   onUpdateProfile,
@@ -41,11 +45,21 @@ export function Lobby({
   // Confirmation Modals State
   const [startConfirmOpen, setStartConfirmOpen] = useState(false);
   const [pendingKickPlayer, setPendingKickPlayer] = useState<PlayerView | null>(null);
+  const [pendingBanPlayer, setPendingBanPlayer] = useState<PlayerView | null>(null);
 
   const { settings, players, me } = gameView;
   const chatList = gameView.chat || [];
   const logList = gameView.log || [];
   const validation = validateSettings(settings, players.length);
+  const unreadyPlayers = players.filter((p) => !p.isHost && !p.ready);
+
+  const handleConfirmBan = () => {
+    if (pendingBanPlayer) {
+      onBan?.(pendingBanPlayer.id);
+      setPendingBanPlayer(null);
+    }
+  };
+
 
   // Host only start shortcut
   useShortcut(
@@ -146,6 +160,18 @@ export function Lobby({
               </div>
 
               <div className="flex items-center gap-2 shrink-0">
+                {isHost && onToggleLockRoom && (
+                  <Button
+                    variant={gameView.isLocked ? 'primary' : 'secondary'}
+                    size="md"
+                    onClick={onToggleLockRoom}
+                    title={gameView.isLocked ? 'Unlock room for new players' : 'Lock room against new players'}
+                    className="font-medium"
+                  >
+                    <Lock className="w-4 h-4 mr-1.5" />
+                    <span>{gameView.isLocked ? 'Locked' : 'Lock Room'}</span>
+                  </Button>
+                )}
                 <Button variant="secondary" size="md" onClick={handleCopyLink} className="font-medium">
                   {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
                   <span>{copied ? 'Link Copied!' : 'Copy Link'}</span>
@@ -155,6 +181,7 @@ export function Lobby({
                   <span>QR</span>
                 </Button>
               </div>
+
             </div>
           </div>
 
@@ -252,15 +279,28 @@ export function Lobby({
                     </div>
 
                     {isHost && p.id !== me?.id && (
-                      <button
-                        type="button"
-                        onClick={() => setPendingKickPlayer(p)}
-                        title={`Kick ${p.name}`}
-                        className="opacity-50 hover:opacity-100 p-1.5 text-muted hover:text-white transition-opacity"
-                      >
-                        <UserMinus className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => setPendingKickPlayer(p)}
+                          title={`Kick ${p.name}`}
+                          className="opacity-50 hover:opacity-100 p-1.5 text-muted hover:text-white transition-opacity"
+                        >
+                          <UserMinus className="w-4 h-4" />
+                        </button>
+                        {onBan && (
+                          <button
+                            type="button"
+                            onClick={() => setPendingBanPlayer(p)}
+                            title={`Ban ${p.name} from room`}
+                            className="opacity-50 hover:opacity-100 p-1.5 text-red-400 hover:text-red-300 transition-opacity"
+                          >
+                            <Ban className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
                     )}
+
                   </div>
                 ))}
               </div>
@@ -772,6 +812,10 @@ export function Lobby({
                 <span className="text-white font-semibold flex items-center gap-1.5">
                   <AlertTriangle className="w-4 h-4 text-amber-400" /> {validation.reason}
                 </span>
+              ) : unreadyPlayers.length > 0 ? (
+                <span className="text-amber-300 font-medium flex items-center gap-1.5">
+                  <AlertTriangle className="w-4 h-4 text-amber-400" /> Waiting for {unreadyPlayers.length} player{unreadyPlayers.length > 1 ? 's' : ''} to mark Ready
+                </span>
               ) : (
                 <span className="text-emerald-400 font-medium">✓ Ready to begin match</span>
               )}
@@ -792,7 +836,7 @@ export function Lobby({
               {isHost && (
                 <Button
                   variant="primary"
-                  disabled={!validation.valid}
+                  disabled={!validation.valid || unreadyPlayers.length > 0}
                   onClick={() => setStartConfirmOpen(true)}
                   className="w-full sm:w-auto font-bold text-sm"
                   kbd="Ctrl+Enter"
@@ -802,6 +846,7 @@ export function Lobby({
                 </Button>
               )}
             </div>
+
           </div>
         </div>
       </div>
@@ -850,6 +895,31 @@ export function Lobby({
           </div>
         </div>
       </Modal>
+
+      {/* Ban Player Confirmation Modal */}
+      <Modal
+        isOpen={Boolean(pendingBanPlayer)}
+        onClose={() => setPendingBanPlayer(null)}
+        title="Ban Player Confirmation"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-text leading-relaxed">
+            Are you sure you want to permanently ban <strong className="text-white">{pendingBanPlayer?.name}</strong> from this room?
+          </p>
+          <div className="p-3 bg-red-950/40 border border-red-800 text-xs text-red-200">
+            Their device token will be permanently blocked from rejoining this room, even if they change their codename.
+          </div>
+          <div className="flex items-center justify-end gap-3 pt-2">
+            <Button variant="secondary" onClick={() => setPendingBanPlayer(null)} kbd="Esc">
+              Cancel
+            </Button>
+            <Button variant="primary" onClick={handleConfirmBan} kbd="Enter" className="bg-red-600 hover:bg-red-700 text-white">
+              Ban Player
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
 
       {/* QR Code Modal */}
       <Modal isOpen={showQr} onClose={() => setShowQr(false)} title="Join via QR Code">

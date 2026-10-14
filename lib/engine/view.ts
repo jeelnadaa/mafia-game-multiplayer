@@ -135,6 +135,24 @@ export function buildViewFor(state: GameState, observerId: string, now: number):
 
   const filteredChat = state.chat.filter((msg) => allowedChannels.includes(msg.channel));
 
+  // Calculate suspicion counts
+  const suspicionCounts: Record<string, number> = {};
+  if (state.suspicions) {
+    Object.values(state.suspicions).forEach((targetId) => {
+      if (targetId) suspicionCounts[targetId] = (suspicionCounts[targetId] || 0) + 1;
+    });
+  }
+
+  // Filter recent reactions within 3.5s
+  const recentReactions: Record<string, { reaction: string; timestamp: number }> = {};
+  if (state.reactions) {
+    Object.entries(state.reactions).forEach(([pId, r]) => {
+      if (now - r.timestamp < 3500) {
+        recentReactions[pId] = r;
+      }
+    });
+  }
+
   return {
     code: state.code,
     version: state.version,
@@ -181,5 +199,9 @@ export function buildViewFor(state: GameState, observerId: string, now: number):
     secretLog: isGameOver ? state.secretLog : undefined,
     isLocked: Boolean(state.isLocked),
     effectiveSettingsHash: computeSettingsHash(state.settings),
+    suspicions: state.suspicions,
+    suspicionCounts,
+    reactions: recentReactions,
   };
 }
+

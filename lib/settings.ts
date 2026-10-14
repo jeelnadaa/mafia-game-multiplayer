@@ -452,3 +452,51 @@ export const ROLE_PRESETS = {
     jester: 1,
   },
 };
+
+export type VisualEffectsLevel = 'full' | 'reduced' | 'off';
+
+export interface LocalPreferences {
+  visualEffects: VisualEffectsLevel;
+  peekGuard: boolean;
+  tapToToggleRole: boolean;
+  haptics: boolean;
+  masterVolume: number;
+  sfxVolume: number;
+  ambienceVolume: number;
+  muted: boolean;
+}
+
+export const DEFAULT_LOCAL_PREFERENCES: LocalPreferences = {
+  visualEffects: 'full',
+  peekGuard: true,
+  tapToToggleRole: false,
+  haptics: true,
+  masterVolume: 0.8,
+  sfxVolume: 0.8,
+  ambienceVolume: 0.4,
+  muted: false,
+};
+
+export function getLocalPreferences(): LocalPreferences {
+  if (typeof window === 'undefined') return DEFAULT_LOCAL_PREFERENCES;
+  try {
+    const raw = localStorage.getItem('mafia_local_preferences');
+    if (!raw) return DEFAULT_LOCAL_PREFERENCES;
+    return { ...DEFAULT_LOCAL_PREFERENCES, ...JSON.parse(raw) };
+  } catch (_) {
+    return DEFAULT_LOCAL_PREFERENCES;
+  }
+}
+
+export function saveLocalPreferences(prefs: Partial<LocalPreferences>): LocalPreferences {
+  const current = getLocalPreferences();
+  const updated = { ...current, ...prefs };
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.setItem('mafia_local_preferences', JSON.stringify(updated));
+      document.documentElement.dataset.vfx = updated.visualEffects;
+    } catch (_) {}
+  }
+  return updated;
+}
+
