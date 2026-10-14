@@ -727,6 +727,9 @@ describe('Frontend UI Components: Rendering & Reflection', () => {
     assert.ok(html.includes('Briefing'), 'Expected briefing stage pill');
     assert.ok(html.includes('Night 1'), 'Expected night stage pill');
     assert.ok(html.includes('Day 1'), 'Expected day stage pill');
+    assert.ok(!html.includes('<span>Replay</span>'), 'Expected Replay button to be removed from post match replay');
+    assert.ok(html.includes('CHRONOLOGY'), 'Expected vertical chronology sidebar');
+    assert.ok(html.includes('DOSSIER #'), 'Expected 1930s Manila evidence dossier cards');
   });
 
   it('renders CasterOverlay with broadcast scoreboard when streamer safe mode is active', () => {

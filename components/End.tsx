@@ -328,7 +328,7 @@ export function End({ gameView, isHost, onRematch, onLeave, onSendChat }: EndPro
           className="h-[56px] px-6 bg-[#171A20] hover:bg-[#262A33] text-[#D9A441] border border-[#D9A441]/60 rounded-[4px] text-[16px] transition-colors flex items-center justify-center gap-2 shadow-lg cursor-pointer"
         >
           <Clock className="w-4 h-4 text-[#D9A441]" />
-          <span>Interactive Replay</span>
+          <span>Case Timeline</span>
         </button>
 
         <button
@@ -352,7 +352,7 @@ export function End({ gameView, isHost, onRematch, onLeave, onSendChat }: EndPro
       {/* Post-Match Interactive Replay Timeline Modal */}
       {showTimeline && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-md overflow-y-auto">
-          <div className="w-full max-w-4xl max-h-[92vh] overflow-y-auto no-scrollbar animate-in fade-in duration-200">
+          <div className="w-full max-w-5xl max-h-[92vh] overflow-y-auto no-scrollbar animate-in fade-in duration-200">
             <ReplayTimeline gameView={gameView} onClose={() => setShowTimeline(false)} />
           </div>
         </div>
