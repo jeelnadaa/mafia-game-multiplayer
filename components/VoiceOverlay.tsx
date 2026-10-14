@@ -210,9 +210,17 @@ export function VoiceOverlay({
             className="px-2.5 py-1.5 bg-[#101216]/90 backdrop-blur-md border border-[#262A33] rounded-[4px] shadow-xl flex items-center justify-between gap-2 cursor-pointer hover:border-[#D9A441] transition-colors w-full"
           >
             <div className="flex items-center gap-1.5 min-w-0">
-              <Radio className={`w-3.5 h-3.5 shrink-0 ${isVoiceActive ? 'text-[#2ED573] animate-pulse' : 'text-[#D9A441]'}`} />
-              <span className="text-[11px] font-mono font-bold tracking-wider text-[#ECE6D8] uppercase truncate">
-                WIRE ({wireParticipants.length})
+              <Radio
+                className={`w-3.5 h-3.5 shrink-0 ${
+                  isDead
+                    ? 'text-[#38BDF8] animate-pulse'
+                    : isVoiceActive
+                    ? 'text-[#2ED573] animate-pulse'
+                    : 'text-[#D9A441]'
+                }`}
+              />
+              <span className={`text-[11px] font-mono font-bold tracking-wider uppercase truncate ${isDead ? 'text-[#38BDF8]' : 'text-[#ECE6D8]'}`}>
+                {isDead ? `GHOST WIRE (${wireParticipants.length})` : `WIRE (${wireParticipants.length})`}
               </span>
             </div>
             <span className="text-[10px] font-mono text-[#A39D90] shrink-0">
@@ -237,7 +245,8 @@ export function VoiceOverlay({
                     ? Math.max(activeLevels['local'] || 0, activeLevels[p.id] || 0)
                     : (activeLevels[p.id] || 0);
                   const isMuted = isLocal ? isVoiceMuted : Boolean(voiceMuted[p.id]);
-                  const glow = getVoiceGlowStyle(voiceLevel, isSpeaking);
+                  const isPeerDead = !p.alive;
+                  const glow = getVoiceGlowStyle(voiceLevel, isSpeaking, isPeerDead && (!me?.alive || isLocal));
 
                   return (
                     <div
@@ -249,7 +258,7 @@ export function VoiceOverlay({
                         <div
                           className="w-6 h-6 rounded-full border transition-all duration-150"
                           style={{
-                            backgroundColor: p.color || '#D9A441',
+                            backgroundColor: p.color || (isPeerDead ? '#38BDF8' : '#D9A441'),
                             borderColor: glow.tier !== 'none' ? glow.borderColor : 'rgba(255, 255, 255, 0.15)',
                             borderWidth: glow.borderWidth,
                             boxShadow: glow.boxShadow,
@@ -266,13 +275,18 @@ export function VoiceOverlay({
                       {/* Player Name */}
                       <div className="flex-1 min-w-0 truncate">
                         <div
-                          className="text-xs truncate transition-colors"
+                          className="text-xs truncate transition-colors flex items-center gap-1.5"
                           style={{
-                            color: glow.tier !== 'none' ? glow.textColor : '#ECE6D8',
+                            color: glow.tier !== 'none' ? glow.textColor : isPeerDead ? '#94A3B8' : '#ECE6D8',
                             fontWeight: glow.tier === 'hard' ? 700 : 500,
                           }}
                         >
-                          {p.name}{isLocal && ' (You)'}
+                          <span className="truncate">{p.name}{isLocal && ' (You)'}</span>
+                          {isPeerDead && (
+                            <span className="text-[9px] font-mono px-1 py-0.2 bg-[#38BDF8]/15 text-[#38BDF8] border border-[#38BDF8]/30 rounded shrink-0">
+                              GHOST
+                            </span>
+                          )}
                         </div>
                       </div>
 
@@ -480,6 +494,24 @@ export function VoiceOverlay({
                 <X className="w-5 h-5" />
               </button>
             </div>
+
+            {/* Ghost Frequency Active Notification Banner */}
+            {isDead && (
+              <div className="p-3.5 bg-[#081B26] border border-[#38BDF8]/60 rounded-[6px] flex items-start gap-3 shadow-[0_0_15px_rgba(56,189,248,0.2)] animate-in fade-in">
+                <Radio className="w-5 h-5 text-[#38BDF8] shrink-0 mt-0.5 animate-pulse" />
+                <div className="space-y-1 text-xs">
+                  <div className="font-bold text-[#38BDF8] uppercase tracking-wider flex items-center gap-2">
+                    <span>GHOST FREQUENCY · 404.0 MHz</span>
+                    <span className="px-1.5 py-0.5 bg-[#38BDF8]/20 text-[#38BDF8] text-[9px] font-mono rounded">
+                      DEAD-ONLY
+                    </span>
+                  </div>
+                  <p className="text-[#BAE6FD] leading-relaxed text-[11px]">
+                    You are tuned to the dead-only radio channel with subtle radio reverb. Fallen operatives can confer live without living players hearing them.
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* Your Microphone Box with Interactive Sensitivity Meter */}
             <div className="flex items-center gap-4 p-4 bg-[#171A20] border border-[#262A33] rounded-[4px]">

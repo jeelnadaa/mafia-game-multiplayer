@@ -7,6 +7,7 @@ import { ClientGameView } from '@/lib/types';
 import { ROLES } from '@/lib/content';
 import { Avatar, RubberStamp } from './ui';
 import { playDayChime, playEliminationKnell } from '@/lib/sfx';
+import { MorningNewspaper } from './MorningNewspaper';
 
 interface DawnAnnouncementProps {
   gameView: ClientGameView;
@@ -18,6 +19,7 @@ export function DawnAnnouncement({ gameView, onProceed, initialStep = 0 }: DawnA
   const { round, settings, log = [], players = [] } = gameView;
 
   const [step, setStep] = useState<number>(initialStep);
+  const [viewMode, setViewMode] = useState<'newspaper' | 'bulletin'>('newspaper');
 
   // Find morning logs for this round
   const morningLogs = log.filter((l) => l.round === round && l.phase === 'morning');
@@ -51,18 +53,50 @@ export function DawnAnnouncement({ gameView, onProceed, initialStep = 0 }: DawnA
   }, [round, casualties.length]);
 
   return (
-    <div className="w-full max-w-[860px] mx-auto p-4 sm:p-8 flex flex-col items-center justify-center min-h-[75vh] text-center select-none font-['Instrument_Sans']">
-      {/* Sun Ray Emblem */}
-      <motion.div
-        initial={{ opacity: 0, scale: 0.7, y: -30 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-        className="w-16 h-16 rounded-full border-2 border-[#D9A441] bg-[#16222F]/40 flex items-center justify-center text-[#D9A441] mx-auto mb-5 shadow-[0_0_30px_rgba(217,164,65,0.3)] animate-pulse"
-      >
-        <Sun className="w-8 h-8" />
-      </motion.div>
+    <div className="w-full max-w-[920px] mx-auto p-4 sm:p-6 flex flex-col items-center justify-center min-h-[75vh] select-none font-['Instrument_Sans']">
+      {/* Mode Switcher: 1930s Broadsheet Newspaper vs Town Square Bulletin */}
+      <div className="flex items-center justify-center gap-1.5 mb-4 bg-[#101216] p-1 border border-[#262A33] rounded-[4px] shadow-lg">
+        <button
+          type="button"
+          onClick={() => setViewMode('newspaper')}
+          className={`px-3 py-1.5 text-xs font-mono font-bold uppercase rounded-[2px] transition-all flex items-center gap-1.5 cursor-pointer ${
+            viewMode === 'newspaper'
+              ? 'bg-[#D9A441] text-[#0A0B0E] shadow'
+              : 'text-[#A39D90] hover:text-[#ECE6D8]'
+          }`}
+        >
+          <Newspaper className="w-3.5 h-3.5" />
+          <span>The Daily Observer (1930s Extra)</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setViewMode('bulletin')}
+          className={`px-3 py-1.5 text-xs font-mono font-bold uppercase rounded-[2px] transition-all flex items-center gap-1.5 cursor-pointer ${
+            viewMode === 'bulletin'
+              ? 'bg-[#D9A441] text-[#0A0B0E] shadow'
+              : 'text-[#A39D90] hover:text-[#ECE6D8]'
+          }`}
+        >
+          <Sun className="w-3.5 h-3.5" />
+          <span>Town Bulletin</span>
+        </button>
+      </div>
 
-      <div className="space-y-6 w-full max-w-lg">
+      {viewMode === 'newspaper' ? (
+        <MorningNewspaper gameView={gameView} onProceed={onProceed} />
+      ) : (
+        <>
+          {/* Sun Ray Emblem */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.7, y: -30 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+            className="w-16 h-16 rounded-full border-2 border-[#D9A441] bg-[#16222F]/40 flex items-center justify-center text-[#D9A441] mx-auto mb-5 shadow-[0_0_30px_rgba(217,164,65,0.3)] animate-pulse"
+          >
+            <Sun className="w-8 h-8" />
+          </motion.div>
+
+          <div className="space-y-6 w-full max-w-lg text-center">
         {/* Step 0: Town wakes */}
         <motion.div
           initial={{ opacity: 0, y: -25 }}
@@ -240,6 +274,8 @@ export function DawnAnnouncement({ gameView, onProceed, initialStep = 0 }: DawnA
           )}
         </AnimatePresence>
       </div>
+      </>
+      )}
     </div>
   );
 }

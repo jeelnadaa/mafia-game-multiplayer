@@ -16,10 +16,12 @@ import {
   FileText,
   Check,
   X,
+  Clock,
 } from 'lucide-react';
 import { ClientGameView } from '@/lib/types';
 import { ROLES } from '@/lib/content';
 import { Button, Avatar, Modal, RubberStamp } from './ui';
+import { ReplayTimeline } from './ReplayTimeline';
 import { clearRoomData } from '@/lib/storage';
 import {
   recordMatchCompletion,
@@ -322,6 +324,15 @@ export function End({ gameView, isHost, onRematch, onLeave, onSendChat }: EndPro
 
         <button
           type="button"
+          onClick={() => setShowTimeline(true)}
+          className="h-[56px] px-6 bg-[#171A20] hover:bg-[#262A33] text-[#D9A441] border border-[#D9A441]/60 rounded-[4px] text-[16px] transition-colors flex items-center justify-center gap-2 shadow-lg cursor-pointer"
+        >
+          <Clock className="w-4 h-4 text-[#D9A441]" />
+          <span>Interactive Replay</span>
+        </button>
+
+        <button
+          type="button"
           onClick={() => setStatsModalOpen(true)}
           className="h-[56px] px-6 bg-transparent hover:bg-[#171A20] text-[#ECE6D8] border border-[#8e8878] rounded-[4px] text-[16px] transition-colors flex items-center justify-center gap-2"
         >
@@ -338,65 +349,11 @@ export function End({ gameView, isHost, onRematch, onLeave, onSendChat }: EndPro
         </button>
       </div>
 
-      {/* Expandable Secret Match Timeline Drawer */}
+      {/* Post-Match Interactive Replay Timeline Modal */}
       {showTimeline && (
-        <div className="fixed inset-0 z-50 flex items-center justify-end bg-black/70 backdrop-blur-sm">
-          <div className="w-full max-w-[560px] h-full bg-[#101216] border-l border-[#262A33] p-6 flex flex-col justify-between overflow-y-auto animate-in slide-in-from-right duration-200">
-            <div className="space-y-5">
-              <div className="flex items-center justify-between pb-3 border-b border-[#262A33]">
-                <div className="flex items-center gap-2.5">
-                  <FileText className="w-5 h-5 text-[#D9A441]" />
-                  <h3 className="d text-2xl font-bold uppercase tracking-wider text-[#ECE6D8] m-0">
-                    MATCH CHRONICLE & TIMELINE
-                  </h3>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setShowTimeline(false)}
-                  className="hb flex items-center justify-center"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              {/* Event Logs List */}
-              <div className="space-y-2 font-mono text-xs">
-                {gameView.log && gameView.log.length > 0 ? (
-                  gameView.log.map((entry) => (
-                    <div
-                      key={entry.id}
-                      className={`p-3 border leading-relaxed ${
-                        entry.type === 'death'
-                          ? 'bg-blood/10 border-blood/50 text-red-200'
-                          : entry.type === 'vote'
-                          ? 'bg-[#171A20] border-[#262A33] text-[#D9A441]'
-                          : 'bg-[#101216] border-[#262A33] text-[#ECE6D8]'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between text-[10px] text-[#A39D90] mb-1">
-                        <span className="uppercase font-bold">ROUND {entry.round} · {entry.phase}</span>
-                        <span>{new Date(entry.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                      </div>
-                      <div>{entry.text}</div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center text-[#A39D90] py-12">
-                    No timeline logs recorded for this operation.
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="pt-4 border-t border-[#262A33] flex justify-end">
-              <button
-                type="button"
-                onClick={() => setShowTimeline(false)}
-                className="ob px-6 h-[44px]"
-              >
-                Close timeline
-              </button>
-            </div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-md overflow-y-auto">
+          <div className="w-full max-w-4xl max-h-[92vh] overflow-y-auto no-scrollbar animate-in fade-in duration-200">
+            <ReplayTimeline gameView={gameView} onClose={() => setShowTimeline(false)} />
           </div>
         </div>
       )}

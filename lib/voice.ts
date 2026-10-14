@@ -12,7 +12,7 @@ export interface VoicePeerState {
   isMuted: boolean;
 }
 
-export type VoiceGlowTier = 'none' | 'light' | 'medium' | 'hard';
+export type VoiceGlowTier = 'none' | 'light' | 'medium' | 'hard' | 'ghost';
 
 export interface VoiceGlowStyle {
   tier: VoiceGlowTier;
@@ -31,8 +31,26 @@ export interface VoiceGlowStyle {
  * - Low Voice: Light green (#86EFAC soft mint, subtle 6px glow)
  * - Normal Voice: Medium green (#2ED573 emerald, vibrant 12px glow)
  * - Loud / Strong Voice: Hard neon green (#00FF66 electric, intense 24px neon aura)
+ * - Ghost Frequency: Ethereal cyan / spirit glow (#38BDF8 / #818CF8)
  */
-export function getVoiceGlowStyle(level: number = 0, isSpeaking: boolean = false): VoiceGlowStyle {
+export function getVoiceGlowStyle(
+  level: number = 0,
+  isSpeaking: boolean = false,
+  isGhost: boolean = false
+): VoiceGlowStyle {
+  if (isGhost && isSpeaking && level > 0) {
+    return {
+      tier: 'ghost',
+      borderColor: '#38BDF8',
+      boxShadow: '0 0 12px #38BDF8, 0 0 24px rgba(56, 189, 248, 0.7)',
+      borderWidth: '2px',
+      textColor: '#38BDF8',
+      dotColor: '#818CF8',
+      bgTint: 'bg-[#081B26]/95 border border-[#38BDF8]/70 shadow-[0_0_14px_rgba(56,189,248,0.4)]',
+      label: 'Ghost Radio',
+    };
+  }
+
   if (!isSpeaking || level <= 0) {
     return {
       tier: 'none',
@@ -92,6 +110,24 @@ export type VoiceStateListener = (
   levelsMap?: Record<string, number>
 ) => void;
 
+export interface VoicePeerState {
+  peerId: string;
+  stream: MediaStream;
+  audioEl: HTMLAudioElement;
+  analyser: AnalyserNode;
+  dataArray: Uint8Array;
+  isSpeaking: boolean;
+  speakingLevel: number; // 0..1
+  volume: number; // 0..1
+  isMuted: boolean;
+  biquadFilter?: BiquadFilterNode;
+  delayNode?: DelayNode;
+  feedbackNode?: GainNode;
+  ghostGain?: GainNode;
+  directGain?: GainNode;
+  masterGain?: GainNode;
+}
+
 class VoiceEngine {
   private localStream: MediaStream | null = null;
   private processedStream: MediaStream | null = null;
@@ -106,6 +142,12 @@ class VoiceEngine {
   private isDeadMuted: boolean = false;
   private isPushToTalk: boolean = false;
   private isPttActive: boolean = false;
+
+  // Ghost Frequency state & roster
+  private isLocalAlive: boolean = true;
+  private localPlayerId: string = '';
+  private playerAliveMap: Record<string, boolean> = {};
+  private currentPhaseName: string = 'lobby';
 
   private pollInterval: any = null;
   private listeners: Set<VoiceStateListener> = new Set();
@@ -388,13 +430,129 @@ class VoiceEngine {
   }
 
   /**
-   * Phase gating: Night operations disable all town audio to prevent leaks.
-   * Dead players are strictly muted from transmitting.
+   * Phase & Roster gating:
+   * - Living players: Muted during Night phase to prevent leaking secrets. Muted from hearing dead.
+   * - Dead players: Tune automatically into the Ghost Frequency!
+   *   They can discuss the match live with other fallen players without living players hearing them.
+   *   Audio is enhanced with subtle 1930s vacuum-tube radio reverb.
    */
   public updatePhaseAndRole(phase: string, alive: boolean) {
-    this.isNightMuted = phase === 'night';
-    this.isDeadMuted = !alive;
+    this.currentPhaseName = phase;
+    this.isLocalAlive = alive;
+
+    if (!alive) {
+      // Dead players are on Ghost Frequency: allowed to speak at all times (day & night)
+      this.isNightMuted = false;
+      this.isDeadMuted = false;
+    } else {
+      // Living players: silenced during night covert actions
+      this.isNightMuted = phase === 'night';
+      this.isDeadMuted = false;
+    }
+
     this.applyTrackState();
+    this.updatePeerAudioRouting();
+    this.notify();
+  }
+
+  public updateRoster(
+    players: { id: string; alive: boolean }[],
+    localPlayerId?: string,
+    phase?: string
+  ) {
+    if (localPlayerId) this.localPlayerId = localPlayerId;
+    if (phase) this.currentPhaseName = phase;
+
+    const aliveMap: Record<string, boolean> = {};
+    players.forEach((p) => {
+      aliveMap[p.id] = p.alive;
+    });
+    this.playerAliveMap = aliveMap;
+
+    let localAlive = true;
+    if (localPlayerId && aliveMap[localPlayerId] !== undefined) {
+      localAlive = aliveMap[localPlayerId];
+    } else if (this.localPlayerId && aliveMap[this.localPlayerId] !== undefined) {
+      localAlive = aliveMap[this.localPlayerId];
+    }
+
+    this.updatePhaseAndRole(this.currentPhaseName, localAlive);
+  }
+
+  public isGhostChannelActive(): boolean {
+    return !this.isLocalAlive && this.isEnabled;
+  }
+
+  public isLocalPlayerDead(): boolean {
+    return !this.isLocalAlive;
+  }
+
+  public isPeerDead(peerId: string): boolean {
+    if (!peerId) return false;
+    if (this.playerAliveMap[peerId] === false) return true;
+    for (const [id, alive] of Object.entries(this.playerAliveMap)) {
+      if (!alive && (peerId === id || peerId.includes(id) || id.includes(peerId))) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Updates audio routing per peer:
+   * - Living players hear ONLY living players (dead peers are muted to 0 volume).
+   * - Dead players hear dead peers with Ghost Radio Reverb + can listen to living players.
+   */
+  public updatePeerAudioRouting() {
+    this.peers.forEach((peer, peerId) => {
+      const peerIsDead = this.isPeerDead(peerId);
+
+      if (this.isLocalAlive) {
+        // Local is ALIVE: never hear dead players!
+        if (peerIsDead) {
+          peer.audioEl.volume = 0;
+          if (peer.masterGain) {
+            try { peer.masterGain.gain.setValueAtTime(0, 0); } catch (_) {}
+          }
+        } else {
+          // Living peer: normal volume
+          peer.audioEl.volume = peer.isMuted ? 0 : peer.volume;
+          if (peer.masterGain) {
+            try { peer.masterGain.gain.setValueAtTime(peer.isMuted ? 0 : peer.volume, 0); } catch (_) {}
+          }
+          if (peer.ghostGain) {
+            try { peer.ghostGain.gain.setValueAtTime(0, 0); } catch (_) {}
+          }
+          if (peer.directGain) {
+            try { peer.directGain.gain.setValueAtTime(1, 0); } catch (_) {}
+          }
+        }
+      } else {
+        // Local is DEAD: on Ghost Frequency!
+        peer.audioEl.volume = peer.isMuted ? 0 : peer.volume;
+        if (peer.masterGain) {
+          try { peer.masterGain.gain.setValueAtTime(peer.isMuted ? 0 : peer.volume, 0); } catch (_) {}
+        }
+
+        if (peerIsDead) {
+          // Both are dead: route through Ghost Radio filter + subtle reverb
+          if (peer.ghostGain) {
+            try { peer.ghostGain.gain.setValueAtTime(0.85, 0); } catch (_) {}
+          }
+          if (peer.directGain) {
+            try { peer.directGain.gain.setValueAtTime(0.3, 0); } catch (_) {}
+          }
+        } else {
+          // Living peer: dead player spectates living discussion with normal audio
+          if (peer.ghostGain) {
+            try { peer.ghostGain.gain.setValueAtTime(0, 0); } catch (_) {}
+          }
+          if (peer.directGain) {
+            try { peer.directGain.gain.setValueAtTime(1, 0); } catch (_) {}
+          }
+        }
+      }
+    });
   }
 
   private applyTrackState() {
@@ -439,13 +597,63 @@ class VoiceEngine {
 
     try {
       const AudioCtxClass = window.AudioContext || (window as any).webkitAudioContext;
-      const audioCtx = new AudioCtxClass();
-      const source = audioCtx.createMediaStreamSource(stream);
-      const analyser = audioCtx.createAnalyser();
-      analyser.fftSize = 256;
-      analyser.smoothingTimeConstant = 0.4;
-      const dataArray = new Uint8Array(analyser.frequencyBinCount);
-      source.connect(analyser);
+      let audioCtx: AudioContext | null = null;
+      let analyser: AnalyserNode | null = null;
+      let dataArray: Uint8Array = new Uint8Array(128);
+      let biquadFilter: BiquadFilterNode | undefined;
+      let delayNode: DelayNode | undefined;
+      let feedbackNode: GainNode | undefined;
+      let ghostGain: GainNode | undefined;
+      let directGain: GainNode | undefined;
+      let masterGain: GainNode | undefined;
+
+      if (AudioCtxClass) {
+        try {
+          audioCtx = new AudioCtxClass();
+          const source = audioCtx.createMediaStreamSource(stream);
+          analyser = audioCtx.createAnalyser();
+          analyser.fftSize = 256;
+          analyser.smoothingTimeConstant = 0.4;
+          dataArray = new Uint8Array(analyser.frequencyBinCount);
+          source.connect(analyser);
+
+          // Build Ghost Frequency Audio Processing Graph (Bandpass + subtle radio reverb)
+          if (audioCtx.createBiquadFilter && audioCtx.createDelay && audioCtx.createGain) {
+            biquadFilter = audioCtx.createBiquadFilter();
+            biquadFilter.type = 'bandpass';
+            biquadFilter.frequency.setValueAtTime(1150, audioCtx.currentTime);
+            biquadFilter.Q.setValueAtTime(1.3, audioCtx.currentTime);
+
+            delayNode = audioCtx.createDelay();
+            delayNode.delayTime.setValueAtTime(0.075, audioCtx.currentTime); // 75ms subtle radio slapback
+
+            feedbackNode = audioCtx.createGain();
+            feedbackNode.gain.setValueAtTime(0.24, audioCtx.currentTime); // subtle decay
+
+            ghostGain = audioCtx.createGain();
+            ghostGain.gain.setValueAtTime(0, audioCtx.currentTime);
+
+            directGain = audioCtx.createGain();
+            directGain.gain.setValueAtTime(1.0, audioCtx.currentTime);
+
+            masterGain = audioCtx.createGain();
+            masterGain.gain.setValueAtTime(1.0, audioCtx.currentTime);
+
+            // Audio Routing:
+            // source -> directGain -> masterGain
+            source.connect(directGain);
+            directGain.connect(masterGain);
+
+            // source -> biquadFilter -> delayNode (with feedback) -> ghostGain -> masterGain
+            source.connect(biquadFilter);
+            biquadFilter.connect(delayNode);
+            delayNode.connect(feedbackNode);
+            feedbackNode.connect(delayNode);
+            delayNode.connect(ghostGain);
+            ghostGain.connect(masterGain);
+          }
+        } catch (_) {}
+      }
 
       const audioEl = document.createElement('audio');
       audioEl.srcObject = stream;
@@ -453,17 +661,26 @@ class VoiceEngine {
       (audioEl as any).playsInline = true;
       audioEl.play().catch(() => {});
 
-      this.peers.set(peerId, {
+      const peerState: VoicePeerState = {
         peerId,
         stream,
         audioEl,
-        analyser,
+        analyser: analyser || ({} as any),
         dataArray,
         isSpeaking: false,
         speakingLevel: 0,
         volume: 1.0,
         isMuted: false,
-      });
+        biquadFilter,
+        delayNode,
+        feedbackNode,
+        ghostGain,
+        directGain,
+        masterGain,
+      };
+
+      this.peers.set(peerId, peerState);
+      this.updatePeerAudioRouting();
     } catch (_) {}
   }
 

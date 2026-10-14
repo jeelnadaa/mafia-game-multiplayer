@@ -48,6 +48,9 @@ export interface SecretLogEntry {
   policeInvestigations: { policeId: string; targetId: string; result: string }[];
   vigilanteShots: { vigilanteId: string; targetId: string }[];
   eliminatedByVote: string | null;
+  dayVotes?: Record<string, string>;
+  dayVoteCounts?: Record<string, number>;
+  dayEliminatedRole?: string;
 }
 
 export interface RolesConfig {

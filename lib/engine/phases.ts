@@ -580,6 +580,46 @@ export function maybeAdvance(state: GameState, now: number, rng: () => number): 
 
       const winner = checkWinCondition(updatedPlayers, jesterWon);
 
+      // Record Day Voting Outcomes in SecretLog for Post-Match Replay Timeline
+      const eliminatedVictim = eliminatedId ? state.players.find((p) => p.id === eliminatedId) : null;
+      const dayVotesMap: Record<string, string> = {};
+      const dayVoteCounts: Record<string, number> = {};
+      Object.entries(state.votes || {}).forEach(([voterId, targetId]) => {
+        if (targetId) {
+          dayVotesMap[voterId] = targetId;
+          dayVoteCounts[targetId] = (dayVoteCounts[targetId] || 0) + 1;
+        }
+      });
+
+      const updatedSecretLog: SecretLogEntry[] = state.secretLog.map((entry) =>
+        entry.round === round
+          ? {
+              ...entry,
+              eliminatedByVote: eliminatedId || null,
+              dayVotes: dayVotesMap,
+              dayVoteCounts,
+              dayEliminatedRole: eliminatedVictim?.role,
+            }
+          : entry
+      );
+      const hasRoundEntry = updatedSecretLog.some((e) => e.round === round);
+      const finalSecretLog: SecretLogEntry[] = hasRoundEntry
+        ? updatedSecretLog
+        : [
+            ...updatedSecretLog,
+            {
+              round,
+              mafiaTarget: null,
+              doctorSaves: [],
+              policeInvestigations: [],
+              vigilanteShots: [],
+              eliminatedByVote: eliminatedId || null,
+              dayVotes: dayVotesMap,
+              dayVoteCounts,
+              dayEliminatedRole: eliminatedVictim?.role,
+            },
+          ];
+
       if (winner) {
         return {
           ...state,
@@ -587,6 +627,7 @@ export function maybeAdvance(state: GameState, now: number, rng: () => number): 
           winner,
           log: newLogs,
           chat: newChat.slice(-149),
+          secretLog: finalSecretLog,
           phase: 'gameOver',
           phaseEndsAt: null,
           revotePending: false,
@@ -600,6 +641,7 @@ export function maybeAdvance(state: GameState, now: number, rng: () => number): 
         winner: undefined,
         log: newLogs,
         chat: newChat.slice(-149),
+        secretLog: finalSecretLog,
         phase: 'voteResult',
         phaseEndsAt: now + 5000, // Show verdict then smoothly advance
         revotePending: false,

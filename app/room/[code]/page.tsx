@@ -13,6 +13,7 @@ import { CircleSittingArena } from '@/components/CircleSittingArena';
 import { RoleReveal } from '@/components/RoleReveal';
 import { DawnAnnouncement } from '@/components/DawnAnnouncement';
 import { VoiceOverlay } from '@/components/VoiceOverlay';
+import { CasterOverlay } from '@/components/CasterOverlay';
 import { Button, Avatar, Modal } from '@/components/ui';
 import { AlertCircle, RotateCcw, Moon, Shield } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -540,6 +541,9 @@ export default function RoomPage() {
         speakingPeers={speakingPeers}
         speakingLevels={speakingLevels}
       />
+
+      {/* Dedicated Streamer / God Spectator Mode Broadcast HUD Overlay */}
+      <CasterOverlay gameView={gameView} />
 
       {/* Main Game Screen Routing with fluid staged transitions */}
       <main className="flex-1 flex flex-col">

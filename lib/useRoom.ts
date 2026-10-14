@@ -306,9 +306,9 @@ export function useRoom(
 
   useEffect(() => {
     if (gameView) {
-      voiceEngine.updatePhaseAndRole(gameView.phase, Boolean(gameView.me?.alive ?? true));
+      voiceEngine.updateRoster(gameView.players, myPlayerIdRef.current, gameView.phase);
     }
-  }, [gameView?.phase, gameView?.me?.alive]);
+  }, [gameView?.phase, gameView?.me?.alive, gameView?.players]);
 
   // 1. Initialize Audio, Identity, and Purge Expired Game Data
   useEffect(() => {

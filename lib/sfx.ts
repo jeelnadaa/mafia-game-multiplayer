@@ -523,6 +523,95 @@ class AudioManager {
       osc.stop(now + idx * 0.12 + 0.6);
     });
   }
+
+  /** Vintage 1930s Ghost Frequency Shortwave Radio Static & Tuning Chime */
+  public playGhostRadioStatic() {
+    if (this.isMuted) return;
+    this.initCtx();
+    if (!this.ctx || !this.sfxGain) return;
+
+    const now = this.ctx.currentTime;
+    try {
+      // Noise burst with bandpass sweep
+      const bufferSize = Math.floor(this.ctx.sampleRate * 0.35);
+      const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        data[i] = Math.random() * 2 - 1;
+      }
+
+      const noise = this.ctx.createBufferSource();
+      noise.buffer = buffer;
+
+      const filter = this.ctx.createBiquadFilter();
+      filter.type = 'bandpass';
+      filter.frequency.setValueAtTime(950, now);
+      filter.frequency.exponentialRampToValueAtTime(1400, now + 0.3);
+      filter.Q.setValueAtTime(2.5, now);
+
+      const gain = this.ctx.createGain();
+      gain.gain.setValueAtTime(0.12, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+
+      noise.connect(filter);
+      filter.connect(gain);
+      gain.connect(this.sfxGain);
+
+      noise.start(now);
+      noise.stop(now + 0.35);
+
+      // Eerie heterodyne carrier whistle
+      const whistle = this.ctx.createOscillator();
+      whistle.type = 'sine';
+      whistle.frequency.setValueAtTime(1800, now);
+      whistle.frequency.linearRampToValueAtTime(1200, now + 0.25);
+
+      const whistleGain = this.ctx.createGain();
+      whistleGain.gain.setValueAtTime(0.04, now);
+      whistleGain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+
+      whistle.connect(whistleGain);
+      whistleGain.connect(this.sfxGain);
+
+      whistle.start(now);
+      whistle.stop(now + 0.25);
+    } catch (_) {}
+  }
+
+  /** Vintage 1930s Morning Newspaper Crisp Paper Rustle & Unfold */
+  public playNewspaperUnfold() {
+    if (this.isMuted) return;
+    this.initCtx();
+    if (!this.ctx || !this.sfxGain) return;
+
+    const now = this.ctx.currentTime;
+    try {
+      const bufferSize = Math.floor(this.ctx.sampleRate * 0.4);
+      const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (this.ctx.sampleRate * 0.1));
+      }
+
+      const noise = this.ctx.createBufferSource();
+      noise.buffer = buffer;
+
+      const filter = this.ctx.createBiquadFilter();
+      filter.type = 'highpass';
+      filter.frequency.setValueAtTime(1600, now);
+
+      const gain = this.ctx.createGain();
+      gain.gain.setValueAtTime(0.2, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.38);
+
+      noise.connect(filter);
+      filter.connect(gain);
+      gain.connect(this.sfxGain);
+
+      noise.start(now);
+      noise.stop(now + 0.38);
+    } catch (_) {}
+  }
 }
 
 export const audioManager = new AudioManager();
@@ -542,6 +631,8 @@ export const playPaperWhoosh = () => audioManager.playPaperWhoosh();
 export const playEliminationKnell = () => audioManager.playEliminationKnell();
 export const playYourTurnChime = () => audioManager.playYourTurnChime();
 export const playUiTick = () => audioManager.playUiTick();
+export const playGhostRadioStatic = () => audioManager.playGhostRadioStatic();
+export const playNewspaperUnfold = () => audioManager.playNewspaperUnfold();
 export const setVoiceDucking = (speaking: boolean) => audioManager.setVoiceDucking(speaking);
 export const setPhaseAmbience = (p: any) => audioManager.setPhaseAmbience(p);
 export const getAmbienceVolume = () => audioManager.getAmbienceVolume();

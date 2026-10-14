@@ -20,6 +20,7 @@ import {
   Clock,
   Shield,
   Layers,
+  Video,
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { ClientGameView } from '@/lib/types';
@@ -29,6 +30,8 @@ import { toggleMute, getIsMuted } from '@/lib/sfx';
 import { getRoomShareUrl } from '@/lib/net';
 import { clearRoomData } from '@/lib/storage';
 import { useShortcut } from '@/lib/shortcuts';
+import { streamerManager } from '@/lib/streamer';
+import { StreamerCurtain } from './CasterOverlay';
 
 interface TopBarProps {
   gameView: ClientGameView;
@@ -67,6 +70,13 @@ export function TopBar({
   const [advanceModalOpen, setAdvanceModalOpen] = useState(false);
   const [caseMenuOpen, setCaseMenuOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [streamerSafe, setStreamerSafe] = useState(() => streamerManager.isEnabled());
+
+  React.useEffect(() => {
+    return streamerManager.subscribe(() => {
+      setStreamerSafe(streamerManager.isEnabled());
+    });
+  }, []);
 
   // Back button long-press detection
   const [holdProgress, setHoldProgress] = useState(0);
@@ -113,6 +123,9 @@ export function TopBar({
   useShortcut('Shift+M', () => {
     if (isVoiceActive) onToggleVoiceMute?.();
     else onToggleVoice?.();
+  }, { scope: 'screen' });
+  useShortcut('Shift+S', () => {
+    streamerManager.toggleStreamerMode();
   }, { scope: 'screen' });
 
   const handleCopyCode = () => {
@@ -313,9 +326,26 @@ export function TopBar({
                         : '#ECE6D8',
                   }}
                 />
-                <span className="font-sans font-medium">{roleDef.name}</span>
+                <StreamerCurtain fallbackText="CONFIDENTIAL [PEEK]">
+                  <span className="font-sans font-medium">{roleDef.name}</span>
+                </StreamerCurtain>
               </button>
             )}
+
+            {/* Streamer Safe Mode Toggle */}
+            <button
+              type="button"
+              onClick={() => streamerManager.toggleStreamerMode()}
+              title="Toggle Streamer Safe Mode (Shift+S) - Conceals secret roles and room codes for Twitch/Discord streaming"
+              className={`px-3 py-1.5 border rounded-full text-xs font-mono font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                streamerSafe
+                  ? 'border-[#818CF8] bg-[#818CF8]/15 text-[#818CF8] shadow-[0_0_12px_rgba(129,140,248,0.35)]'
+                  : 'border-[#262A33] text-[#A39D90] hover:text-[#ECE6D8] hover:border-[#818CF8]'
+              }`}
+            >
+              <Video className="w-3.5 h-3.5" />
+              <span className="hidden md:inline">{streamerSafe ? 'OBS SAFE' : 'STREAM'}</span>
+            </button>
 
             {/* Quick Rulebook Button */}
             <button
@@ -334,7 +364,7 @@ export function TopBar({
       <Modal
         isOpen={caseMenuOpen}
         onClose={() => setCaseMenuOpen(false)}
-        title={`CASE FILE DOCKET #${gameView.code}`}
+        title={`CASE FILE DOCKET #${streamerSafe ? '•••••' : gameView.code}`}
       >
         <div className="space-y-4">
           {/* Room Code & Quick Actions */}
@@ -342,7 +372,9 @@ export function TopBar({
             <div className="flex items-center justify-between">
               <div>
                 <span className="text-[11px] text-bone-dim uppercase font-mono block">Secret Room Code</span>
-                <span className="font-mono text-xl font-extrabold text-bone tracking-widest">{gameView.code}</span>
+                <StreamerCurtain fallbackText="••••• [PEEK]">
+                  <span className="font-mono text-xl font-extrabold text-bone tracking-widest">{gameView.code}</span>
+                </StreamerCurtain>
               </div>
               <div className="flex items-center gap-2">
                 <Button

@@ -10,6 +10,10 @@ import { Night } from './Night';
 import { TopBar } from './TopBar';
 import { DawnAnnouncement } from './DawnAnnouncement';
 import { VoiceOverlay } from './VoiceOverlay';
+import { MorningNewspaper } from './MorningNewspaper';
+import { ReplayTimeline } from './ReplayTimeline';
+import { CasterOverlay, StreamerCurtain } from './CasterOverlay';
+import { streamerManager } from '../lib/streamer';
 import { DEFAULT_SETTINGS } from '../lib/settings';
 import { ClientGameView } from '../lib/types';
 
@@ -622,5 +626,174 @@ describe('Frontend UI Components: Rendering & Reflection', () => {
     assert.ok(html.includes('Silent Peer'), 'Expected silent peer in voice list');
     // Emerald glow ring for speaker:
     assert.ok(html.includes('#2ED573'), 'Expected emerald glow color for active speaker');
+  });
+
+  it('renders MorningNewspaper with 1930s Observer broadsheet styling, headlines, and victim inquest', () => {
+    const newspaperGameView: ClientGameView = {
+      code: 'NEWS1',
+      version: 1,
+      phase: 'morning',
+      round: 1,
+      phaseEndsAt: Date.now() + 15000,
+      paused: false,
+      settings: { ...DEFAULT_SETTINGS, revealRoleOnDeath: 'full' },
+      players: [
+        { id: 'v1', name: 'Al Capone', avatar: 1, isHost: false, isGod: false, ready: true, alive: false, connected: true, diedInRound: 1, diedBy: 'mafia', role: 'godfather' },
+        { id: 's1', name: 'Sherlock', avatar: 2, isHost: true, isGod: false, ready: true, alive: true, connected: true, role: 'police' },
+      ],
+      me: {
+        id: 's1',
+        token: 'ts1',
+        name: 'Sherlock',
+        avatar: 2,
+        isGod: false,
+        isHost: true,
+        alive: true,
+        canActNow: false,
+        isConfirmed: false,
+        nightPick: null,
+        nightLocked: false,
+        vote: null,
+        readyToVote: false,
+        isReady: true,
+      },
+      readyToVote: [],
+      chat: [],
+      log: [],
+      serverNow: Date.now(),
+    };
+
+    const html = renderToStaticMarkup(<MorningNewspaper gameView={newspaperGameView} />);
+    assert.ok(html.includes('The Daily Observer'), 'Expected 1930s newspaper masthead');
+    assert.ok(html.includes('AL CAPONE FOUND SLAIN IN MIDNIGHT BLOODSHED!'), 'Expected banner headline');
+    assert.ok(html.includes('PRECINCT 4 BLOTTER'), 'Expected police blotter section');
+    assert.ok(html.includes('DR. FINCH'), 'Expected vintage classified advertisement');
+    assert.ok(html.includes('DECEASED'), 'Expected rubber stamp on casualty docket');
+  });
+
+  it('renders ReplayTimeline with scrubbable controls, action connections, and ballot shifts', () => {
+    const timelineGameView: ClientGameView = {
+      code: 'REPLY',
+      version: 3,
+      phase: 'gameOver',
+      round: 1,
+      phaseEndsAt: Date.now() + 60000,
+      winner: 'town',
+      paused: false,
+      settings: DEFAULT_SETTINGS,
+      players: [
+        { id: 'm1', name: 'Mob Boss', avatar: 1, isHost: false, isGod: false, ready: true, alive: false, connected: true, role: 'mafia', diedInRound: 1, diedBy: 'vote' },
+        { id: 'd1', name: 'Dr Baker', avatar: 2, isHost: false, isGod: false, ready: true, alive: true, connected: true, role: 'doctor' },
+        { id: 'p1', name: 'Detective Cole', avatar: 3, isHost: true, isGod: false, ready: true, alive: true, connected: true, role: 'police' },
+      ],
+      me: {
+        id: 'p1',
+        token: 'tp1',
+        name: 'Detective Cole',
+        avatar: 3,
+        isGod: false,
+        isHost: true,
+        alive: true,
+        canActNow: false,
+        isConfirmed: false,
+        nightPick: null,
+        nightLocked: false,
+        vote: null,
+        readyToVote: false,
+        isReady: true,
+      },
+      secretLog: [
+        {
+          round: 1,
+          mafiaTarget: 'd1',
+          doctorSaves: ['d1'],
+          policeInvestigations: [{ policeId: 'p1', targetId: 'm1', result: 'mafia' }],
+          vigilanteShots: [],
+          eliminatedByVote: 'm1',
+          dayVotes: { p1: 'm1', d1: 'm1', m1: 'p1' },
+          dayVoteCounts: { m1: 2, p1: 1 },
+          dayEliminatedRole: 'mafia',
+        },
+      ],
+      readyToVote: [],
+      chat: [],
+      log: [],
+      serverNow: Date.now(),
+    };
+
+    const html = renderToStaticMarkup(<ReplayTimeline gameView={timelineGameView} />);
+    assert.ok(html.includes('POST-MATCH REPLAY TIMELINE'), 'Expected replay timeline title');
+    assert.ok(html.includes('STAGE 1 OF'), 'Expected scrubber stage counter');
+    assert.ok(html.includes('Briefing'), 'Expected briefing stage pill');
+    assert.ok(html.includes('Night 1'), 'Expected night stage pill');
+    assert.ok(html.includes('Day 1'), 'Expected day stage pill');
+  });
+
+  it('renders CasterOverlay with broadcast scoreboard when streamer safe mode is active', () => {
+    streamerManager.setStreamerMode(true);
+    streamerManager.setCasterMode('blind');
+
+    const casterGameView: ClientGameView = {
+      code: 'CAST1',
+      version: 1,
+      phase: 'discussion',
+      round: 2,
+      phaseEndsAt: Date.now() + 45000,
+      paused: false,
+      settings: DEFAULT_SETTINGS,
+      players: [
+        { id: 'p1', name: 'Living One', avatar: 1, isHost: true, isGod: false, ready: true, alive: true, connected: true },
+        { id: 'p2', name: 'Living Two', avatar: 2, isHost: false, isGod: false, ready: true, alive: true, connected: true },
+        { id: 'p3', name: 'Dead One', avatar: 3, isHost: false, isGod: false, ready: true, alive: false, connected: true },
+      ],
+      me: {
+        id: 'p1',
+        token: 'tp1',
+        name: 'Living One',
+        avatar: 1,
+        isGod: false,
+        isHost: true,
+        alive: true,
+        canActNow: false,
+        isConfirmed: false,
+        nightPick: null,
+        nightLocked: false,
+        vote: null,
+        readyToVote: false,
+        isReady: true,
+      },
+      readyToVote: [],
+      chat: [],
+      log: [],
+      serverNow: Date.now(),
+    };
+
+    const html = renderToStaticMarkup(<CasterOverlay gameView={casterGameView} />);
+    assert.ok(html.includes('CASTER HUD'), 'Expected Caster HUD watermark');
+    assert.ok(html.includes('DAY 2 DISCUSSION'), 'Expected phase pill in scoreboard');
+    assert.ok(html.includes('2'), 'Expected 2 living operatives count');
+    assert.ok(html.includes('Blind Caster'), 'Expected blind caster button');
+
+    streamerManager.setStreamerMode(false);
+  });
+
+  it('renders StreamerCurtain masking confidential content behind privacy blur', () => {
+    streamerManager.setStreamerMode(true);
+    const htmlActive = renderToStaticMarkup(
+      <StreamerCurtain fallbackText="SECRET ROLE [PEEK]">
+        <span>GODFATHER</span>
+      </StreamerCurtain>
+    );
+    assert.ok(htmlActive.includes('blur-md'), 'Expected privacy blur on secret role');
+    assert.ok(htmlActive.includes('SECRET ROLE [PEEK]'), 'Expected fallback peek text');
+
+    streamerManager.setStreamerMode(false);
+    const htmlInactive = renderToStaticMarkup(
+      <StreamerCurtain fallbackText="SECRET ROLE [PEEK]">
+        <span>GODFATHER</span>
+      </StreamerCurtain>
+    );
+    assert.ok(htmlInactive.includes('GODFATHER'), 'Expected unmasked content when streamer safe is off');
+    assert.ok(!htmlInactive.includes('blur-md'), 'No blur when streamer safe is off');
   });
 });

@@ -21,6 +21,7 @@ import { buildViewFor } from './view';
 import { DEFAULT_SETTINGS } from '../settings';
 import { GameState, Player } from '../types';
 import { voiceEngine, getVoiceGlowStyle } from '../voice';
+import { streamerManager } from '../streamer';
 
 describe('Mafia Engine: Rules & Validation', () => {
   it('validates minimum player count and mafia ratio', () => {
@@ -422,6 +423,98 @@ describe('Mafia Engine: Night Resolution & Voting', () => {
     // When last mafia is eliminated, Town wins immediately -> phase MUST be gameOver directly
     expect(advancedState.phase).toBe('gameOver');
     expect(advancedState.winner).toBe('town');
+  });
+
+  it('tunes dead players into Ghost Frequency and isolates living players from hearing them', () => {
+    // 1. Roster update: p1 is dead, p2 is alive
+    voiceEngine.updateRoster(
+      [
+        { id: 'p1', alive: false },
+        { id: 'p2', alive: true },
+      ],
+      'p1',
+      'day'
+    );
+
+    // Local player p1 is dead -> tuned to Ghost Frequency
+    expect(voiceEngine.isLocalPlayerDead()).toBe(true);
+    expect(voiceEngine.isPeerDead('p1')).toBe(true);
+    expect(voiceEngine.isPeerDead('p2')).toBe(false);
+
+    // 2. Ghost glow tier returns cyan aura for dead players
+    const ghostGlow = getVoiceGlowStyle(0.65, true, true);
+    expect(ghostGlow.tier).toBe('ghost');
+    expect(ghostGlow.borderColor).toBe('#38BDF8');
+    expect(ghostGlow.label).toBe('Ghost Radio');
+
+    // 3. Normal living player glow remains green
+    const livingGlow = getVoiceGlowStyle(0.65, true, false);
+    expect(livingGlow.tier).toBe('medium');
+    expect(livingGlow.borderColor).toBe('#2ED573');
+  });
+
+  it('records dayVotes, vote counts, and eliminated victim into secretLog on voting conclusion', () => {
+    const votingState: GameState = {
+      ...baseState,
+      settings: { ...baseState.settings, tieRule: 'no_elimination' },
+      phase: 'voting',
+      phaseEndsAt: 1000,
+      round: 1,
+      players: [
+        { id: 'm1', token: 'tm1', name: 'Mafia1', avatar: 1, isHost: false, isGod: false, ready: true, connected: true, lastSeen: 0, role: 'mafia', alive: true },
+        { id: 'm2', token: 'tm2', name: 'Mafia2', avatar: 2, isHost: false, isGod: false, ready: true, connected: true, lastSeen: 0, role: 'mafia', alive: true },
+        { id: 'c1', token: 'tc1', name: 'Civ1', avatar: 3, isHost: true, isGod: false, ready: true, connected: true, lastSeen: 0, role: 'civilian', alive: true },
+        { id: 'c2', token: 'tc2', name: 'Civ2', avatar: 4, isHost: false, isGod: false, ready: true, connected: true, lastSeen: 0, role: 'civilian', alive: true },
+      ],
+      votes: {
+        c1: 'm1',
+        c2: 'm1',
+        m2: 'm1',
+        m1: 'c1',
+      },
+      secretLog: [
+        {
+          round: 1,
+          mafiaTarget: 'c1',
+          doctorSaves: [],
+          policeInvestigations: [],
+          vigilanteShots: [],
+          eliminatedByVote: null,
+        },
+      ],
+      log: [],
+      chat: [],
+    };
+
+    const advanced = maybeAdvance(votingState, 2000, () => 0.5);
+    expect(advanced.secretLog).toHaveLength(1);
+    expect(advanced.secretLog[0].dayVotes).toEqual({
+      c1: 'm1',
+      c2: 'm1',
+      m2: 'm1',
+      m1: 'c1',
+    });
+    expect(advanced.secretLog[0].dayVoteCounts?.m1).toBe(3);
+    expect(advanced.secretLog[0].dayVoteCounts?.c1).toBe(1);
+    expect(advanced.secretLog[0].eliminatedByVote).toBe('m1');
+    expect(advanced.secretLog[0].dayEliminatedRole).toBe('mafia');
+  });
+
+  it('manages streamer safe mode and caster mode toggle cleanly', () => {
+    streamerManager.setStreamerMode(false);
+    expect(streamerManager.isEnabled()).toBe(false);
+
+    streamerManager.toggleStreamerMode();
+    expect(streamerManager.isEnabled()).toBe(true);
+
+    streamerManager.setCasterMode('god');
+    expect(streamerManager.getCasterMode()).toBe('god');
+
+    streamerManager.setCasterMode('blind');
+    expect(streamerManager.getCasterMode()).toBe('blind');
+
+    streamerManager.setStreamerMode(false);
+    expect(streamerManager.isEnabled()).toBe(false);
   });
 });
 
