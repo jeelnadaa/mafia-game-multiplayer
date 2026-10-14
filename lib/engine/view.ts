@@ -53,6 +53,7 @@ export function buildViewFor(state: GameState, observerId: string, now: number):
       color: p.color || PLAYER_COLORS[idx % PLAYER_COLORS.length],
       isHost: p.isHost,
       isGod: p.isGod,
+      isBot: Boolean(p.isBot),
       ready: p.ready,
       connected: p.connected,
       alive: p.alive,

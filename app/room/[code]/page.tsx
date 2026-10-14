@@ -96,6 +96,8 @@ export default function RoomPage() {
     sendChat,
     startMatch,
     toggleReady,
+    addBots,
+    clearBots,
     kickPlayer,
     banPlayer,
     toggleLockRoom,
@@ -417,6 +419,8 @@ export default function RoomPage() {
                   updateProfile(profile);
                 }}
                 onSendChat={(channel, text) => sendChat(channel, text)}
+                onAddBots={addBots}
+                onClearBots={clearBots}
               />
             )}
 

@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { Crown, Shield, Users, Play, Copy, Check, QrCode, UserMinus, AlertTriangle, MessageSquare, Send, Activity, Lock, Ban } from 'lucide-react';
+import { Crown, Shield, Users, Play, Copy, Check, QrCode, UserMinus, AlertTriangle, MessageSquare, Send, Activity, Lock, Ban, Bot } from 'lucide-react';
 import { ClientGameView, Settings, PlayerView } from '@/lib/types';
 import { SETTINGS_SCHEMA, ROLE_PRESETS, RULE_PRESETS } from '@/lib/settings';
 import { validateSettings } from '@/lib/engine/rules';
@@ -22,6 +22,8 @@ interface LobbyProps {
   onUpdateSettings: (partial: Partial<Settings>) => void;
   onUpdateProfile?: (profile: { name?: string; avatar: number }) => void;
   onSendChat?: (channel: 'public', text: string) => void;
+  onAddBots?: () => void;
+  onClearBots?: () => void;
 }
 
 export function Lobby({
@@ -36,6 +38,8 @@ export function Lobby({
   onUpdateSettings,
   onUpdateProfile,
   onSendChat,
+  onAddBots,
+  onClearBots,
 }: LobbyProps) {
   const [showQr, setShowQr] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -228,35 +232,71 @@ export function Lobby({
           {/* Players Roster */}
           <div className="flex-1 bg-surface border border-border p-6 space-y-4 flex flex-col justify-between">
             <div className="space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-border">
-                <div className="flex items-center gap-2">
-                  <Users className="w-5 h-5 text-white" />
-                  <h3 className="text-base font-bold text-text">
-                    Connected Players ({players.length}/{settings.maxPlayers})
-                  </h3>
+              {/* Header: Title and Test Actions */}
+              <div className="space-y-3 pb-3 border-b border-border">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <Users className="w-5 h-5 text-white shrink-0" />
+                    <h3 className="text-base font-bold text-text">
+                      Connected Players ({players.length}/{settings.maxPlayers})
+                    </h3>
+                  </div>
+
+                  {isHost && onAddBots && (
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="primary"
+                        size="sm"
+                        onClick={onAddBots}
+                        title={`Add minimum test bots required to start match (${Math.max(0, minPlayersNeeded - players.length)} needed)`}
+                        className="text-xs font-semibold py-1 px-2.5 h-7 shadow-sm"
+                      >
+                        <Bot className="w-3.5 h-3.5 mr-1 text-emerald-400" />
+                        <span>+ Test Bots ({Math.max(0, minPlayersNeeded - players.length) > 0 ? `+${Math.max(0, minPlayersNeeded - players.length)}` : 'Fill'})</span>
+                      </Button>
+                      {players.some((p) => p.isBot || p.id.startsWith('bot_')) && onClearBots && (
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          onClick={onClearBots}
+                          title="Remove all automated test bots from the room"
+                          className="text-xs py-1 px-2 h-7 text-muted hover:text-red-400"
+                        >
+                          Clear Bots
+                        </Button>
+                      )}
+                    </div>
+                  )}
                 </div>
 
-                <div className="flex items-center gap-4">
+                {/* Sub-bar: Sitting & Narrator Toggles formatted cleanly with badges & cards */}
+                <div className="flex items-center justify-between flex-wrap gap-2 pt-1">
                   {isHost ? (
-                    <label className="flex items-center gap-2 text-xs md:text-sm text-muted cursor-pointer hover:text-text select-none">
-                      <span>Circle Sitting</span>
+                    <label className="flex items-center gap-2 text-xs text-muted cursor-pointer hover:text-text select-none bg-surface-2 px-2.5 py-1.5 border border-border">
+                      <span className="font-medium">Circle Sitting</span>
                       <Switch
                         checked={Boolean(settings.circleSitting ?? true)}
                         onChange={(val) => onUpdateSettings({ circleSitting: val })}
                       />
                     </label>
                   ) : (
-                    <span className="text-[11px] px-2 py-0.5 bg-surface-2 border border-border text-muted font-mono">
+                    <span className="text-[11px] px-2.5 py-1.5 bg-surface-2 border border-border text-muted font-mono">
                       {settings.circleSitting ? 'Circle Seating: ON' : 'Circle Seating: OFF'}
                     </span>
                   )}
 
-                  {isHost && (
-                    <label className="flex items-center gap-2 text-xs md:text-sm text-muted cursor-pointer hover:text-text select-none">
-                      <span>Narrator (God) Mode</span>
+                  {isHost ? (
+                    <label className="flex items-center gap-2 text-xs text-muted cursor-pointer hover:text-text select-none bg-surface-2 px-2.5 py-1.5 border border-border">
+                      <span className="font-medium">Narrator (God) Mode</span>
                       <Switch checked={Boolean(me?.isGod)} onChange={(val) => onToggleGod(val)} />
                     </label>
-                  )}
+                  ) : me?.isGod ? (
+                    <span className="text-[11px] px-2.5 py-1.5 bg-surface-2 border border-border text-zinc-300 font-mono">
+                      Narrator Mode
+                    </span>
+                  ) : null}
                 </div>
               </div>
 
@@ -271,10 +311,15 @@ export function Lobby({
                   >
                     <Avatar avatarId={p.avatar} size={44} className="rounded-none" />
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-sm font-semibold text-text truncate">{p.name}</span>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-sm font-semibold text-text truncate max-w-[120px] sm:max-w-[140px]">{p.name}</span>
                         {p.isHost && <Crown className="w-4 h-4 text-white shrink-0" />}
                         {p.isGod && <Shield className="w-4 h-4 text-zinc-400 shrink-0" />}
+                        {(p.isBot || p.id.startsWith('bot_')) && (
+                          <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 uppercase tracking-wider shrink-0">
+                            BOT
+                          </span>
+                        )}
                       </div>
                       <div className="text-xs text-muted mt-0.5">
                         {p.isGod ? 'Moderator' : p.ready ? 'Ready ✓' : 'Waiting'}
@@ -469,7 +514,7 @@ export function Lobby({
                       <Stepper
                         value={settings.roles.mafia.count}
                         min={1}
-                        max={6}
+                        max={settings.maxPlayers || 12}
                         onChange={(val) =>
                           onUpdateSettings({ roles: { ...settings.roles, mafia: { count: val } } })
                         }
@@ -529,7 +574,7 @@ export function Lobby({
                           <Stepper
                             value={settings.roles.doctor.count}
                             min={1}
-                            max={3}
+                            max={settings.maxPlayers || 12}
                             onChange={(val) =>
                               onUpdateSettings({ roles: { ...settings.roles, doctor: { enabled: true, count: val } } })
                             }
@@ -565,7 +610,7 @@ export function Lobby({
                           <Stepper
                             value={settings.roles.police.count}
                             min={1}
-                            max={3}
+                            max={settings.maxPlayers || 12}
                             onChange={(val) =>
                               onUpdateSettings({ roles: { ...settings.roles, police: { enabled: true, count: val } } })
                             }

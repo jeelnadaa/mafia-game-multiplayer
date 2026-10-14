@@ -45,7 +45,213 @@ export interface UseRoomReturn {
   setSuspicion: (targetId: string) => void;
   clearSuspicion: () => void;
   sendReaction: (reaction: QuickReaction) => void;
+  addBots: () => void;
+  clearBots: () => void;
   leaveRoom: () => void;
+}
+
+function tryAdvanceNightHelper(st: GameState, now: number): GameState {
+  const subPhase = st.night.subPhase || 'mafia';
+  const eligible = getActiveRolePlayers(subPhase, st);
+  if (eligible.length === 0) {
+    const nextRole = getNextNightRole(subPhase, st);
+    if (nextRole) {
+      const duration = getSubPhaseDuration(nextRole, st.settings);
+      st.night.subPhase = nextRole;
+      st.night.confirmed = {};
+      st.phaseEndsAt = now + duration * 1000;
+      return st;
+    } else {
+      const rng = () => Math.random();
+      const { nextState: resolvedState } = resolveNight(st, rng, now);
+      return resolvedState.winner
+        ? { ...resolvedState, phase: 'gameOver', phaseEndsAt: null }
+        : { ...resolvedState, phase: 'morning', phaseEndsAt: now + 7000 };
+    }
+  }
+
+  if (!st.settings.endNightEarly) {
+    return st;
+  }
+
+  let canAdvance = eligible.every(
+    (p) => Boolean(st.night.picks[p.id]) || Boolean(st.night.confirmed[p.id])
+  );
+
+  if (subPhase === 'mafia' && canAdvance) {
+    const mafiaPicks = eligible.map((m) => st.night.picks[m.id]).filter(Boolean);
+    if (st.settings.mafiaKillMode === 'unanimous' && eligible.length > 1) {
+      const allSame =
+        mafiaPicks.length === eligible.length && mafiaPicks.every((pick) => pick === mafiaPicks[0]);
+      if (!allSame) {
+        canAdvance = false;
+      }
+    }
+  }
+
+  if (canAdvance) {
+    const nextRole = getNextNightRole(subPhase, st);
+    if (nextRole) {
+      const duration = getSubPhaseDuration(nextRole, st.settings);
+      st.night.subPhase = nextRole;
+      st.night.confirmed = {};
+      st.phaseEndsAt = now + duration * 1000;
+    } else {
+      const rng = () => Math.random();
+      const { nextState: resolvedState } = resolveNight(st, rng, now);
+      if (resolvedState.winner) {
+        st = {
+          ...resolvedState,
+          phase: 'gameOver',
+          phaseEndsAt: null,
+        };
+      } else {
+        st = {
+          ...resolvedState,
+          phase: 'morning',
+          phaseEndsAt: now + 7000,
+        };
+      }
+    }
+  }
+
+  return st;
+}
+
+function processBotActions(state: GameState, now: number): GameState {
+  if (state.paused || state.winner || state.phase === 'lobby' || state.phase === 'gameOver') {
+    return state;
+  }
+
+  const livingBots = state.players.filter((p) => (p.isBot || p.id.startsWith('bot_')) && p.alive && !p.isGod);
+  if (livingBots.length === 0) return state;
+
+  let st = { ...state };
+  let modified = false;
+
+  // 1. NIGHT PHASE: Bot night actions
+  if (st.phase === 'night') {
+    const subPhase = st.night.subPhase || 'mafia';
+    const activePlayers = getActiveRolePlayers(subPhase, st);
+    const activeBots = activePlayers.filter((p) => p.isBot || p.id.startsWith('bot_'));
+    const humanActive = activePlayers.some((p) => !p.isBot && !p.id.startsWith('bot_'));
+
+    // If human is not active in this subphase, give a gentle ~1000ms pause so transitions feel natural
+    if (!humanActive && activeBots.length > 0) {
+      const phaseRemaining = (st.phaseEndsAt || now) - now;
+      const subPhaseDuration = getSubPhaseDuration(subPhase, st.settings) * 1000;
+      const elapsed = subPhaseDuration - phaseRemaining;
+      if (elapsed < 1000) {
+        return state;
+      }
+    }
+
+    for (const bot of activeBots) {
+      if (!st.night.confirmed[bot.id]) {
+        if (subPhase === 'mafia') {
+          const livingTown = st.players.filter((p) => p.alive && !p.isGod && p.role !== 'mafia' && p.role !== 'godfather');
+          if (livingTown.length > 0) {
+            // Coordinate if another mafia member already picked
+            const existingPick = Object.entries(st.night.picks).find(([mId, target]) => {
+              const pl = st.players.find((p) => p.id === mId);
+              return pl && (pl.role === 'mafia' || pl.role === 'godfather') && target && target !== 'hold';
+            });
+            const targetId = existingPick ? (existingPick[1] as string) : livingTown[Math.floor(Math.random() * livingTown.length)].id;
+            st.night.picks[bot.id] = targetId;
+            st.night.confirmed[bot.id] = true;
+            modified = true;
+          }
+        } else if (subPhase === 'doctor') {
+          let candidates = st.players.filter((p) => p.alive && !p.isGod);
+          if (st.settings.doctorSelfSave === 'never') {
+            candidates = candidates.filter((p) => p.id !== bot.id);
+          }
+          if (!st.settings.doctorSameTargetTwice && st.doctorHistory[bot.id]?.lastSavedId) {
+            candidates = candidates.filter((p) => p.id !== st.doctorHistory[bot.id].lastSavedId);
+          }
+          if (candidates.length === 0) candidates = st.players.filter((p) => p.alive && !p.isGod);
+          if (candidates.length > 0) {
+            const targetId = candidates[Math.floor(Math.random() * candidates.length)].id;
+            st.night.picks[bot.id] = targetId;
+            st.night.confirmed[bot.id] = true;
+            modified = true;
+          }
+        } else if (subPhase === 'police') {
+          const candidates = st.players.filter((p) => p.alive && !p.isGod && p.id !== bot.id);
+          if (candidates.length > 0) {
+            const targetId = candidates[Math.floor(Math.random() * candidates.length)].id;
+            st.night.picks[bot.id] = targetId;
+            st.night.confirmed[bot.id] = true;
+            modified = true;
+          }
+        } else if (subPhase === 'vigilante') {
+          const candidates = st.players.filter((p) => p.alive && !p.isGod && p.id !== bot.id);
+          if (candidates.length > 0 && Math.random() > 0.4) {
+            const targetId = candidates[Math.floor(Math.random() * candidates.length)].id;
+            st.night.picks[bot.id] = targetId;
+          } else {
+            st.night.picks[bot.id] = 'hold';
+          }
+          st.night.confirmed[bot.id] = true;
+          modified = true;
+        }
+      }
+    }
+
+    if (modified) {
+      st = tryAdvanceNightHelper(st, now);
+      st.version++;
+    }
+  }
+
+  // 2. DISCUSSION PHASE: Bots mark ready
+  else if (st.phase === 'discussion') {
+    for (const bot of livingBots) {
+      if (!st.readyToVote.includes(bot.id)) {
+        st.readyToVote = [...st.readyToVote, bot.id];
+        modified = true;
+      }
+    }
+
+    const alivePlaying = st.players.filter((p) => p.alive && !p.isGod);
+    if (st.readyToVote.length >= alivePlaying.length) {
+      st.phase = 'voting';
+      st.phaseEndsAt = now + st.settings.votingDuration * 1000;
+      st.votes = {};
+      modified = true;
+    }
+
+    if (modified) {
+      st.version++;
+    }
+  }
+
+  // 3. VOTING PHASE: Bots cast elimination votes
+  else if (st.phase === 'voting') {
+    for (const bot of livingBots) {
+      if (!st.votes[bot.id]) {
+        const candidates = st.players.filter((p) => p.alive && !p.isGod && p.id !== bot.id);
+        if (candidates.length > 0) {
+          const targetId = candidates[Math.floor(Math.random() * candidates.length)].id;
+          st.votes[bot.id] = targetId;
+          modified = true;
+        }
+      }
+    }
+
+    const alivePlayers = st.players.filter((p) => p.alive && !p.isGod);
+    const allVoted = alivePlayers.length > 0 && alivePlayers.every((p) => Boolean(st.votes[p.id]));
+    if (allVoted) {
+      st.phaseEndsAt = Math.min(st.phaseEndsAt || now + 1000, now + 1000);
+      modified = true;
+    }
+
+    if (modified) {
+      st.version++;
+    }
+  }
+
+  return st;
 }
 
 export function useRoom(
@@ -628,8 +834,81 @@ export function useRoom(
             ...p,
             alive: true,
             role: undefined,
-            ready: false,
+            ready: p.isBot ? true : false,
           }));
+          nextState.version++;
+          break;
+        }
+
+        case 'addBots': {
+          if (!callingPlayer?.isHost) return; // Host only
+          if (nextState.phase !== 'lobby') return;
+
+          const isGodMode = nextState.settings.moderatorMode === 'god';
+          const mafiaCount = nextState.settings.roles.mafia.count;
+          const godfatherCount = nextState.settings.roles.godfather.enabled ? nextState.settings.roles.godfather.count : 0;
+          const totalMafia = mafiaCount + godfatherCount;
+          const doctorCount = nextState.settings.roles.doctor.enabled ? nextState.settings.roles.doctor.count : 0;
+          const policeCount = nextState.settings.roles.police.enabled ? nextState.settings.roles.police.count : 0;
+          const vigilanteCount = nextState.settings.roles.vigilante.enabled ? nextState.settings.roles.vigilante.count : 0;
+          const jesterCount = nextState.settings.roles.jester.enabled ? nextState.settings.roles.jester.count : 0;
+          const totalSpecial = totalMafia + doctorCount + policeCount + vigilanteCount + jesterCount;
+          const minForMafia = 2 * totalMafia + 1;
+          const minRequiredActive = Math.max(4, totalSpecial, minForMafia);
+          const minTotalPlayers = isGodMode ? minRequiredActive + 1 : minRequiredActive;
+
+          const currentCount = nextState.players.length;
+          const needed = minTotalPlayers - currentCount;
+          const toAdd = needed > 0 ? needed : (currentCount < nextState.settings.maxPlayers ? 1 : 0);
+
+          if (toAdd <= 0) return;
+
+          const botNames = [
+            'Agent Vega',
+            'Raven',
+            'Cipher',
+            'Shadow',
+            'Oracle',
+            'Phantom',
+            'Viper',
+            'Echo',
+            'Nexus',
+            'Nomad',
+            'Blitz',
+            'Spectre',
+          ];
+
+          const newPlayers = [...nextState.players];
+          for (let i = 0; i < toAdd; i++) {
+            if (newPlayers.length >= nextState.settings.maxPlayers) break;
+            const botIdx = newPlayers.length;
+            const botId = `bot_${Date.now()}_${i}_${Math.random().toString(36).slice(2, 6)}`;
+            const name = botNames[botIdx % botNames.length];
+            newPlayers.push({
+              id: botId,
+              token: generateToken(),
+              name: `[BOT] ${name}`,
+              avatar: (botIdx % 12) + 1,
+              color: PLAYER_COLORS[botIdx % PLAYER_COLORS.length],
+              isHost: false,
+              isGod: false,
+              isBot: true,
+              ready: true,
+              connected: true,
+              lastSeen: Date.now(),
+              alive: true,
+            });
+          }
+
+          nextState.players = newPlayers;
+          nextState.version++;
+          break;
+        }
+
+        case 'clearBots': {
+          if (!callingPlayer?.isHost) return; // Host only
+          if (nextState.phase !== 'lobby') return;
+          nextState.players = nextState.players.filter((p) => !p.isBot && !p.id.startsWith('bot_'));
           nextState.version++;
           break;
         }
@@ -764,17 +1043,25 @@ export function useRoom(
           const state = hostStateRef.current;
           let changed = false;
 
-          // Heartbeat watchdog: detect dropped peers after 6.5s of silence
+          // Heartbeat watchdog: detect dropped peers after 6.5s of silence (exclude bots and host)
           state.players.forEach((p) => {
-            if (!p.isHost && p.connected && (now - (p.lastSeen || 0) > 6500)) {
+            if (!p.isHost && !p.isBot && !p.id.startsWith('bot_') && p.connected && (now - (p.lastSeen || 0) > 6500)) {
               handlePlayerDisconnect(p.id);
               changed = true;
             }
           });
 
           if (!changed && hostStateRef.current) {
-            const advanced = maybeAdvance(hostStateRef.current, now, () => Math.random());
-            if (advanced.version !== hostStateRef.current.version) {
+            let current = hostStateRef.current;
+            const botState = processBotActions(current, now);
+            if (botState.version !== current.version) {
+              hostStateRef.current = botState;
+              pushViews(botState);
+              current = botState;
+            }
+
+            const advanced = maybeAdvance(current, now, () => Math.random());
+            if (advanced.version !== current.version) {
               pushViews(advanced);
             }
           }
@@ -1234,6 +1521,14 @@ export function useRoom(
     clearRoomData(roomCode);
   }, [sendIntent, roomCode]);
 
+  const addBots = useCallback(() => {
+    sendIntent('addBots');
+  }, [sendIntent]);
+
+  const clearBots = useCallback(() => {
+    sendIntent('clearBots');
+  }, [sendIntent]);
+
   return {
     gameView,
     isHost,
@@ -1245,6 +1540,8 @@ export function useRoom(
     sendChat,
     startMatch,
     toggleReady,
+    addBots,
+    clearBots,
     kickPlayer,
     banPlayer,
     toggleLockRoom,

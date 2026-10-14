@@ -53,6 +53,7 @@ require('../lib/layout.test.ts');
 require('../lib/haptics.test.ts');
 require('../lib/stats.test.ts');
 require('../lib/storage.test.ts');
+require('../lib/engine/bot.test.ts');
 if (fs.existsSync(path.join(__dirname, '../components/ui.test.tsx'))) {
   require('../components/ui.test.tsx');
 }

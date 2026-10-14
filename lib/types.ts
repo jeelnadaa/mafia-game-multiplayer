@@ -10,6 +10,7 @@ export interface Player {
   color?: string; // Deterministic unique player color from noir palette
   isHost: boolean;
   isGod: boolean; // God does not play
+  isBot?: boolean; // Automated test player
   ready: boolean;
   connected: boolean;
   lastSeen: number;
@@ -139,6 +140,7 @@ export interface PlayerView {
   color?: string;
   isHost: boolean;
   isGod: boolean;
+  isBot?: boolean;
   ready: boolean;
   connected: boolean;
   alive: boolean;
@@ -223,6 +225,8 @@ export type IntentType =
   | 'godAction'
   | 'rematch'
   | 'leave'
+  | 'addBots'
+  | 'clearBots'
   | 'updateProfile';
 
 
