@@ -377,27 +377,36 @@ export function CircleSittingArena({
         <div className="lg:col-span-6 bg-surface border border-border p-4 md:p-6 flex flex-col justify-between items-center h-[680px] lg:h-[820px] relative overflow-hidden order-1 lg:order-2">
           
           {/* Arena Top Status Bar with Prominent Centered Timer */}
-          <div className="w-full flex items-center justify-between border-b border-border pb-3 z-10 bg-surface/90 backdrop-blur-sm">
-            <div className="flex items-center gap-2">
-              <span className="px-2 py-0.5 bg-white text-black text-xs font-mono font-bold">
-                Round {round}
+          <div className="w-full flex items-center justify-between border-b border-border pb-3 z-10 bg-surface/90 backdrop-blur-sm gap-2">
+            {/* Left HUD Module: Round & Phase */}
+            <div className="flex items-center gap-2 px-2.5 sm:px-3 py-1 bg-surface-2 border border-border h-9 min-h-[36px] shadow-sm select-none">
+              <span className="px-1.5 py-0.5 bg-white text-black text-xs font-mono font-bold tracking-tight">
+                R{round}
               </span>
-              <span className="text-xs md:text-sm font-bold text-text capitalize">
-                {phase === 'night' ? `Night · ${nightSubPhase || 'Operations'}` : phase}
+              <span className="w-px h-3.5 bg-border" />
+              <span className="text-xs md:text-sm font-bold text-text uppercase tracking-wider flex items-center gap-1.5">
+                {phase === 'discussion' && <MessageSquare className="w-3.5 h-3.5 text-zinc-400" />}
+                {phase === 'voting' && <Gavel className="w-3.5 h-3.5 text-zinc-400" />}
+                {phase === 'night' && <Clock className="w-3.5 h-3.5 text-zinc-400" />}
+                <span>{phase === 'night' ? `Night · ${nightSubPhase || 'Action'}` : phase}</span>
               </span>
             </div>
 
-            {/* Compact Center Countdown Timer */}
+            {/* Center HUD Module: Prominent Countdown Timer */}
             <CenterTimer
               phaseEndsAt={gameView.phaseEndsAt}
               serverNow={gameView.serverNow}
-              label={phase === 'night' ? 'Night' : phase === 'voting' ? 'Ballot' : 'Discussion'}
+              label={phase === 'night' ? 'Night Timer' : phase === 'voting' ? 'Ballot Timer' : 'Discussion Timer'}
               size="sm"
             />
 
-            <div className="text-right">
-              <span className="text-xs text-muted block">Round Table</span>
-              <span className="text-xs font-bold text-white">{livingPlayers.length} Seated</span>
+            {/* Right HUD Module: Table Seating Roster */}
+            <div className="flex items-center gap-2 px-2.5 sm:px-3 py-1 bg-surface-2 border border-border h-9 min-h-[36px] shadow-sm select-none">
+              <Users className="w-3.5 h-3.5 text-muted" />
+              <div className="flex items-center gap-1.5 text-xs">
+                <span className="font-bold text-white tracking-wide">{livingPlayers.length} Seated</span>
+                <span className="hidden sm:inline text-muted text-[11px] font-mono">({players.length} Total)</span>
+              </div>
             </div>
           </div>
 

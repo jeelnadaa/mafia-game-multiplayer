@@ -224,14 +224,14 @@ export function TopBar({
             </div>
           </div>
 
-          {/* Center: Phase & Round / Compact Center Timer & Fast-Forward */}
-          <div className="flex items-center gap-1.5">
-            <div className="flex items-center gap-1 px-2 py-0.5 bg-surface-2 border border-border h-6">
-              <span className="text-[11px] font-semibold text-text">
+          {/* Center: Phase & Round / Center Timer & Fast-Forward */}
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <div className="flex items-center gap-2 px-3 py-1 bg-surface-2 border border-border h-9 min-h-[36px] select-none">
+              <span className="text-xs md:text-sm font-bold text-text">
                 {getPhaseDisplay(gameView.phase)}
               </span>
               {gameView.round > 0 && (
-                <span className="px-1 py-0 rounded-none text-[9px] font-mono font-bold bg-white text-black">
+                <span className="px-1.5 py-0.5 rounded-none text-xs font-mono font-bold bg-white text-black">
                   R{gameView.round}
                 </span>
               )}
@@ -244,7 +244,7 @@ export function TopBar({
               size="sm"
             />
 
-            {/* Host-only Fast-Forward button (Compact) */}
+            {/* Host-only Fast-Forward button */}
             {isHost && isPlayingActivePhase && (
               <Button
                 variant="secondary"
@@ -252,9 +252,9 @@ export function TopBar({
                 onClick={() => setAdvanceModalOpen(true)}
                 title="Host shortcut: Fast-forward phase immediately"
                 kbd="Shift+N"
-                className="hidden sm:flex items-center gap-1 text-[10px] py-0 px-2 h-6 border-zinc-600 hover:border-white font-medium"
+                className="hidden sm:flex items-center gap-1.5 text-xs px-3 h-9 min-h-[36px] border-zinc-600 hover:border-white font-medium"
               >
-                <FastForward className="w-2.5 h-2.5" />
+                <FastForward className="w-3.5 h-3.5" />
                 <span>Fast-Forward</span>
               </Button>
             )}
