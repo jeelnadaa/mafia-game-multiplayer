@@ -288,11 +288,104 @@ describe('Settings Reflection & Engine Synchronization', () => {
 
   it('respects nightDuration and does not cap subphase to 35s when host configures longer timer', () => {
     const settings60 = { ...DEFAULT_SETTINGS, nightDuration: 60 };
-    const duration60 = getSubPhaseDuration('mafia', settings60);
-    expect(duration60).toBe(60);
+    expect(getSubPhaseDuration('mafia', settings60)).toBe(60);
+    expect(getSubPhaseDuration('doctor', settings60)).toBe(60);
+    expect(getSubPhaseDuration('police', settings60)).toBe(60);
+    expect(getSubPhaseDuration('vigilante', settings60)).toBe(60);
 
     const settings90 = { ...DEFAULT_SETTINGS, nightDuration: 90 };
-    const duration90 = getSubPhaseDuration('mafia', settings90);
-    expect(duration90).toBe(90);
+    expect(getSubPhaseDuration('mafia', settings90)).toBe(90);
+    expect(getSubPhaseDuration('doctor', settings90)).toBe(90);
+  });
+
+  it('excludes inactive mafia members who ran out of time so active picks resolve unanimously', () => {
+    const players: Player[] = [
+      { id: 'm1', token: 'tm1', name: 'Mafia One', avatar: 1, isHost: true, isGod: false, ready: true, connected: true, lastSeen: 0, role: 'mafia', alive: true },
+      { id: 'm2', token: 'tm2', name: 'Mafia Two', avatar: 2, isHost: false, isGod: false, ready: true, connected: true, lastSeen: 0, role: 'mafia', alive: true },
+      { id: 'c1', token: 'tc1', name: 'Civ One', avatar: 3, isHost: false, isGod: false, ready: true, connected: true, lastSeen: 0, role: 'civilian', alive: true },
+      { id: 'c2', token: 'tc2', name: 'Civ Two', avatar: 4, isHost: false, isGod: false, ready: true, connected: true, lastSeen: 0, role: 'civilian', alive: true },
+    ];
+
+    // Scenario 1: m1 picked c1, m2 did not pick in time (picks is empty for m2).
+    // In unanimous mode, m2 is excluded, and m1's choice of c1 resolves unanimously.
+    const state: GameState = {
+      code: 'TESTU',
+      version: 1,
+      phase: 'night',
+      round: 1,
+      phaseEndsAt: Date.now() - 1000,
+      paused: false,
+      settings: { ...DEFAULT_SETTINGS, mafiaKillMode: 'unanimous', noKillFirstNight: false },
+      players,
+      night: { subPhase: 'mafia', picks: { m1: 'c1' }, confirmed: { m1: false }, locked: {} },
+      doctorHistory: {},
+      shotsUsed: {},
+      policeInbox: [],
+      votes: {},
+      revotePending: false,
+      readyToVote: [],
+      log: [],
+      secretLog: [],
+      chat: [],
+    };
+
+    const { nextState, morningDeaths } = resolveNight(state, () => 0.5, Date.now());
+    expect(morningDeaths).toContain('c1');
+    expect(nextState.players.find((p) => p.id === 'c1')?.alive).toBe(false);
+
+    // Scenario 2: m1 picked c1, m2 picked c2 (divergent picks in unanimous mode).
+    // Disagreement fallback is triggered (random_pick or no_kill).
+    const disagreeState: GameState = {
+      ...state,
+      night: { subPhase: 'mafia', picks: { m1: 'c1', m2: 'c2' }, confirmed: { m1: true, m2: true }, locked: {} },
+      settings: { ...DEFAULT_SETTINGS, mafiaKillMode: 'unanimous', mafiaDisagreeFallback: 'no_kill', noKillFirstNight: false },
+    };
+    const { morningDeaths: disagreeDeaths } = resolveNight(disagreeState, () => 0.5, Date.now());
+    expect(disagreeDeaths).toHaveLength(0);
+  });
+
+  it('exposes real-time staged teammate picks and confirmed status to syndicate members in view', () => {
+    const players: Player[] = [
+      { id: 'm1', token: 'tm1', name: 'Mafia One', avatar: 1, isHost: true, isGod: false, ready: true, connected: true, lastSeen: 0, role: 'mafia', alive: true },
+      { id: 'm2', token: 'tm2', name: 'Mafia Two', avatar: 2, isHost: false, isGod: false, ready: true, connected: true, lastSeen: 0, role: 'godfather', alive: true },
+      { id: 'c1', token: 'tc1', name: 'Civ One', avatar: 3, isHost: false, isGod: false, ready: true, connected: true, lastSeen: 0, role: 'civilian', alive: true },
+    ];
+
+    const state: GameState = {
+      code: 'TESTV',
+      version: 1,
+      phase: 'night',
+      round: 1,
+      phaseEndsAt: Date.now() + 30000,
+      paused: false,
+      settings: { ...DEFAULT_SETTINGS, mafiaKillMode: 'unanimous' },
+      players,
+      night: {
+        subPhase: 'mafia',
+        picks: { m1: 'c1', m2: 'c1' },
+        confirmed: { m1: true, m2: false }, // m1 confirmed, m2 staged without confirming
+        locked: {},
+      },
+      doctorHistory: {},
+      shotsUsed: {},
+      policeInbox: [],
+      votes: {},
+      revotePending: false,
+      readyToVote: [],
+      log: [],
+      secretLog: [],
+      chat: [],
+    };
+
+    const m2View = buildViewFor(state, 'm2', Date.now());
+    expect(m2View.me.teammatePicks).toBeDefined();
+    expect(m2View.me.teammatePicks!['m1']).toBe('c1');
+    expect(m2View.me.teammateConfirmed!['m1']).toBe(true);
+    expect(m2View.me.teammateConfirmed!['m2']).toBe(false);
+
+    // Civilian observer never sees teammatePicks or secret picks
+    const c1View = buildViewFor(state, 'c1', Date.now());
+    expect(c1View.me.teammatePicks).toBeUndefined();
+    expect(c1View.me.teammateConfirmed).toBeUndefined();
   });
 });

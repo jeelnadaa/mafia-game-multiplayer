@@ -14,22 +14,33 @@ export function resolveNight(
   const alivePlayers = players.filter((p) => p.alive && !p.isGod);
 
   // 1. Compile alive Mafia picks
+  // 1. Compile alive & active Mafia picks (disconnected operatives do not spoil votes)
   const aliveMafia = alivePlayers.filter((p) => p.role === 'mafia' || p.role === 'godfather');
-  const mafiaPicks = aliveMafia
+  const connectedMafia = aliveMafia.filter((p) => p.connected !== false);
+  const votingMafia = connectedMafia.length > 0 ? connectedMafia : aliveMafia;
+
+  const mafiaPicks = votingMafia
     .map((m) => night.picks[m.id])
     .filter((id): id is string => Boolean(id) && id !== 'hold');
 
   let mafiaTarget: string | null = null;
-  if (!(round === 1 && settings.noKillFirstNight) && mafiaPicks.length > 0) {
+  let mafiaDiscord = false;
+  if (!(round === 1 && settings.noKillFirstNight)) {
+    const rawMafiaPicks = votingMafia.map((m) => night.picks[m.id]).filter(Boolean);
     if (settings.mafiaKillMode === 'unanimous') {
-      const allSame = mafiaPicks.every((p) => p === mafiaPicks[0]);
-      if (allSame && mafiaPicks.length === aliveMafia.length) {
-        mafiaTarget = mafiaPicks[0];
-      } else {
-        mafiaTarget =
-          settings.mafiaDisagreeFallback === 'random_pick'
-            ? mafiaPicks[Math.floor(rng() * mafiaPicks.length)]
-            : null;
+      const hasHold = rawMafiaPicks.includes('hold');
+      const hasTarget = mafiaPicks.length > 0;
+      if (hasHold && hasTarget) {
+        mafiaTarget = null;
+        mafiaDiscord = true;
+      } else if (mafiaPicks.length > 0) {
+        const allSame = mafiaPicks.every((p) => p === mafiaPicks[0]);
+        if (allSame) {
+          mafiaTarget = mafiaPicks[0];
+        } else {
+          mafiaTarget = null; // Unanimous mode strictly requires consensus of active syndicate operatives
+          mafiaDiscord = true;
+        }
       }
     } else if (settings.mafiaKillMode === 'majority') {
       const counts: Record<string, number> = {};
@@ -38,10 +49,10 @@ export function resolveNight(
       if (sorted.length > 1 && sorted[0][1] === sorted[1][1]) {
         mafiaTarget = rng() > 0.5 ? sorted[0][0] : sorted[1][0];
       } else {
-        mafiaTarget = sorted[0][0];
+        mafiaTarget = sorted[0]?.[0] || null;
       }
     } else {
-      mafiaTarget = mafiaPicks[Math.floor(rng() * mafiaPicks.length)];
+      mafiaTarget = mafiaPicks.length > 0 ? mafiaPicks[Math.floor(rng() * mafiaPicks.length)] : null;
     }
   }
 
@@ -150,31 +161,53 @@ export function resolveNight(
   const newChat = [...(state.chat || [])];
 
   if (morningDeaths.length === 0) {
-    const safeText =
-      savedPlayers.length > 0 && settings.announceSave
-        ? 'A citizen was attacked in the dark, but was shielded by a Doctor!'
-        : 'The city awakens to calm skies. Nobody died tonight.';
+    let safeText = 'The city awakens to calm skies. Nobody died tonight.';
+    let safeChatText = '🌅 Dawn Report: The city awakens to calm skies. Nobody died tonight.';
+    let logType: LogEntry['type'] = 'info';
+
+    if (mafiaDiscord) {
+      safeText = 'Syndicate discord prevented an assassination — operatives failed to reach unanimous agreement in the shadows!';
+      safeChatText = '🌅 Dawn Report: The Syndicate failed to reach agreement in the shadows. Nobody was harmed tonight.';
+      logType = 'info';
+    } else if (savedPlayers.length > 0 && settings.announceSave) {
+      safeText = 'A citizen was attacked in the dark, but was shielded by a Doctor!';
+      safeChatText = '🛡️ Dawn Report: A citizen was attacked in the dark, but was shielded by a Doctor!';
+      logType = 'save';
+    }
+
     newLogs.push({
       id: `log-${round}-safe-${now}`,
       round,
       phase: 'morning',
       text: safeText,
       timestamp: now,
-      type: savedPlayers.length > 0 ? 'save' : 'info',
+      type: logType,
     });
     newChat.push({
       id: `msg-${round}-safe-${now}`,
       senderId: 'system',
       senderName: 'SYSTEM',
       channel: 'public',
-      text: savedPlayers.length > 0 && settings.announceSave
-        ? '🛡️ Dawn Report: A citizen was attacked in the dark, but was shielded by a Doctor!'
-        : '🌅 Dawn Report: The city awakens to calm skies. Nobody died tonight.',
+      text: safeChatText,
       timestamp: now,
     });
+
+    if (mafiaDiscord) {
+      newChat.push({
+        id: `msg-${round}-mafia-discord-${now}`,
+        senderId: 'system',
+        senderName: 'SYNDICATE WIRE',
+        channel: 'mafia',
+        text: '⚠️ Syndicate Contract Aborted: Operatives failed to pick the same target unanimously. Your discord prevented an assassination tonight!',
+        timestamp: now,
+      });
+    }
   } else {
+
     morningDeaths.forEach((id) => {
       const victim = players.find((p) => p.id === id);
+      const isVigKill = vigShots.some((s) => s.targetId === id) && id !== mafiaTarget;
+      const deathCause = isVigKill ? 'eliminated by a marksman bullet' : 'found eliminated';
       const roleRevealed =
         settings.revealRoleOnDeath === 'full'
           ? ` (${victim?.role?.toUpperCase()})`
@@ -185,7 +218,7 @@ export function resolveNight(
         id: `log-${round}-death-${id}-${now}`,
         round,
         phase: 'morning',
-        text: `${victim?.name || 'A player'} was found eliminated${roleRevealed}.`,
+        text: `${victim?.name || 'A player'} was ${deathCause}${roleRevealed}.`,
         timestamp: now,
         type: 'death',
       });
@@ -194,7 +227,7 @@ export function resolveNight(
         senderId: 'system',
         senderName: 'SYSTEM',
         channel: 'public',
-        text: `💀 Dawn Report: ${victim?.name || 'A player'} was found eliminated${roleRevealed}.`,
+        text: `💀 Dawn Report: ${victim?.name || 'A player'} was ${deathCause}${roleRevealed}.`,
         timestamp: now,
       });
     });
@@ -287,15 +320,18 @@ export function getActiveRolePlayers(
   state: GameState
 ): Player[] {
   const alivePlayers = state.players.filter((p) => p.alive && !p.isGod);
+  const connectedAlive = alivePlayers.filter((p) => p.connected !== false);
+  const pool = connectedAlive.length > 0 ? connectedAlive : alivePlayers;
+
   switch (subPhase) {
     case 'mafia':
-      return alivePlayers.filter((p) => p.role === 'mafia' || p.role === 'godfather');
+      return pool.filter((p) => p.role === 'mafia' || p.role === 'godfather');
     case 'doctor':
-      return alivePlayers.filter((p) => p.role === 'doctor');
+      return pool.filter((p) => p.role === 'doctor');
     case 'police':
-      return alivePlayers.filter((p) => p.role === 'police');
+      return pool.filter((p) => p.role === 'police');
     case 'vigilante':
-      return alivePlayers.filter(
+      return pool.filter(
         (p) => p.role === 'vigilante' && (state.settings.vigilanteShots - (state.shotsUsed[p.id] || 0)) > 0
       );
     default:
@@ -324,18 +360,17 @@ export function getSubPhaseDuration(
   subPhase: 'mafia' | 'doctor' | 'police' | 'vigilante',
   settings: Settings
 ): number {
-  if (subPhase === 'mafia') {
-    return Math.max(15, settings.nightDuration);
-  }
-  return Math.min(Math.max(15, settings.nightDuration), 25);
+  return Math.max(10, settings.nightDuration);
 }
 
 export function maybeAdvance(state: GameState, now: number, rng: () => number): GameState {
-  if (state.paused || state.phase === 'gameOver' || !state.phaseEndsAt || now < state.phaseEndsAt) {
+  if (state.paused || state.phase === 'gameOver' || (!state.phaseEndsAt && !state.settings.noTimer) || (state.phaseEndsAt && now < state.phaseEndsAt)) {
     return state;
   }
 
   const { phase, round, settings } = state;
+  const calcEndsAt = (durationSeconds: number) =>
+    settings.noTimer ? null : now + durationSeconds * 1000;
 
   switch (phase) {
     case 'roleReveal': {
@@ -345,7 +380,7 @@ export function maybeAdvance(state: GameState, now: number, rng: () => number): 
         ...state,
         phase: 'night',
         round: 1,
-        phaseEndsAt: now + duration * 1000,
+        phaseEndsAt: calcEndsAt(duration),
         suspicions: {},
         reactions: {},
         night: {
@@ -365,7 +400,7 @@ export function maybeAdvance(state: GameState, now: number, rng: () => number): 
         const duration = getSubPhaseDuration(nextRole, settings);
         return {
           ...state,
-          phaseEndsAt: now + duration * 1000,
+          phaseEndsAt: calcEndsAt(duration),
           night: {
             ...state.night,
             subPhase: nextRole,
@@ -388,7 +423,7 @@ export function maybeAdvance(state: GameState, now: number, rng: () => number): 
       return {
         ...nextState,
         phase: 'morning',
-        phaseEndsAt: now + 7000, // 7 seconds morning news
+        phaseEndsAt: calcEndsAt(7),
         suspicions: {},
         reactions: {},
         version: state.version + 1,
@@ -401,7 +436,7 @@ export function maybeAdvance(state: GameState, now: number, rng: () => number): 
       return {
         ...state,
         phase: nextPhase,
-        phaseEndsAt: now + duration * 1000,
+        phaseEndsAt: calcEndsAt(duration),
         readyToVote: [],
         version: state.version + 1,
       };
@@ -411,7 +446,7 @@ export function maybeAdvance(state: GameState, now: number, rng: () => number): 
       return {
         ...state,
         phase: 'voting',
-        phaseEndsAt: now + settings.votingDuration * 1000,
+        phaseEndsAt: calcEndsAt(settings.votingDuration),
         votes: {},
         version: state.version + 1,
       };
@@ -545,14 +580,28 @@ export function maybeAdvance(state: GameState, now: number, rng: () => number): 
 
       const winner = checkWinCondition(updatedPlayers, jesterWon);
 
+      if (winner) {
+        return {
+          ...state,
+          players: updatedPlayers,
+          winner,
+          log: newLogs,
+          chat: newChat.slice(-149),
+          phase: 'gameOver',
+          phaseEndsAt: null,
+          revotePending: false,
+          version: state.version + 1,
+        };
+      }
+
       return {
         ...state,
         players: updatedPlayers,
-        winner: winner || undefined,
+        winner: undefined,
         log: newLogs,
         chat: newChat.slice(-149),
         phase: 'voteResult',
-        phaseEndsAt: now + (winner ? 3500 : 5000), // Show verdict then smoothly advance
+        phaseEndsAt: now + 5000, // Show verdict then smoothly advance
         revotePending: false,
         version: state.version + 1,
       };

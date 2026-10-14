@@ -59,6 +59,7 @@ export const DEFAULT_SETTINGS: Settings = {
   policeResultDelay: 0,
   policeResultDetail: 'alignment',
   vigilanteShots: 1,
+  noTimer: false,
   nightDuration: 45,
   discussionDuration: 120,
   votingDuration: 45,
@@ -259,6 +260,15 @@ export const SETTINGS_SCHEMA: SettingField[] = [
   },
 
   // Timing
+  {
+    key: 'noTimer',
+    group: 'Timing',
+    label: 'No Timer Mode (Untimed)',
+    tooltip: 'Disables all countdowns for untimed play. Phases advance only when all players are ready, or when host advances.',
+    type: 'toggle',
+    default: false,
+    plain: (v) => (v ? 'Untimed play (no countdowns)' : 'Standard countdown timers'),
+  },
   {
     key: 'nightDuration',
     group: 'Timing',
@@ -498,5 +508,139 @@ export function saveLocalPreferences(prefs: Partial<LocalPreferences>): LocalPre
     } catch (_) {}
   }
   return updated;
+}
+
+export interface CustomRolePreset {
+  name: string;
+  roles: {
+    mafia: number;
+    godfather: number;
+    doctor: number;
+    police: number;
+    vigilante: number;
+    jester: number;
+  };
+  rules?: Partial<Settings>;
+}
+
+export function getCustomPresets(): CustomRolePreset[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem('mafia_custom_role_presets');
+    return raw ? JSON.parse(raw) : [];
+  } catch (_) {
+    return [];
+  }
+}
+
+export function saveCustomPreset(preset: CustomRolePreset): CustomRolePreset[] {
+  const current = getCustomPresets().filter((p) => p.name.toLowerCase() !== preset.name.toLowerCase());
+  const updated = [...current, preset];
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.setItem('mafia_custom_role_presets', JSON.stringify(updated));
+      localStorage.setItem('mafia_last_preset_name', preset.name);
+    } catch (_) {}
+  }
+  return updated;
+}
+
+export function deleteCustomPreset(name: string): CustomRolePreset[] {
+  const updated = getCustomPresets().filter((p) => p.name.toLowerCase() !== name.toLowerCase());
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.setItem('mafia_custom_role_presets', JSON.stringify(updated));
+    } catch (_) {}
+  }
+  return updated;
+}
+
+export function getLastPresetName(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    return localStorage.getItem('mafia_last_preset_name');
+  } catch (_) {
+    return null;
+  }
+}
+
+export function setLastPresetName(name: string): void {
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.setItem('mafia_last_preset_name', name);
+    } catch (_) {}
+  }
+}
+
+export interface CustomRulePreset {
+  name: string;
+  rules: Partial<Settings>;
+}
+
+export function getCustomRulePresets(): CustomRulePreset[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem('mafia_custom_rule_presets');
+    return raw ? JSON.parse(raw) : [];
+  } catch (_) {
+    return [];
+  }
+}
+
+export function saveCustomRulePreset(preset: CustomRulePreset): CustomRulePreset[] {
+  const current = getCustomRulePresets().filter((p) => p.name.toLowerCase() !== preset.name.toLowerCase());
+  const updated = [...current, preset];
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.setItem('mafia_custom_rule_presets', JSON.stringify(updated));
+      localStorage.setItem('mafia_last_rule_preset_name', preset.name);
+    } catch (_) {}
+  }
+  return updated;
+}
+
+export function deleteCustomRulePreset(name: string): CustomRulePreset[] {
+  const updated = getCustomRulePresets().filter((p) => p.name.toLowerCase() !== name.toLowerCase());
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.setItem('mafia_custom_rule_presets', JSON.stringify(updated));
+    } catch (_) {}
+  }
+  return updated;
+}
+
+export function getLastRulePresetName(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    return localStorage.getItem('mafia_last_rule_preset_name');
+  } catch (_) {
+    return null;
+  }
+}
+
+export function setLastRulePresetName(name: string): void {
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.setItem('mafia_last_rule_preset_name', name);
+    } catch (_) {}
+  }
+}
+
+export function getLastSettings(): Partial<Settings> | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem('mafia_last_settings');
+    return raw ? JSON.parse(raw) : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+export function saveLastSettings(settings: Settings): void {
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.setItem('mafia_last_settings', JSON.stringify(settings));
+    } catch (_) {}
+  }
 }
 

@@ -1,0 +1,144 @@
+/**
+ * Design Tokens extracted directly from Examples/ artboards
+ * Source of truth for Mafia: Shadows of the City
+ */
+:root {
+  /* Core Palette */
+  --ink-950: #0A0B0E;
+  --ink-900: #101216;
+  --ink-800: #171A20;
+  --line: #262A33;
+  --line-dark: #1b1d22;
+  --line-muted: #6b6455;
+
+  /* Paper & Card Stock */
+  --paper-light: #ECE6D8;
+  --paper-dim: #E4DCC4;
+  --paper-aged: #cfc8b8;
+  --paper-ink: #15130f;
+  --bone: #ECE6D8;
+  --bone-dim: #A39D90;
+
+  /* Accents & Lights */
+  --lamp: #D9A441;
+  --lamp-soft: #F0D79A;
+  --blood: #B3363B;
+  --blood-bright: #C2373D;
+  --blood-deep: #7E2327;
+  --night: #3E5A78;
+  --night-steel: #5B7A99;
+  --night-deep: #16171B;
+  --verdigris: #5E8C7B;
+  --verdigris-deep: #3d6657;
+  --plum: #8C6FA0;
+  --gold: #C9A86A;
+
+  /* Table & Felt */
+  --felt-rim: #6b5426;
+  --felt-rim-vote: #4a3d22;
+  --felt-rim-night: #3a3326;
+  --felt-center: #1d2c26;
+  --felt-shadow: #0b1210;
+
+  /* Player Pin Palette (12 distinct non-neon colors) */
+  --pin-1: #B3363B;
+  --pin-2: #5B7FA6;
+  --pin-3: #C9A86A;
+  --pin-4: #8C6FA0;
+  --pin-5: #5E8C7B;
+  --pin-6: #ECE6D8;
+  --pin-7: #D9A441;
+  --pin-8: #7A5C86;
+  --pin-9: #4A7C59;
+  --pin-10: #A85B32;
+  --pin-11: #3E5A78;
+  --pin-12: #9C8D72;
+
+  /* Fonts */
+  --font-display: "Big Shoulders Display", Impact, sans-serif;
+  --font-body: "Instrument Sans", system-ui, sans-serif;
+  --font-typewriter: "Special Elite", monospace;
+  --font-mono: ui-monospace, Menlo, monospace;
+}
+
+/* Helper Utility Classes matching Examples/ */
+.d {
+  font-family: var(--font-display);
+}
+.b {
+  font-family: var(--font-body);
+}
+.t {
+  font-family: var(--font-typewriter);
+}
+
+/* Pawn Figure System */
+.fg {
+  position: absolute;
+  width: 90px;
+  transform: translate(-50%, -70%);
+  text-align: center;
+  user-select: none;
+}
+.hd {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  margin: 0 auto;
+  background: var(--c, #B3363B);
+  box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.15), 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+.bd {
+  width: 54px;
+  height: 62px;
+  margin: -4px auto 0;
+  border-radius: 50% 50% 8px 8px / 60% 60% 8px 8px;
+  background: linear-gradient(90deg, var(--c, #B3363B), #0d0f13 130%);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+}
+.nm {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 2px 9px;
+  background: rgba(10, 11, 14, 0.88);
+  border: 1px solid rgba(38, 42, 51, 0.5);
+  border-radius: 3px;
+  font-size: 14px;
+  color: #ECE6D8;
+  white-space: nowrap;
+}
+
+/* Standard Buttons from Examples/ */
+.ob {
+  height: 44px;
+  padding: 0 18px;
+  background: transparent;
+  border: 1px solid var(--line-muted);
+  color: var(--bone);
+  border-radius: 4px;
+  font-size: 15px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.ob:hover {
+  border-color: var(--bone);
+  background: rgba(255, 255, 255, 0.04);
+}
+.hb {
+  width: 44px;
+  height: 44px;
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--bone);
+  border-radius: 4px;
+  font-size: 20px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+.hb:hover {
+  border-color: var(--bone-dim);
+  background: rgba(255, 255, 255, 0.04);
+}

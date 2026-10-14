@@ -48,31 +48,43 @@ class AudioManager {
         }
       };
 
-      window.addEventListener('pointerdown', unlockAudio, { passive: true });
-      window.addEventListener('keydown', unlockAudio, { passive: true });
-      window.addEventListener('click', unlockAudio, { passive: true });
-      window.addEventListener('touchstart', unlockAudio, { passive: true });
+      if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+        window.addEventListener('pointerdown', unlockAudio, { passive: true });
+        window.addEventListener('keydown', unlockAudio, { passive: true });
+        window.addEventListener('click', unlockAudio, { passive: true });
+        window.addEventListener('touchstart', unlockAudio, { passive: true });
+      }
 
       // If autoplay policy allows on refresh, start lo-fi immediately
-      if (!this.isMuted) {
+      if (!this.isMuted && typeof setTimeout !== 'undefined') {
         setTimeout(() => {
           this.initCtx();
           this.startLoFi(this.currentPhase);
         }, 100);
       }
 
-      // Mute audio when tab is hidden to respect user background audio
-      document.addEventListener('visibilitychange', () => {
-        if (document.hidden) {
-          if (this.ctx && this.ctx.state === 'running') {
-            this.ctx.suspend().catch(() => {});
+      // Mute audio and stop chord loop when tab is hidden to prevent stacked node volume spikes
+      if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
+        document.addEventListener('visibilitychange', () => {
+          if (document.hidden) {
+            if (this.lofiTimer) {
+              clearInterval(this.lofiTimer);
+              this.lofiTimer = null;
+            }
+            if (this.ctx && this.ctx.state === 'running') {
+              this.ctx.suspend().catch(() => {});
+            }
+          } else {
+            if (this.ctx && !this.isMuted) {
+              this.ctx.resume().then(() => {
+                if (!this.isMuted && !this.lofiTimer) {
+                  this.startLoFi(this.currentPhase);
+                }
+              }).catch(() => {});
+            }
           }
-        } else {
-          if (this.ctx && this.ctx.state === 'suspended' && !this.isMuted) {
-            this.ctx.resume().catch(() => {});
-          }
-        }
-      });
+        });
+      }
     }
   }
 
@@ -160,6 +172,14 @@ class AudioManager {
     }
   }
 
+  public getSfxVolume(): number {
+    return this.sfxVol;
+  }
+
+  public getAmbienceVolume(): number {
+    return this.ambienceVol;
+  }
+
   public setAmbienceVolume(v: number) {
     this.ambienceVol = Math.max(0, Math.min(1, v));
     if (typeof window !== 'undefined') {
@@ -230,7 +250,8 @@ class AudioManager {
   }
 
   private playNextLoFiChord() {
-    if (!this.ctx || !this.lofiFilter || this.isMuted) return;
+    if (typeof document !== 'undefined' && document.hidden) return;
+    if (!this.ctx || this.ctx.state !== 'running' || !this.lofiFilter || this.isMuted) return;
 
     const chord = this.lofiChords[this.lofiChordIndex % this.lofiChords.length];
     this.lofiChordIndex++;
@@ -523,3 +544,7 @@ export const playYourTurnChime = () => audioManager.playYourTurnChime();
 export const playUiTick = () => audioManager.playUiTick();
 export const setVoiceDucking = (speaking: boolean) => audioManager.setVoiceDucking(speaking);
 export const setPhaseAmbience = (p: any) => audioManager.setPhaseAmbience(p);
+export const getAmbienceVolume = () => audioManager.getAmbienceVolume();
+export const setAmbienceVolume = (v: number) => audioManager.setAmbienceVolume(v);
+export const getSfxVolume = () => audioManager.getSfxVolume();
+export const setSfxVolume = (v: number) => audioManager.setSfxVolume(v);

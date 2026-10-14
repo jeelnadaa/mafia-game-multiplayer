@@ -211,6 +211,7 @@ export const BASICS_STEPS = [
 
 export const PHASE_DESCRIPTIONS: Record<Phase, string> = {
   lobby: 'Gathering players in the town square. Host configures roles and settings.',
+  narratorAssign: 'The Narrator is manually assigning classified roles to all players.',
   roleReveal: 'Secret role assignment. Tap and hold your card to discover your allegiance.',
   night: 'The city sleeps. Secret night actions are underway in the shadows.',
   morning: 'Dawn breaks over the town. Discover the casualties of the night.',

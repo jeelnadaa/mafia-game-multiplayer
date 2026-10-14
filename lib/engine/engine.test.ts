@@ -20,6 +20,7 @@ import { resolveNight, tallyVotes, maybeAdvance } from './phases';
 import { buildViewFor } from './view';
 import { DEFAULT_SETTINGS } from '../settings';
 import { GameState, Player } from '../types';
+import { voiceEngine, getVoiceGlowStyle } from '../voice';
 
 describe('Mafia Engine: Rules & Validation', () => {
   it('validates minimum player count and mafia ratio', () => {
@@ -241,6 +242,186 @@ describe('Mafia Engine: Night Resolution & Voting', () => {
     const voteChat = advancedState.chat.find((m) => m.channel === 'public' && m.senderId === 'system');
     expect(Boolean(voteChat)).toBe(true);
     expect(voteChat?.text).toContain('Civ1');
+  });
+
+  it('attributes peaceful morning to syndicate disagreement (not doctor save) in unanimous kill mode', () => {
+    const uniState: GameState = {
+      ...baseState,
+      settings: { ...DEFAULT_SETTINGS, mafiaKillMode: 'unanimous', announceSave: true, noKillFirstNight: false },
+      players: [
+        { id: 'm1', token: 'tm1', name: 'Mafia1', avatar: 1, isHost: true, isGod: false, ready: true, connected: true, lastSeen: 0, role: 'mafia', alive: true },
+        { id: 'm2', token: 'tm2', name: 'Mafia2', avatar: 2, isHost: false, isGod: false, ready: true, connected: true, lastSeen: 0, role: 'mafia', alive: true },
+        { id: 'd1', token: 'td1', name: 'Doctor1', avatar: 3, isHost: false, isGod: false, ready: true, connected: true, lastSeen: 0, role: 'doctor', alive: true },
+        { id: 'c1', token: 'tc1', name: 'Civ1', avatar: 4, isHost: false, isGod: false, ready: true, connected: true, lastSeen: 0, role: 'civilian', alive: true },
+        { id: 'c2', token: 'tc2', name: 'Civ2', avatar: 5, isHost: false, isGod: false, ready: true, connected: true, lastSeen: 0, role: 'civilian', alive: true },
+      ],
+      night: {
+        subPhase: 'mafia',
+        picks: {
+          m1: 'c1', // Mafia1 targets c1
+          m2: 'c2', // Mafia2 targets c2 (disagreement!)
+          d1: 'c1', // Doctor healed c1
+        },
+        confirmed: { m1: true, m2: true, d1: true },
+        locked: {},
+        earlyEndAt: null,
+      },
+    };
+
+    const { morningDeaths, savedPlayers, nextState } = resolveNight(uniState, () => 0.5, 2000);
+    expect(morningDeaths).toHaveLength(0);
+    expect(savedPlayers).toHaveLength(0); // Doctor did not save them because mafia never attacked c1
+
+    const safeLog = nextState.log.find((l) => l.phase === 'morning');
+    expect(Boolean(safeLog)).toBe(true);
+    expect(safeLog?.text).toContain('Syndicate discord');
+
+    const safeChat = nextState.chat.find((m) => m.channel === 'public' && m.senderId === 'system');
+    expect(Boolean(safeChat)).toBe(true);
+    expect(safeChat?.text).toContain('The Syndicate failed to reach agreement');
+
+    const wireChat = nextState.chat.find((m) => m.channel === 'mafia');
+    expect(Boolean(wireChat)).toBe(true);
+    expect(wireChat?.text).toContain('Operatives failed to pick the same target unanimously');
+  });
+
+  it('ignores disconnected syndicate members so remaining active members can reach unanimous agreement', () => {
+    const uniStateWithDc: GameState = {
+      ...baseState,
+      settings: { ...DEFAULT_SETTINGS, mafiaKillMode: 'unanimous', announceSave: true, noKillFirstNight: false },
+      players: [
+        { id: 'm1', token: 'tm1', name: 'Mafia1', avatar: 1, isHost: true, isGod: false, ready: true, connected: true, lastSeen: 0, role: 'mafia', alive: true },
+        // Mafia 2 is disconnected!
+        { id: 'm2', token: 'tm2', name: 'Mafia2', avatar: 2, isHost: false, isGod: false, ready: true, connected: false, lastSeen: 0, role: 'mafia', alive: true },
+        { id: 'd1', token: 'td1', name: 'Doctor1', avatar: 3, isHost: false, isGod: false, ready: true, connected: true, lastSeen: 0, role: 'doctor', alive: true },
+        { id: 'c1', token: 'tc1', name: 'Civ1', avatar: 4, isHost: false, isGod: false, ready: true, connected: true, lastSeen: 0, role: 'civilian', alive: true },
+        { id: 'c2', token: 'tc2', name: 'Civ2', avatar: 5, isHost: false, isGod: false, ready: true, connected: true, lastSeen: 0, role: 'civilian', alive: true },
+      ],
+      night: {
+        subPhase: 'mafia',
+        picks: {
+          m1: 'c1', // Only connected m1 picked, m2 is disconnected
+          d1: 'c2', // Doctor protected c2
+        },
+        confirmed: { m1: true },
+        locked: {},
+        earlyEndAt: null,
+      },
+    };
+
+    // Because m2 is disconnected, m1 represents all connected mafia members.
+    // Their vote on c1 should count as unanimous, eliminating c1!
+    const { morningDeaths, savedPlayers, nextState } = resolveNight(uniStateWithDc, () => 0.5, 2000);
+    expect(morningDeaths).toHaveLength(1);
+    expect(morningDeaths[0]).toBe('c1');
+    expect(savedPlayers).toHaveLength(0);
+
+    const deathLog = nextState.log.find((l) => l.phase === 'morning');
+    expect(Boolean(deathLog)).toBe(true);
+    expect(deathLog?.text).toContain('Civ1 was found eliminated');
+  });
+
+  it('ignores disconnected syndicate members in majority and random kill modes', () => {
+    const majorityStateWithDc: GameState = {
+      ...baseState,
+      settings: { ...DEFAULT_SETTINGS, mafiaKillMode: 'majority', announceSave: true, noKillFirstNight: false },
+      players: [
+        { id: 'm1', token: 'tm1', name: 'Mafia1', avatar: 1, isHost: true, isGod: false, ready: true, connected: true, lastSeen: 0, role: 'mafia', alive: true },
+        { id: 'm2', token: 'tm2', name: 'Mafia2', avatar: 2, isHost: false, isGod: false, ready: true, connected: false, lastSeen: 0, role: 'mafia', alive: true },
+        { id: 'c1', token: 'tc1', name: 'Civ1', avatar: 3, isHost: false, isGod: false, ready: true, connected: true, lastSeen: 0, role: 'civilian', alive: true },
+      ],
+      night: {
+        subPhase: 'mafia',
+        picks: {
+          m1: 'c1',
+        },
+        confirmed: { m1: true },
+        locked: {},
+        earlyEndAt: null,
+      },
+    };
+
+    const { morningDeaths } = resolveNight(majorityStateWithDc, () => 0.5, 2000);
+    expect(morningDeaths).toHaveLength(1);
+    expect(morningDeaths[0]).toBe('c1');
+  });
+
+  it('isolates voice channels by room code, purging and resetting room scope', () => {
+    voiceEngine.setRoom('ALPHA');
+    expect(voiceEngine.getRoom()).toBe('ALPHA');
+
+    // Setting a different room switches and clears old room
+    voiceEngine.setRoom('BETA');
+    expect(voiceEngine.getRoom()).toBe('BETA');
+
+    // Leaving room clears room tracking
+    voiceEngine.leaveRoom('BETA');
+    expect(voiceEngine.getRoom()).toBeNull();
+  });
+
+  it('adjusts voice glow color and intensity dynamically based on voice level and sensitivity', () => {
+    // 1. Silent or zero level -> no green
+    const silentGlow = getVoiceGlowStyle(0, false);
+    expect(silentGlow.tier).toBe('none');
+    expect(silentGlow.boxShadow).toBe('none');
+
+    // 2. Low voice level -> light green (#86EFAC)
+    const lowGlow = getVoiceGlowStyle(0.25, true);
+    expect(lowGlow.tier).toBe('light');
+    expect(lowGlow.borderColor).toBe('#86EFAC');
+    expect(lowGlow.label).toBe('Speaking (Low)');
+
+    // 3. Normal / medium voice level -> medium green (#2ED573)
+    const medGlow = getVoiceGlowStyle(0.55, true);
+    expect(medGlow.tier).toBe('medium');
+    expect(medGlow.borderColor).toBe('#2ED573');
+    expect(medGlow.label).toBe('Speaking');
+
+    // 4. Loud / more voice level -> hard green (#00FF66)
+    const hardGlow = getVoiceGlowStyle(0.85, true);
+    expect(hardGlow.tier).toBe('hard');
+    expect(hardGlow.borderColor).toBe('#00FF66');
+    expect(hardGlow.label).toBe('Speaking (Loud)');
+  });
+
+  it('correctly handles push-to-talk activation and zero-lag state synchronization', () => {
+    voiceEngine.setPushToTalk(true);
+    expect(voiceEngine.getPushToTalk()).toBe(true);
+
+    voiceEngine.setPttActive(true);
+    expect(voiceEngine.getPttActive()).toBe(true);
+
+    voiceEngine.setPttActive(false);
+    expect(voiceEngine.getPttActive()).toBe(false);
+
+    voiceEngine.setPushToTalk(false);
+    expect(voiceEngine.getPushToTalk()).toBe(false);
+  });
+
+  it('transitions directly to gameOver when vote eliminates the last mafia', () => {
+    const finalVoteState: GameState = {
+      ...baseState,
+      phase: 'voting',
+      phaseEndsAt: 1000,
+      round: 1,
+      players: [
+        { id: 'm1', token: 'tm1', name: 'Mafia1', avatar: 1, isHost: false, isGod: false, ready: true, connected: true, lastSeen: 0, role: 'mafia', alive: true },
+        { id: 'c1', token: 'tc1', name: 'Civ1', avatar: 2, isHost: true, isGod: false, ready: true, connected: true, lastSeen: 0, role: 'civilian', alive: true },
+        { id: 'c2', token: 'tc2', name: 'Civ2', avatar: 3, isHost: false, isGod: false, ready: true, connected: true, lastSeen: 0, role: 'civilian', alive: true },
+      ],
+      votes: {
+        c1: 'm1',
+        c2: 'm1',
+        m1: 'c1',
+      },
+      log: [],
+      chat: [],
+    };
+
+    const advancedState = maybeAdvance(finalVoteState, 2000, () => 0.5);
+    // When last mafia is eliminated, Town wins immediately -> phase MUST be gameOver directly
+    expect(advancedState.phase).toBe('gameOver');
+    expect(advancedState.winner).toBe('town');
   });
 });
 

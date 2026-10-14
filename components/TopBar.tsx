@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
-import { useRouter } from 'next/navigation';
 import {
   Volume2,
   VolumeX,
@@ -60,7 +59,6 @@ export function TopBar({
   onToggleVoice,
   onToggleVoiceMute,
 }: TopBarProps) {
-  const router = useRouter();
   const [copiedCode, setCopiedCode] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [showQr, setShowQr] = useState(false);
@@ -146,7 +144,9 @@ export function TopBar({
     } else {
       clearRoomData(gameView.code);
     }
-    router.push('/');
+    if (typeof window !== 'undefined') {
+      window.location.href = '/';
+    }
   };
 
   const role = gameView.me?.role;
@@ -155,6 +155,7 @@ export function TopBar({
   const getPhaseDisplay = (phase: string) => {
     switch (phase) {
       case 'lobby': return 'Lobby';
+      case 'narratorAssign': return 'Assigning Roles';
       case 'roleReveal': return 'Briefing';
       case 'night': return `Night · ${gameView.round}`;
       case 'morning': return `Day ${gameView.round} · Dawn`;
@@ -173,12 +174,12 @@ export function TopBar({
 
   return (
     <>
-      {/* Sleek Noir HUD Header */}
-      <header className="sticky top-0 z-30 w-full bg-ink-950/90 backdrop-blur-md border-b border-line px-3 md:px-8 py-2.5 select-none">
-        <div className="w-full max-w-[1650px] mx-auto flex items-center justify-between gap-3">
+      {/* Sleek Noir HUD Header matching Examples/Night the table-html and Vote.dc.html */}
+      <header className="sticky top-0 z-30 w-full bg-[#0A0B0E]/90 backdrop-blur-md border-b border-[#262A33] px-4 md:px-10 py-3 select-none">
+        <div className="w-full max-w-[1440px] mx-auto flex items-center justify-between gap-4">
           
           {/* Left: Back (click/hold) & Case Menu Drawer */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             {/* Back Button with Long-press affordance */}
             <div className="relative inline-flex items-center">
               <button
@@ -187,17 +188,18 @@ export function TopBar({
                 onPointerUp={() => cancelHold(true)}
                 onPointerLeave={() => cancelHold(false)}
                 title="Click to leave, hold to view history"
-                className="relative p-2 bg-surface hover:bg-surface-2 border border-line text-bone hover:border-lamp transition-colors flex items-center justify-center h-9 w-9"
+                className="hb flex items-center justify-center hover:border-bone transition-colors"
+                aria-label="Back"
               >
-                <ArrowLeft className="w-4 h-4 text-bone-dim hover:text-bone" />
+                ‹
                 {/* Hold Progress Ring */}
                 {holdProgress > 0 && (
                   <svg className="absolute inset-0 w-full h-full -rotate-90 pointer-events-none">
                     <circle
-                      cx="18"
-                      cy="18"
-                      r="16"
-                      stroke="var(--lamp)"
+                      cx="22"
+                      cy="22"
+                      r="18"
+                      stroke="#D9A441"
                       strokeWidth="2.5"
                       fill="none"
                       strokeDasharray={100}
@@ -213,33 +215,71 @@ export function TopBar({
               type="button"
               onClick={() => setCaseMenuOpen(true)}
               title="Open Case Docket & Settings"
-              className="flex items-center gap-2 px-3 h-9 bg-surface hover:bg-surface-2 border border-line hover:border-bone-dim text-bone transition-colors"
+              className="hb flex items-center justify-center hover:border-bone transition-colors"
+              aria-label="Menu"
             >
-              <Menu className="w-3.5 h-3.5 text-lamp" />
-              <span className="font-mono text-xs font-bold tracking-wider hidden sm:inline">CASE #{gameView.code}</span>
-              <span className="font-mono text-xs font-bold tracking-wider sm:hidden">MENU</span>
+              ≡
             </button>
           </div>
 
-          {/* Center: Phase Display & Timer Ring */}
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2.5 px-3.5 py-1 bg-surface-2 border border-line h-9 shadow-sm">
-              <span className="font-heading font-extrabold uppercase tracking-widest text-xs md:text-sm text-bone">
-                {getPhaseDisplay(gameView.phase)}
+          {/* Center: Phase Display & Timer Ring (matching mockup 40x40 SVG ring + Big Shoulders Display title) */}
+          <div className="flex items-center gap-3.5">
+            {gameView.settings.noTimer ? (
+              <div
+                className="w-10 h-10 rounded-full border-2 border-[#D9A441] flex items-center justify-center text-[#D9A441] font-bold text-xl shrink-0 shadow-[0_0_12px_rgba(217,164,65,0.3)] select-none"
+                title="Untimed Play (No Timer)"
+              >
+                ∞
+              </div>
+            ) : (
+              <svg width="40" height="40" viewBox="0 0 40 40" aria-hidden="true" className="shrink-0">
+              <circle cx="20" cy="20" r="16" fill="none" stroke="#262A33" strokeWidth="3" />
+              <circle
+                cx="20"
+                cy="20"
+                r="16"
+                fill="none"
+                stroke={
+                  remainingSeconds <= 10
+                    ? '#B3363B'
+                    : gameView.phase === 'night'
+                    ? '#5B7A99'
+                    : '#D9A441'
+                }
+                strokeWidth="3"
+                strokeDasharray={`${Math.min(100, Math.max(5, (remainingSeconds / (gameView.phase === 'night' ? (gameView.settings.nightDuration || 35) : (gameView.settings.discussionDuration || 60))) * 100))} 100`}
+                transform="rotate(-90 20 20)"
+                className="transition-all duration-1000 ease-linear"
+              />
+            </svg>
+            )}
+            <div className="d text-3xl sm:text-[42px] font-extrabold tracking-[4px] uppercase text-[#ECE6D8] leading-none flex items-center gap-3">
+              <span>
+                {gameView.phase === 'night'
+                  ? `NIGHT · ${gameView.round}`
+                  : gameView.phase === 'voting'
+                  ? `VOTE · DAY ${gameView.round}`
+                  : gameView.phase === 'discussion'
+                  ? `DAY · ${gameView.round}`
+                  : gameView.phase === 'morning'
+                  ? `DAWN · ${gameView.round}`
+                  : getPhaseDisplay(gameView.phase)}
               </span>
-              {Boolean(gameView.phaseEndsAt && remainingSeconds > 0) && (
-                <div className="flex items-center gap-1.5 border-l border-line pl-2.5">
-                  <TimerRing remainingSeconds={remainingSeconds} totalSeconds={60} size={24} strokeWidth={2} />
-                  <span className={`font-mono text-xs font-bold ${remainingSeconds <= 10 ? 'text-blood animate-pulse' : 'text-bone'}`}>
-                    {remainingSeconds}s
-                  </span>
-                </div>
+              {gameView.settings.noTimer && (isHost || gameView.me?.isGod) && isPlayingActivePhase && (
+                <button
+                  type="button"
+                  onClick={() => onGodAction?.('next')}
+                  className="px-3 py-1 bg-[#D9A441] text-[#0A0B0E] font-bold text-xs uppercase tracking-wider rounded hover:bg-[#FFEA00] transition-all cursor-pointer font-['Instrument_Sans'] shadow-md flex items-center gap-1"
+                  title="Force Advance to Next Phase (Untimed Mode)"
+                >
+                  <span>Advance ❯</span>
+                </button>
               )}
             </div>
           </div>
 
-          {/* Right: Role Chip, Audio Quick Toggle, Connection */}
-          <div className="flex items-center gap-2">
+          {/* Right: Role Chip (pill with role color dot) + Sound Toggle */}
+          <div className="flex items-center gap-3">
             {/* Connection dot (only shown if degraded) */}
             {(isReconnecting || rtt > 300) && (
               <span
@@ -248,17 +288,32 @@ export function TopBar({
               />
             )}
 
-            {/* Role Chip: Tapping opens "Your Role" in Rulebook */}
+            {/* Role Chip: matching mockup (border 1px solid #262A33; border-radius: 999px; padding: 8px 18px; font-size: 16px) */}
             {roleDef && (
               <button
                 type="button"
                 onClick={() => onOpenHelp('my-role')}
                 title="Classified Role Dossier (Press I)"
-                className="flex items-center gap-2 px-3 h-9 border border-line bg-surface hover:border-lamp transition-colors text-xs"
+                className="flex items-center gap-2.5 px-4 py-2 border border-[#262A33] hover:border-bone rounded-full bg-transparent transition-colors text-[15px] text-[#ECE6D8]"
               >
-                <span className="text-bone-dim hidden md:inline">Role:</span>
-                <span className="font-bold text-bone">{roleDef.name}</span>
-                <Kbd className="bg-transparent border-line text-bone-dim hidden lg:inline">I</Kbd>
+                <span
+                  className="w-2.5 h-2.5 rounded-full shrink-0"
+                  style={{
+                    backgroundColor:
+                      roleDef.id === 'mafia' || roleDef.id === 'godfather'
+                        ? '#B3363B'
+                        : roleDef.id === 'doctor'
+                        ? '#5E8C7B'
+                        : roleDef.id === 'police'
+                        ? '#5B7A99'
+                        : roleDef.id === 'vigilante'
+                        ? '#D9A441'
+                        : roleDef.id === 'jester'
+                        ? '#8C6FA0'
+                        : '#ECE6D8',
+                  }}
+                />
+                <span className="font-sans font-medium">{roleDef.name}</span>
               </button>
             )}
 
@@ -267,11 +322,9 @@ export function TopBar({
               type="button"
               onClick={() => onOpenHelp('basics')}
               title="Rulebook (Press H)"
-              className="flex items-center gap-1.5 px-3 h-9 bg-surface hover:bg-surface-2 border border-line text-xs font-medium text-bone transition-colors"
+              className="hb hidden sm:flex items-center justify-center hover:border-bone transition-colors text-xs font-mono"
             >
-              <HelpCircle className="w-3.5 h-3.5 text-lamp" />
-              <span className="hidden md:inline">Rulebook</span>
-              <Kbd className="hidden lg:inline">H</Kbd>
+              ?
             </button>
           </div>
         </div>
@@ -426,25 +479,26 @@ export function TopBar({
       <Modal
         isOpen={leaveModalOpen}
         onClose={() => setLeaveModalOpen(false)}
-        title="Leave Room"
+        title="EXIT ROOM"
+        subtitle={`CASE #${gameView.code} · DISCONNECT`}
       >
-        <div className="space-y-5">
-          <div className="p-4 bg-surface-2 border border-line flex items-start gap-3">
-            <LogOut className="w-5 h-5 text-bone shrink-0 mt-0.5" />
-            <div className="space-y-1">
-              <div className="text-sm font-semibold text-bone">Return to Main Menu?</div>
-              <p className="text-xs text-bone-dim leading-relaxed">
-                Are you sure you want to exit room <strong className="text-bone font-mono">{gameView.code}</strong>? You will be disconnected from the game session.
-              </p>
+        <div className="space-y-4 text-[#ECE6D8] font-['Instrument_Sans']">
+          <div className="p-4 bg-[#171A20] border border-[#262A33] rounded-[6px] space-y-2">
+            <div className="flex items-center gap-2.5 text-sm font-bold text-[#ECE6D8]">
+              <span className="w-2 h-2 rounded-full bg-[#D9A441]" />
+              <span>Leave Match Session?</span>
             </div>
+            <p className="text-xs text-[#A39D90] leading-relaxed">
+              Are you sure you want to exit room <strong className="text-[#D9A441] font-mono">{gameView.code}</strong>? You will be disconnected from the table and returned to headquarters.
+            </p>
           </div>
 
-          <div className="flex items-center justify-end gap-3 pt-2">
-            <Button variant="secondary" onClick={() => setLeaveModalOpen(false)} kbd="Esc">
-              Cancel
+          <div className="flex items-center justify-end gap-3 pt-2 border-t border-[#262A33]">
+            <Button variant="secondary" onClick={() => setLeaveModalOpen(false)}>
+              Stay in Room
             </Button>
-            <Button variant="primary" onClick={handleConfirmLeave} kbd="Enter">
-              Leave Room
+            <Button variant="danger" onClick={handleConfirmLeave}>
+              Exit Room
             </Button>
           </div>
         </div>
@@ -454,24 +508,22 @@ export function TopBar({
       <Modal
         isOpen={advanceModalOpen}
         onClose={() => setAdvanceModalOpen(false)}
-        title="Fast-Forward to Next Phase?"
+        title="ADVANCE PHASE"
+        subtitle="HOST DISCRETION"
       >
-        <div className="space-y-5">
-          <div className="p-4 bg-surface-2 border border-line flex items-start gap-3">
-            <FastForward className="w-5 h-5 text-bone shrink-0 mt-0.5" />
+        <div className="space-y-4 text-[#ECE6D8] font-['Instrument_Sans']">
+          <div className="p-4 bg-[#171A20] border border-[#262A33] rounded-[4px] flex items-start gap-3">
+            <FastForward className="w-5 h-5 text-[#D9A441] shrink-0 mt-0.5" />
             <div className="space-y-1">
-              <div className="text-sm font-semibold text-bone">Host Phase Fast-Forward</div>
-              <p className="text-xs text-bone-dim leading-relaxed">
+              <div className="text-sm font-semibold text-[#ECE6D8]">Fast-Forward to Next Phase</div>
+              <p className="text-xs text-[#A39D90] leading-relaxed">
                 Advance directly to the next phase without waiting for the timer to finish.
               </p>
-              <div className="p-2 bg-ink-950 border border-line text-[11px] text-bone-dim mt-2">
-                <strong>Automatic advancement:</strong> Normal matches progress on their own when the timer expires. Use this optional host shortcut only to finish phases fast.
-              </div>
             </div>
           </div>
 
-          <div className="flex items-center justify-end gap-3 pt-2">
-            <Button variant="secondary" onClick={() => setAdvanceModalOpen(false)} kbd="Esc">
+          <div className="flex items-center justify-end gap-3 pt-2 border-t border-[#262A33]">
+            <Button variant="secondary" onClick={() => setAdvanceModalOpen(false)}>
               Cancel
             </Button>
             <Button
@@ -480,7 +532,6 @@ export function TopBar({
                 setAdvanceModalOpen(false);
                 onGodAction?.('next');
               }}
-              kbd="Enter"
             >
               Confirm Fast-Forward
             </Button>

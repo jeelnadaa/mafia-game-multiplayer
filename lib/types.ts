@@ -1,6 +1,6 @@
 export type Role = 'mafia' | 'godfather' | 'doctor' | 'police' | 'vigilante' | 'jester' | 'civilian';
 export type Team = 'mafia' | 'town' | 'jester';
-export type Phase = 'lobby' | 'roleReveal' | 'night' | 'morning' | 'discussion' | 'voting' | 'voteResult' | 'gameOver';
+export type Phase = 'lobby' | 'narratorAssign' | 'roleReveal' | 'night' | 'morning' | 'discussion' | 'voting' | 'voteResult' | 'gameOver';
 
 export interface Player {
   id: string;
@@ -73,6 +73,7 @@ export interface Settings {
   policeResultDelay: number;
   policeResultDetail: 'alignment' | 'exact_role';
   vigilanteShots: number;
+  noTimer: boolean;
   nightDuration: number;
   discussionDuration: number;
   votingDuration: number;
@@ -176,6 +177,7 @@ export interface ClientGameView {
     isConfirmed?: boolean;
     teammates?: string[];
     teammatePicks?: Record<string, string | null>;
+    teammateConfirmed?: Record<string, boolean>;
     nightPick?: string | null | 'hold';
     nightLocked?: boolean;
     shotsRemaining?: number;
@@ -216,6 +218,7 @@ export type IntentType =
   | 'setGod'
   | 'start'
   | 'assignRole'
+  | 'narratorAssignRoles'
   | 'nightAction'
   | 'confirmNightAction'
   | 'policeConfirm'

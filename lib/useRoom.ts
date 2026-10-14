@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { ClientGameView, GameState, IntentType, Player, Settings, Role, QuickReaction } from './types';
-import { DEFAULT_SETTINGS, PLAYER_COLORS } from './settings';
+import { DEFAULT_SETTINGS, PLAYER_COLORS, getLastSettings, saveLastSettings } from './settings';
 import {
   generateRoomCode,
   generateToken,
@@ -40,7 +40,8 @@ export interface UseRoomReturn {
   banPlayer: (playerId: string) => void;
   toggleLockRoom: () => void;
   skipPlayer: (playerId: string) => void;
-  setGodMode: (isGod: boolean) => void;
+  setGodMode: (targetPlayerIdOrIsGod: any, isGod?: boolean) => void;
+  assignNarratorRoles: (assignments: Record<string, Role>) => void;
   updateSettings: (partial: Partial<Settings>) => void;
   updateProfile: (profile: { name?: string; avatar: number }) => void;
   setSuspicion: (targetId: string) => void;
@@ -54,6 +55,7 @@ export interface UseRoomReturn {
   toggleVoice: () => Promise<{ ok: boolean; reason?: string; active?: boolean }>;
   toggleVoiceMute: () => boolean;
   speakingPeers: Record<string, boolean>;
+  speakingLevels: Record<string, number>;
 }
 
 function tryAdvanceNightHelper(st: GameState, now: number): GameState {
@@ -65,14 +67,14 @@ function tryAdvanceNightHelper(st: GameState, now: number): GameState {
       const duration = getSubPhaseDuration(nextRole, st.settings);
       st.night.subPhase = nextRole;
       st.night.confirmed = {};
-      st.phaseEndsAt = now + duration * 1000;
+      st.phaseEndsAt = st.settings.noTimer ? null : now + duration * 1000;
       return st;
     } else {
       const rng = () => Math.random();
       const { nextState: resolvedState } = resolveNight(st, rng, now);
       return resolvedState.winner
         ? { ...resolvedState, phase: 'gameOver', phaseEndsAt: null }
-        : { ...resolvedState, phase: 'morning', phaseEndsAt: now + 7000 };
+        : { ...resolvedState, phase: 'morning', phaseEndsAt: st.settings.noTimer ? null : now + 7000 };
     }
   }
 
@@ -80,20 +82,9 @@ function tryAdvanceNightHelper(st: GameState, now: number): GameState {
     return st;
   }
 
-  let canAdvance = eligible.every(
-    (p) => Boolean(st.night.picks[p.id]) || Boolean(st.night.confirmed[p.id])
-  );
-
-  if (subPhase === 'mafia' && canAdvance) {
-    const mafiaPicks = eligible.map((m) => st.night.picks[m.id]).filter(Boolean);
-    if (st.settings.mafiaKillMode === 'unanimous' && eligible.length > 1) {
-      const allSame =
-        mafiaPicks.length === eligible.length && mafiaPicks.every((pick) => pick === mafiaPicks[0]);
-      if (!allSame) {
-        canAdvance = false;
-      }
-    }
-  }
+  const canAdvance = eligible
+    .filter((p) => p.connected !== false)
+    .every((p) => Boolean(st.night.confirmed[p.id]));
 
   if (canAdvance) {
     const nextRole = getNextNightRole(subPhase, st);
@@ -101,7 +92,7 @@ function tryAdvanceNightHelper(st: GameState, now: number): GameState {
       const duration = getSubPhaseDuration(nextRole, st.settings);
       st.night.subPhase = nextRole;
       st.night.confirmed = {};
-      st.phaseEndsAt = now + duration * 1000;
+      st.phaseEndsAt = st.settings.noTimer ? null : now + duration * 1000;
     } else {
       const rng = () => Math.random();
       const { nextState: resolvedState } = resolveNight(st, rng, now);
@@ -115,7 +106,7 @@ function tryAdvanceNightHelper(st: GameState, now: number): GameState {
         st = {
           ...resolvedState,
           phase: 'morning',
-          phaseEndsAt: now + 7000,
+          phaseEndsAt: st.settings.noTimer ? null : now + 7000,
         };
       }
     }
@@ -191,8 +182,9 @@ function processBotActions(state: GameState, now: number): GameState {
             modified = true;
           }
         } else if (subPhase === 'vigilante') {
+          // On Night 1, vigilante bots hold fire to avoid arbitrary blind shots
           const candidates = st.players.filter((p) => p.alive && !p.isGod && p.id !== bot.id);
-          if (candidates.length > 0 && Math.random() > 0.4) {
+          if (st.round > 1 && candidates.length > 0 && Math.random() > 0.4) {
             const targetId = candidates[Math.floor(Math.random() * candidates.length)].id;
             st.night.picks[bot.id] = targetId;
           } else {
@@ -286,13 +278,28 @@ export function useRoom(
   const [isVoiceActive, setIsVoiceActive] = useState(false);
   const [isVoiceMuted, setIsVoiceMuted] = useState(false);
   const [speakingPeers, setSpeakingPeers] = useState<Record<string, boolean>>({});
+  const [speakingLevels, setSpeakingLevels] = useState<Record<string, number>>({});
 
   useEffect(() => {
+    voiceEngine.setRoom(roomCode);
     setIsVoiceActive(voiceEngine.isVoiceActive());
     setIsVoiceMuted(voiceEngine.isMuted());
-    return voiceEngine.subscribe((map) => {
-      setSpeakingPeers(map);
-      const speaking = Object.values(map).some(Boolean);
+    return () => {
+      voiceEngine.leaveRoom(roomCode);
+    };
+  }, [roomCode]);
+
+  useEffect(() => {
+    return voiceEngine.subscribe((map, levels) => {
+      const resolved: Record<string, boolean> = { ...map };
+      const resolvedLevels: Record<string, number> = { ...(levels || {}) };
+      if (myPlayerIdRef.current) {
+        if (map['local'] !== undefined) resolved[myPlayerIdRef.current] = map['local'];
+        if (levels && levels['local'] !== undefined) resolvedLevels[myPlayerIdRef.current] = levels['local'];
+      }
+      setSpeakingPeers(resolved);
+      setSpeakingLevels(resolvedLevels);
+      const speaking = Object.values(resolved).some(Boolean);
       setVoiceDucking(speaking);
     });
   }, []);
@@ -494,9 +501,16 @@ export function useRoom(
             type: 'phase' as const,
           });
           nextState.log = newLogs;
+        } else if (state.phase === 'roleReveal') {
+          const allReady = alivePlaying.every((p) => p.ready || p.isHost);
+          if (allReady) {
+            nextState = maybeAdvance({ ...nextState, phaseEndsAt: now }, now, () => Math.random());
+          }
+        } else if (state.phase === 'night') {
+          nextState = tryAdvanceNightHelper(nextState, now);
         } else if (state.phase === 'discussion' && updatedReadyToVote.length >= alivePlaying.length) {
           nextState.phase = 'voting';
-          nextState.phaseEndsAt = now + state.settings.votingDuration * 1000;
+          nextState.phaseEndsAt = state.settings.noTimer ? null : now + state.settings.votingDuration * 1000;
           nextState.votes = {};
         } else if (state.phase === 'voting') {
           const allVoted = alivePlaying.every((p) => Boolean(updatedVotes[p.id]));
@@ -524,73 +538,7 @@ export function useRoom(
       const callingPlayer = state.players.find((p) => p.id === playerId);
 
       const tryAdvanceNight = (st: GameState): GameState => {
-        const subPhase = st.night.subPhase || 'mafia';
-        const eligible = getActiveRolePlayers(subPhase, st);
-        if (eligible.length === 0) {
-          const nextRole = getNextNightRole(subPhase, st);
-          if (nextRole) {
-            const duration = getSubPhaseDuration(nextRole, st.settings);
-            st.night.subPhase = nextRole;
-            st.night.confirmed = {};
-            st.phaseEndsAt = now + duration * 1000;
-            return st;
-          } else {
-            const rng = () => Math.random();
-            const { nextState: resolvedState } = resolveNight(st, rng, now);
-            return resolvedState.winner
-              ? { ...resolvedState, phase: 'gameOver', phaseEndsAt: null }
-              : { ...resolvedState, phase: 'morning', phaseEndsAt: now + 7000 };
-          }
-        }
-
-        // If endNightEarly is false, do not advance early; let the full night timer elapse
-        if (!st.settings.endNightEarly) {
-          return st;
-        }
-
-        let canAdvance = eligible.every(
-          (p) => Boolean(st.night.picks[p.id]) || Boolean(st.night.confirmed[p.id])
-        );
-
-        if (subPhase === 'mafia' && canAdvance) {
-          const mafiaPicks = eligible.map((m) => st.night.picks[m.id]).filter(Boolean);
-          if (st.settings.mafiaKillMode === 'unanimous' && eligible.length > 1) {
-            const allSame =
-              mafiaPicks.length === eligible.length && mafiaPicks.every((pick) => pick === mafiaPicks[0]);
-            if (!allSame) {
-              canAdvance = false;
-            }
-          }
-        }
-
-        if (canAdvance) {
-          const nextRole = getNextNightRole(subPhase, st);
-          if (nextRole) {
-            const duration = getSubPhaseDuration(nextRole, st.settings);
-            st.night.subPhase = nextRole;
-            st.night.confirmed = {};
-            st.phaseEndsAt = now + duration * 1000;
-          } else {
-            // All night roles are done their selection! Round gets over immediately.
-            const rng = () => Math.random();
-            const { nextState: resolvedState } = resolveNight(st, rng, now);
-            if (resolvedState.winner) {
-              st = {
-                ...resolvedState,
-                phase: 'gameOver',
-                phaseEndsAt: null,
-              };
-            } else {
-              st = {
-                ...resolvedState,
-                phase: 'morning',
-                phaseEndsAt: now + 7000,
-              };
-            }
-          }
-        }
-
-        return st;
+        return tryAdvanceNightHelper(st, now);
       };
 
       switch (intentType) {
@@ -605,12 +553,14 @@ export function useRoom(
         case 'updateProfile': {
           const newAvatar = Number(payload?.avatar);
           const newName = payload?.name ? String(payload.name).trim() : undefined;
+          const newColor = payload?.color || (newAvatar && newAvatar >= 1 && newAvatar <= PLAYER_COLORS.length ? PLAYER_COLORS[newAvatar - 1] : undefined);
           nextState.players = nextState.players.map((p) => {
             if (p.id === playerId) {
               return {
                 ...p,
                 avatar: newAvatar && newAvatar >= 1 && newAvatar <= 12 ? newAvatar : p.avatar,
                 name: newName || p.name,
+                color: newColor || p.color,
               };
             }
             return p;
@@ -655,10 +605,11 @@ export function useRoom(
 
           if (isModeratorModeChanged) {
             const isGod = targetModeratorMode === 'god';
-            nextState.players = nextState.players.map((p) =>
-              p.isHost ? { ...p, isGod } : p
-            );
+            if (!isGod) {
+              nextState.players = nextState.players.map((p) => ({ ...p, isGod: false }));
+            }
           }
+          saveLastSettings(nextState.settings);
 
           nextState.version++;
           break;
@@ -666,13 +617,31 @@ export function useRoom(
 
         case 'setGod': {
           if (!callingPlayer?.isHost) return; // Host only
-          const isGod = Boolean(payload);
-          nextState.players = nextState.players.map((p) =>
-            p.id === playerId ? { ...p, isGod } : p
-          );
+          let targetId: string | null = null;
+          let isGod = false;
+
+          if (typeof payload === 'object' && payload !== null) {
+            targetId = payload.targetPlayerId || payload.playerId || null;
+            isGod = payload.isGod !== undefined ? Boolean(payload.isGod) : Boolean(targetId);
+          } else if (typeof payload === 'string') {
+            targetId = payload;
+            isGod = true;
+          } else if (typeof payload === 'boolean') {
+            targetId = playerId;
+            isGod = payload;
+          } else if (payload === null || payload === undefined) {
+            targetId = null;
+            isGod = false;
+          }
+
+          nextState.players = nextState.players.map((p) => ({
+            ...p,
+            isGod: isGod && targetId ? p.id === targetId : false, // Only one God/Narrator at a time
+          }));
+          const hasGod = nextState.players.some((p) => p.isGod);
           nextState.settings = {
             ...nextState.settings,
-            moderatorMode: isGod ? 'god' : 'auto',
+            moderatorMode: hasGod ? 'god' : 'auto',
           };
           nextState.version++;
           break;
@@ -734,11 +703,6 @@ export function useRoom(
           const unready = nextState.players.filter((p) => !p.isHost && !p.ready);
           if (unready.length > 0) return; // Require all players ready
 
-          const rng = () => Math.random();
-          nextState.players = assignRoles(nextState.players, nextState.settings, rng);
-          nextState.phase = 'roleReveal';
-          nextState.round = 0;
-          nextState.phaseEndsAt = now + 10000; // 10s role reveal
           nextState.chat = [];
           nextState.log = [];
           nextState.secretLog = [];
@@ -749,15 +713,60 @@ export function useRoom(
           nextState.readyToVote = [];
           nextState.suspicions = {};
           nextState.reactions = {};
+
+          const hasGod = nextState.players.some((p) => p.isGod) || nextState.settings.moderatorMode === 'god';
+
+          if (hasGod) {
+            // Live narrator manually assigns roles from the configured deck
+            // Strictly NO timing limits during narrator role assignment
+            nextState.phase = 'narratorAssign';
+            nextState.round = 0;
+            nextState.phaseEndsAt = null;
+          } else {
+            const rng = () => Math.random();
+            nextState.players = assignRoles(nextState.players, nextState.settings, rng);
+            nextState.phase = 'roleReveal';
+            nextState.round = 0;
+            nextState.phaseEndsAt = nextState.settings.noTimer ? null : now + 12000;
+          }
+
+          nextState.version++;
+          break;
+        }
+
+        case 'narratorAssignRoles': {
+          if (!callingPlayer?.isGod && !callingPlayer?.isHost) return;
+          if (nextState.phase !== 'narratorAssign') return;
+          const assignments = payload?.assignments as Record<string, Role> | undefined;
+          if (!assignments) return;
+
+          // Apply narrator assigned roles to non-god players
+          nextState.players = nextState.players.map((p) => {
+            if (p.isGod) return p;
+            return {
+              ...p,
+              role: assignments[p.id] || 'civilian',
+              ready: false, // Reset ready status for role reveal confirmation
+            };
+          });
+
+          nextState.phase = 'roleReveal';
+          nextState.round = 0;
+          nextState.phaseEndsAt = nextState.settings.noTimer ? null : now + 12000;
           nextState.version++;
           break;
         }
 
         case 'nightAction': {
           if (nextState.phase !== 'night') return;
-          nextState.night.picks[playerId] = payload.targetId; // targetId or 'hold'
-          nextState.night.confirmed[playerId] = true;
-          nextState = tryAdvanceNight(nextState);
+          const shouldConfirm = payload?.confirm !== undefined ? Boolean(payload.confirm) : true;
+          if (payload?.targetId !== undefined) {
+            nextState.night.picks[playerId] = payload.targetId; // targetId or 'hold'
+          }
+          nextState.night.confirmed[playerId] = shouldConfirm;
+          if (shouldConfirm) {
+            nextState = tryAdvanceNight(nextState);
+          }
           nextState.version++;
           break;
         }
@@ -868,7 +877,13 @@ export function useRoom(
 
         case 'rematch': {
           if (!callingPlayer?.isHost) return; // Host only
-          nextState.phase = 'lobby';
+          const hasGod = nextState.players.some((p) => p.isGod) || nextState.settings.moderatorMode === 'god';
+          let designatedNarratorId: string | null = null;
+          if (hasGod) {
+            const firstGod = nextState.players.find((p) => p.isGod);
+            designatedNarratorId = firstGod ? firstGod.id : callingPlayer.id;
+          }
+
           nextState.round = 0;
           nextState.winner = undefined;
           nextState.phaseEndsAt = null;
@@ -887,11 +902,21 @@ export function useRoom(
             ...p,
             alive: true,
             role: undefined,
+            isGod: designatedNarratorId ? p.id === designatedNarratorId : false,
             ready: p.isBot ? true : false,
             diedInRound: undefined,
             diedBy: undefined,
             alignment: undefined,
           }));
+
+          // When rematch with a live Narrator, narrator chooses roles again directly!
+          if (hasGod && designatedNarratorId) {
+            nextState.phase = 'narratorAssign';
+            nextState.phaseEndsAt = null;
+          } else {
+            nextState.phase = 'lobby';
+          }
+
           nextState.version++;
           break;
         }
@@ -914,8 +939,8 @@ export function useRoom(
           const minTotalPlayers = isGodMode ? minRequiredActive + 1 : minRequiredActive;
 
           const currentCount = nextState.players.length;
-          const needed = minTotalPlayers - currentCount;
-          const toAdd = needed > 0 ? needed : (currentCount < nextState.settings.maxPlayers ? 1 : 0);
+          const maxPlayers = nextState.settings.maxPlayers || 12;
+          const toAdd = Math.max(0, maxPlayers - currentCount);
 
           if (toAdd <= 0) return;
 
@@ -1147,10 +1172,15 @@ export function useRoom(
           });
 
           peer.on('call', (mediaConn: any) => {
+            const callRoom = mediaConn.metadata?.roomCode;
+            if (callRoom && callRoom !== code.toUpperCase()) {
+              mediaConn.close();
+              return;
+            }
             const localStream = voiceEngine.getLocalStream();
             mediaConn.answer(localStream || undefined);
             mediaConn.on('stream', (remoteStream: MediaStream) => {
-              voiceEngine.addPeerStream(mediaConn.peer, remoteStream);
+              voiceEngine.addPeerStream(mediaConn.peer, remoteStream, code.toUpperCase());
             });
             mediaConn.on('close', () => {
               voiceEngine.removePeerStream(mediaConn.peer);
@@ -1249,7 +1279,7 @@ export function useRoom(
                 token: data.token || generateToken(),
                 name: clientName,
                 avatar: clientAvatar,
-                color: PLAYER_COLORS[state.players.length % PLAYER_COLORS.length],
+                color: (data as any)?.color || PLAYER_COLORS[((clientAvatar || 1) - 1) % PLAYER_COLORS.length],
                 isHost: false,
                 isGod: false,
                 ready: false,
@@ -1394,10 +1424,15 @@ export function useRoom(
           peerRef.current = peer;
 
           peer.on('call', (mediaConn: any) => {
+            const callRoom = mediaConn.metadata?.roomCode;
+            if (callRoom && callRoom !== code.toUpperCase()) {
+              mediaConn.close();
+              return;
+            }
             const localStream = voiceEngine.getLocalStream();
             mediaConn.answer(localStream || undefined);
             mediaConn.on('stream', (remoteStream: MediaStream) => {
-              voiceEngine.addPeerStream(mediaConn.peer, remoteStream);
+              voiceEngine.addPeerStream(mediaConn.peer, remoteStream, code.toUpperCase());
             });
             mediaConn.on('close', () => {
               voiceEngine.removePeerStream(mediaConn.peer);
@@ -1550,8 +1585,23 @@ export function useRoom(
   );
 
   const setGodMode = useCallback(
-    (isGod: boolean) => {
-      sendIntent('setGod', isGod);
+    (targetPlayerIdOrIsGod: any, isGod?: boolean) => {
+      if (targetPlayerIdOrIsGod === null || targetPlayerIdOrIsGod === undefined) {
+        sendIntent('setGod', { targetPlayerId: null, isGod: false });
+      } else if (typeof targetPlayerIdOrIsGod === 'string') {
+        sendIntent('setGod', { targetPlayerId: targetPlayerIdOrIsGod, isGod: isGod !== undefined ? isGod : true });
+      } else if (typeof targetPlayerIdOrIsGod === 'boolean') {
+        sendIntent('setGod', { targetPlayerId: myPlayerIdRef.current, isGod: targetPlayerIdOrIsGod });
+      } else {
+        sendIntent('setGod', targetPlayerIdOrIsGod);
+      }
+    },
+    [sendIntent]
+  );
+
+  const assignNarratorRoles = useCallback(
+    (assignments: Record<string, Role>) => {
+      sendIntent('narratorAssignRoles', { assignments });
     },
     [sendIntent]
   );
@@ -1623,10 +1673,12 @@ export function useRoom(
           if (isHost) {
             Object.keys(connectionsRef.current).forEach((clientPeerId) => {
               try {
-                const call = peerRef.current.call(clientPeerId, stream);
+                const call = peerRef.current.call(clientPeerId, stream, {
+                  metadata: { roomCode: roomCode.toUpperCase() },
+                });
                 if (call) {
                   call.on('stream', (remoteStream: MediaStream) => {
-                    voiceEngine.addPeerStream(clientPeerId, remoteStream);
+                    voiceEngine.addPeerStream(clientPeerId, remoteStream, roomCode.toUpperCase());
                   });
                   call.on('close', () => {
                     voiceEngine.removePeerStream(clientPeerId);
@@ -1636,10 +1688,12 @@ export function useRoom(
             });
           } else {
             try {
-              const call = peerRef.current.call(`mafia-v1-${roomCode.toUpperCase()}`, stream);
+              const call = peerRef.current.call(`mafia-v1-${roomCode.toUpperCase()}`, stream, {
+                metadata: { roomCode: roomCode.toUpperCase() },
+              });
               if (call) {
                 call.on('stream', (remoteStream: MediaStream) => {
-                  voiceEngine.addPeerStream(`mafia-v1-${roomCode.toUpperCase()}`, remoteStream);
+                  voiceEngine.addPeerStream(`mafia-v1-${roomCode.toUpperCase()}`, remoteStream, roomCode.toUpperCase());
                 });
                 call.on('close', () => {
                   voiceEngine.removePeerStream(`mafia-v1-${roomCode.toUpperCase()}`);
@@ -1680,6 +1734,7 @@ export function useRoom(
     toggleLockRoom,
     skipPlayer,
     setGodMode,
+    assignNarratorRoles,
     updateSettings,
     updateProfile,
     setSuspicion,
@@ -1691,6 +1746,7 @@ export function useRoom(
     toggleVoice,
     toggleVoiceMute,
     speakingPeers,
+    speakingLevels,
   };
 }
 
@@ -1706,7 +1762,7 @@ function createInitialState(
     token: hostToken,
     name: hostName || 'Host',
     avatar: hostAvatar || 1,
-    color: PLAYER_COLORS[0],
+    color: PLAYER_COLORS[((hostAvatar || 1) - 1) % PLAYER_COLORS.length],
     isHost: true,
     isGod: false,
     ready: true,
@@ -1715,6 +1771,8 @@ function createInitialState(
     alive: true,
   };
 
+  const persistedSettings = getLastSettings();
+
   return {
     code,
     version: 1,
@@ -1722,7 +1780,10 @@ function createInitialState(
     round: 0,
     phaseEndsAt: null,
     paused: false,
-    settings: DEFAULT_SETTINGS,
+    settings: {
+      ...DEFAULT_SETTINGS,
+      ...(persistedSettings || {}),
+    },
     players: [hostPlayer],
     night: { subPhase: 'mafia', picks: {}, confirmed: {}, locked: {}, earlyEndAt: null },
     doctorHistory: {},

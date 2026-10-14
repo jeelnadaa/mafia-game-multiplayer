@@ -2,22 +2,42 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { HelpCircle, ArrowRight, ShieldCheck } from 'lucide-react';
-import { Button, Avatar, Kbd, MafiaWordmark } from '@/components/ui';
 import { HelpSheet } from '@/components/HelpSheet';
 import { generateRoomCode } from '@/lib/net';
 import { useShortcut } from '@/lib/shortcuts';
 import { cleanExpiredGameData } from '@/lib/storage';
+import {
+  initSound,
+  toggleMute,
+  getIsMuted,
+  getAmbienceVolume,
+  setAmbienceVolume,
+  getSfxVolume,
+  setSfxVolume,
+  setPhaseAmbience,
+  playUiTick,
+} from '@/lib/sfx';
+import { Volume2, VolumeX, Sliders, X } from 'lucide-react';
 
 export default function HomePage() {
   const router = useRouter();
   const [name, setName] = useState('');
-  const [avatar, setAvatar] = useState(1);
+  const [avatar, setAvatar] = useState(3);
   const [joinCode, setJoinCode] = useState('');
   const [helpOpen, setHelpOpen] = useState(false);
+  const [audioModalOpen, setAudioModalOpen] = useState(false);
+  const [isSoundMuted, setIsSoundMuted] = useState(false);
+  const [ambienceVol, setAmbienceVol] = useState(40);
+  const [sfxVol, setSfxVol] = useState(80);
 
-  // Restore saved player profile & purge expired/completed games
+  // Restore saved player profile, clean expired data & initialize atmospheric audio
   useEffect(() => {
+    initSound();
+    setPhaseAmbience('lobby');
+    setIsSoundMuted(getIsMuted());
+    setAmbienceVol(Math.round(getAmbienceVolume() * 100));
+    setSfxVol(Math.round(getSfxVolume() * 100));
+
     if (typeof window !== 'undefined') {
       cleanExpiredGameData();
       const savedName = localStorage.getItem('mafia-name');
@@ -26,6 +46,21 @@ export default function HomePage() {
       if (savedAvatar) setAvatar(parseInt(savedAvatar, 10));
     }
   }, []);
+
+  const handleToggleMute = () => {
+    const unmuted = toggleMute();
+    setIsSoundMuted(!unmuted);
+  };
+
+  const handleAmbienceChange = (val: number) => {
+    setAmbienceVol(val);
+    setAmbienceVolume(val / 100);
+  };
+
+  const handleSfxChange = (val: number) => {
+    setSfxVol(val);
+    setSfxVolume(val / 100);
+  };
 
   const saveProfile = (newName: string, newAvatar: number) => {
     setName(newName);
@@ -39,7 +74,7 @@ export default function HomePage() {
   useShortcut(['?', 'h', 'H'], () => setHelpOpen((prev) => !prev), { scope: 'screen' });
 
   const handleCreateGame = () => {
-    const finalName = name.trim() || 'Host';
+    const finalName = name.trim() || 'hehee';
     saveProfile(finalName, avatar);
     const code = generateRoomCode();
     if (typeof window !== 'undefined') {
@@ -52,178 +87,357 @@ export default function HomePage() {
     e.preventDefault();
     const cleanCode = joinCode.trim().toUpperCase();
     if (!cleanCode) return;
-    const finalName = name.trim() || 'Player';
+    const finalName = name.trim() || 'hehee';
     saveProfile(finalName, avatar);
     router.push(`/room/${cleanCode}`);
   };
 
-  return (
-    <main className="relative flex-1 flex flex-col justify-between min-h-screen p-4 sm:p-6 md:p-10 bg-ink-950 text-bone selection:bg-lamp selection:text-ink-950 overflow-x-hidden">
-      {/* Overhead Lamp Cone Atmospheric Lighting */}
-      <div 
-        className="pointer-events-none absolute inset-0 z-0 opacity-40"
-        style={{
-          background: 'radial-gradient(circle 600px at 50% 15%, rgba(217, 164, 65, 0.12), transparent 75%)',
-        }}
-        aria-hidden="true"
-      />
-      
-      {/* Subtle Noise / Film Vignette Overlay */}
-      <div 
-        className="pointer-events-none absolute inset-0 z-0 bg-noise opacity-20 mix-blend-overlay"
-        aria-hidden="true"
-      />
+  const pinColors = [
+    '#B3363B',
+    '#5B7FA6',
+    '#ECE6D8',
+    '#C9A86A',
+    '#8C6FA0',
+    '#5E8C7B',
+    '#D9A441',
+    '#7A5C86',
+    '#4A7C59',
+    '#A85B32',
+    '#3E5A78',
+    '#9C8D72',
+  ];
 
-      {/* Top Bar / Brand Strip */}
-      <header className="relative z-10 w-full max-w-5xl mx-auto flex items-center justify-between pb-4 border-b border-line/50 text-xs">
-        <div className="flex items-center gap-2 tracking-wider uppercase font-mono text-[11px] text-bone-dim">
-          <span className="w-1.5 h-1.5 bg-lamp inline-block animate-pulse" />
-          <span>Underground Precinct</span>
-        </div>
+  return (
+    <div className="b relative w-full min-h-screen lg:h-[760px] overflow-x-hidden lg:overflow-hidden bg-[#0A0B0E] text-[#ECE6D8] selection:bg-[#D9A441] selection:text-[#0A0B0E]">
+      {/* ------------------------------------------------------------- */}
+      {/* AMBIENT LIGHTING, LAMP & TABLE ASSEMBLY (Perfect Alignment)   */}
+      {/* ------------------------------------------------------------- */}
+      <div className="pointer-events-none absolute inset-0 max-w-[1280px] mx-auto overflow-hidden">
+        {/* Amber Light Pool - Centered on Lamp Axis (x = 990px) */}
+        <div
+          className="absolute -translate-x-1/2 top-0 w-[700px] h-[760px]"
+          style={{
+            left: '990px',
+            background: 'radial-gradient(ellipse 60% 75% at 50% 0%, rgba(217,164,65,.28), transparent 70%)',
+          }}
+          aria-hidden="true"
+        />
+
+        {/* Hanging Brass Pendant Lamp Cord (Centered at x = 990px) */}
+        <div
+          className="hidden lg:block absolute -translate-x-1/2 top-0 w-[2px] h-[118px] bg-[#2a2d35]"
+          style={{ left: '990px' }}
+          aria-hidden="true"
+        />
+        {/* Lamp Shade (Centered at x = 990px, width 80px) */}
+        <div
+          className="hidden lg:block absolute -translate-x-1/2 top-[118px] w-[80px] h-[38px] bg-[#D9A441]"
+          style={{
+            left: '990px',
+            clipPath: 'polygon(22% 0, 78% 0, 100% 100%, 0 100%)',
+          }}
+          aria-hidden="true"
+        />
+
+        {/* Billiard Felt Table (Directly under the lamp, centered at x = 990px, width 520px) */}
+        <div
+          className="hidden lg:block absolute -translate-x-1/2 top-[500px] w-[520px] h-[210px] rounded-[50%] border-[6px] border-[#6b5426]"
+          style={{
+            left: '990px',
+            background: 'radial-gradient(ellipse at 50% 25%, #1d2c26, #0b1210 72%)',
+          }}
+          aria-hidden="true"
+        />
+        {/* Two paper playing cards on table */}
+        <div
+          className="hidden lg:block absolute top-[560px] w-[46px] h-[64px] rounded-[4px] bg-[#ECE6D8] -rotate-12 shadow-[0_6px_14px_rgba(0,0,0,.5)] border border-[#b9b2a2]"
+          style={{ left: '955px' }}
+          aria-hidden="true"
+        />
+        <div
+          className="hidden lg:block absolute top-[566px] w-[46px] h-[64px] rounded-[4px] bg-[#ECE6D8] rotate-[8deg] shadow-[0_6px_14px_rgba(0,0,0,.5)] border border-[#b9b2a2]"
+          style={{ left: '1005px' }}
+          aria-hidden="true"
+        />
+      </div>
+
+      {/* Top Right Navigation & Audio Dock */}
+      <div className="absolute right-6 lg:right-[56px] top-6 lg:top-[40px] flex items-center gap-3 z-20">
+        {/* Quick Audio Mute Toggle Button */}
+        <button
+          type="button"
+          onClick={handleToggleMute}
+          title={isSoundMuted ? 'Unmute atmospheric audio' : 'Mute atmospheric audio'}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-[4px] border text-xs font-mono uppercase tracking-wider transition-all duration-150 ${
+            isSoundMuted
+              ? 'bg-[#B3363B]/20 border-[#B3363B] text-[#fca5a5] hover:bg-[#B3363B]/30'
+              : 'bg-[#101216]/80 border-[#262A33] text-[#D9A441] hover:border-[#D9A441] hover:text-[#F0D79A]'
+          }`}
+        >
+          {isSoundMuted ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5 animate-pulse" />}
+          <span className="hidden sm:inline">{isSoundMuted ? 'Muted' : 'Sound On'}</span>
+        </button>
+
+        {/* Audio Console Settings Button */}
+        <button
+          type="button"
+          onClick={() => setAudioModalOpen(true)}
+          title="Audio & Ambience Settings"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-[4px] border border-[#262A33] bg-[#101216]/80 text-[#ECE6D8] hover:border-[#D9A441] hover:text-[#D9A441] text-xs font-mono uppercase tracking-wider transition-all duration-150 cursor-pointer"
+        >
+          <Sliders className="w-3.5 h-3.5 text-[#A39D90]" />
+          <span className="hidden sm:inline">Settings</span>
+        </button>
+
+        {/* How to Play Link */}
         <button
           type="button"
           onClick={() => setHelpOpen(true)}
-          className="inline-flex items-center gap-1.5 text-bone-dim hover:text-lamp transition-colors group"
+          className="t text-[#A39D90] hover:text-[#D9A441] text-[15px] transition-colors pl-2"
         >
-          <HelpCircle className="w-3.5 h-3.5 group-hover:stroke-lamp" />
-          <span>Case Files & Rules</span>
-          <Kbd className="ml-1 border-line text-bone-dim bg-ink-900">H</Kbd>
+          How to play&nbsp;&nbsp;[H]
         </button>
-      </header>
+      </div>
 
-      {/* Central Hero & Identity Console */}
-      <div className="relative z-10 w-full max-w-4xl mx-auto my-auto py-8 flex flex-col items-center">
-        {/* Hero Section */}
-        <div className="text-center space-y-3 mb-8">
-          <div className="flex justify-center mb-2">
-            <MafiaWordmark className="h-10 sm:h-12 md:h-14 text-bone hover:text-lamp transition-colors duration-300" />
+      {/* ------------------------------------------------------------- */}
+      {/* LEFT COLUMN: HERO HEADLINE & CASE SETUP                       */}
+      {/* ------------------------------------------------------------- */}
+      <div className="relative z-10 w-full max-w-[1280px] mx-auto px-6 py-12 lg:py-0 lg:px-0 h-full flex flex-col justify-center">
+        <div className="lg:absolute lg:left-[96px] lg:top-[78px] space-y-2">
+          <div className="t text-[14px] lg:text-[15px] tracking-[3px] text-[#D9A441] uppercase">
+            A GAME OF LIES · 4–20 PLAYERS
           </div>
-          <p className="text-sm sm:text-base text-bone-dim font-serif italic max-w-md mx-auto leading-relaxed">
-            &ldquo;Lies, alibis, and one very long night. Play with friends, no signup.&rdquo;
-          </p>
+
+          {/* Custom MAFIA Wordmark with Slit Line */}
+          <div className="relative inline-block my-1 lg:my-0">
+            <h1
+              className="d text-[110px] sm:text-[160px] lg:text-[230px] font-[900] leading-[0.85] tracking-[6px] text-[#ECE6D8] select-none"
+              style={{ margin: 0 }}
+            >
+              MAFIA
+            </h1>
+            {/* Cut-through slit line aligned across wordmark */}
+            <div
+              className="absolute left-0 top-[52%] w-full h-[3px] bg-[#D9A441] opacity-90 pointer-events-none"
+              aria-hidden="true"
+            />
+          </div>
+
+          <div className="text-[22px] sm:text-[26px] lg:text-[30px] font-[500] text-[#ECE6D8] pt-2">
+            Lies, alibis, and one very long night.
+          </div>
+          <div className="text-[15px] lg:text-[18px] text-[#A39D90]">
+            Play with friends in your browser. No signup.
+          </div>
         </div>
 
-        {/* Player Identity Dossier Card */}
-        <div className="w-full max-w-md bg-ink-900 border border-line p-6 sm:p-8 shadow-2xl relative backdrop-blur-sm">
-          {/* Top Dossier Corner Stitch */}
-          <div className="absolute top-0 left-0 border-t-2 border-l-2 border-lamp/40 w-3 h-3" />
-          <div className="absolute top-0 right-0 border-t-2 border-r-2 border-lamp/40 w-3 h-3" />
-
-          <div className="flex items-center justify-between pb-3 mb-5 border-b border-line/60">
-            <span className="text-xs font-mono font-bold tracking-widest text-bone uppercase">
-              Agent Identity File
-            </span>
-            <span className="text-[10px] font-mono text-lamp uppercase tracking-wider">
-              Ready for Dispatch
-            </span>
+        {/* ----------------------------------------------------------- */}
+        {/* PLAYER DOSSIER IDENTITY CONSOLE (Matches Examples/Landing)  */}
+        {/* ----------------------------------------------------------- */}
+        <div
+          className="mt-8 lg:mt-0 lg:absolute lg:left-[96px] lg:top-[410px] w-full max-w-[520px] p-[24px] lg:p-[26px] bg-[rgba(16,18,22,.88)] border border-[#262A33] rounded-[6px] shadow-2xl backdrop-blur-md"
+        >
+          {/* Pick a face */}
+          <div className="text-[13px] text-[#A39D90] mb-[12px] font-sans">
+            Pick a face
           </div>
-
-          <div className="space-y-5">
-            {/* Codename Input */}
-            <div>
-              <label htmlFor="codename-input" className="block text-[11px] font-mono uppercase tracking-wider text-bone-dim mb-1.5">
-                Player Codename
-              </label>
-              <input
-                id="codename-input"
-                type="text"
-                value={name}
-                onChange={(e) => saveProfile(e.target.value, avatar)}
-                placeholder="e.g. Inspector Vance"
-                maxLength={20}
-                className="w-full bg-ink-950 border border-line px-3.5 py-2 text-sm text-bone font-mono placeholder:text-bone-dim/40 focus:outline-none focus:border-lamp focus:ring-1 focus:ring-lamp transition-all"
-              />
-            </div>
-
-            {/* Avatar Picker (2 rows of 6 portraits) */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-[11px] font-mono uppercase tracking-wider text-bone-dim">
-                  Select Alias Portrait
-                </label>
-                <span className="text-[10px] font-mono text-bone-dim">#{avatar} of 12</span>
-              </div>
-              <div className="grid grid-cols-6 gap-1.5 p-1 bg-ink-950 border border-line">
-                {Array.from({ length: 12 }, (_, i) => i + 1).map((id) => {
-                  const isSelected = avatar === id;
-                  return (
-                    <button
-                      key={id}
-                      type="button"
-                      onClick={() => saveProfile(name, id)}
-                      className={`p-1 flex items-center justify-center transition-all ${
-                        isSelected
-                          ? 'bg-lamp/15 ring-2 ring-lamp shadow-sm scale-105 z-10'
-                          : 'opacity-70 hover:opacity-100 hover:bg-ink-800'
-                      }`}
-                      aria-label={`Select portrait ${id}`}
-                    >
-                      <Avatar avatarId={id} size={32} />
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Host Game Button (Primary Brass CTA) */}
-            <div className="pt-2">
-              <button
-                type="button"
-                onClick={handleCreateGame}
-                className="w-full py-3 px-4 bg-lamp text-ink-950 font-sans font-bold text-sm tracking-wide shadow-lg hover:bg-lamp-soft active:scale-[0.99] transition-all flex items-center justify-center gap-2 group"
-              >
-                <span>Host a Game</span>
-                <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
-              </button>
-            </div>
-
-            {/* Clean Divider */}
-            <div className="relative flex items-center justify-center py-2">
-              <div className="border-t border-line/60 w-full" />
-              <span className="bg-ink-900 px-3 text-[11px] font-mono text-bone-dim uppercase tracking-wider shrink-0">
-                — or join an existing case —
-              </span>
-              <div className="border-t border-line/60 w-full" />
-            </div>
-
-            {/* Join Game Form */}
-            <form onSubmit={handleJoinGame} className="space-y-2">
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={joinCode}
-                  onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-                  placeholder="ROOM CODE"
-                  maxLength={5}
-                  className="flex-1 bg-ink-950 border border-line px-3.5 py-2 text-center font-mono text-sm tracking-widest text-bone placeholder:text-bone-dim/40 focus:outline-none focus:border-lamp uppercase"
-                />
+          <div className="flex items-center gap-[12px] mb-[18px] overflow-x-auto no-scrollbar py-1">
+            {Array.from({ length: 6 }, (_, i) => i + 1).map((id) => {
+              const isSelected = avatar === id;
+              const color = pinColors[id - 1] || '#B3363B';
+              return (
                 <button
-                  type="submit"
-                  disabled={!joinCode.trim()}
-                  className="px-4 py-2 bg-ink-800 text-bone hover:bg-ink-800/80 hover:text-lamp border border-line text-xs font-mono font-semibold uppercase tracking-wider transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
+                  key={id}
+                  type="button"
+                  onClick={() => saveProfile(name, id)}
+                  style={{
+                    ['--c' as string]: color,
+                  }}
+                  className={`w-[52px] h-[52px] rounded-full shrink-0 box-border border-2 transition-transform hover:scale-105 ${
+                    isSelected
+                      ? 'outline outline-2 outline-[#D9A441] outline-offset-[3px] scale-105'
+                      : 'opacity-85 hover:opacity-100'
+                  }`}
+                  aria-label={`Select character portrait ${id}`}
                 >
-                  <span>Enter Room</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
+                  <div
+                    className="w-full h-full rounded-full overflow-hidden"
+                    style={{
+                      borderColor: color,
+                      background: `radial-gradient(circle at 50% 36%, #bdb6a6 0 19%, transparent 20%), radial-gradient(ellipse at 50% 104%, #bdb6a6 0 42%, transparent 43%), #171A20`,
+                    }}
+                  >
+                    <img
+                      src={`/assets/avatars/${id}.webp`}
+                      alt=""
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).style.display = 'none';
+                      }}
+                    />
+                  </div>
                 </button>
-              </div>
-            </form>
+              );
+            })}
           </div>
+
+          {/* Alias Input */}
+          <label htmlFor="alias-input" className="block text-[13px] text-[#A39D90] mb-[6px]">
+            Your alias
+          </label>
+          <input
+            id="alias-input"
+            type="text"
+            value={name}
+            onChange={(e) => saveProfile(e.target.value, avatar)}
+            placeholder="hehee"
+            maxLength={20}
+            className="w-full h-[50px] bg-[#0A0B0E] border border-[#262A33] rounded-[4px] text-[#ECE6D8] text-[18px] px-[16px] mb-[14px] focus:outline-none focus:border-[#D9A441] transition-colors font-sans"
+          />
+
+          {/* Primary CTA: Create new game */}
+          <button
+            type="button"
+            onClick={handleCreateGame}
+            className="w-full h-[56px] bg-[#D9A441] hover:bg-[#F0D79A] text-[#0A0B0E] border-0 rounded-[4px] text-[18px] font-[600] cursor-pointer transition-colors shadow-lg active:scale-[0.99] font-sans"
+          >
+            Create new game
+          </button>
+
+          {/* Join with Room Code */}
+          <form onSubmit={handleJoinGame} className="flex gap-[10px] mt-[14px]">
+            <input
+              aria-label="Room code"
+              placeholder="ROOM CODE"
+              value={joinCode}
+              onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+              maxLength={5}
+              className="flex-1 h-[48px] bg-transparent border border-[#262A33] rounded-[4px] text-[#ECE6D8] px-[16px] text-[16px] tracking-[4px] uppercase placeholder:text-[#A39D90]/50 focus:outline-none focus:border-[#D9A441] font-mono"
+            />
+            <button
+              type="submit"
+              disabled={!joinCode.trim()}
+              className="w-[110px] h-[48px] bg-transparent hover:bg-white/[0.04] text-[#ECE6D8] border border-[#6b6455] hover:border-[#ECE6D8] rounded-[4px] text-[16px] cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed font-sans"
+            >
+              Join
+            </button>
+          </form>
         </div>
       </div>
 
-      {/* Footer / Status Stamp */}
-      <footer className="relative z-10 w-full max-w-5xl mx-auto pt-4 border-t border-line/40 flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px] font-mono text-bone-dim">
-        <div className="flex items-center gap-2 text-bone-dim/80">
-          <ShieldCheck className="w-3.5 h-3.5 text-lamp" />
-          <span>P2P ENCRYPTED · BROWSER NATIVE · NO ACCOUNTS</span>
-        </div>
-        <div>
-          <span>Press <kbd className="bg-ink-900 border border-line px-1 text-bone">H</kbd> for manual & case rules</span>
-        </div>
-      </footer>
-
-      {/* Rulebook Modal */}
+      {/* Rulebook Modal Drawer */}
       <HelpSheet isOpen={helpOpen} onClose={() => setHelpOpen(false)} initialTab="basics" />
-    </main>
+
+      {/* Atmospheric Audio & Ambience Console Modal */}
+      {audioModalOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm select-none"
+        >
+          <div className="relative w-full max-w-md bg-[#101216] border border-[#262A33] rounded-[6px] shadow-2xl p-6 font-['Instrument_Sans']">
+            {/* Header */}
+            <div className="flex items-start justify-between pb-4 border-b border-[#262A33]">
+              <div>
+                <h3 className="t text-sm font-bold tracking-[2px] text-[#D9A441] uppercase">
+                  ATMOSPHERIC AUDIO & AMBIENCE
+                </h3>
+                <p className="text-xs text-[#A39D90] mt-0.5">
+                  Noir background ambience, lo-fi score & procedural sound cues
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAudioModalOpen(false)}
+                className="text-[#A39D90] hover:text-[#ECE6D8] p-1 rounded transition-colors"
+                aria-label="Close audio settings"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="py-4 space-y-4">
+              {/* Master Mute Toggle */}
+              <div className="p-3.5 bg-[#171A20] border border-[#262A33] rounded-[4px] flex items-center justify-between">
+                <div>
+                  <span className="text-sm font-medium text-[#ECE6D8] block">Master Sound</span>
+                  <span className="text-xs text-[#A39D90]">Enable or silence all synthesizer audio</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleToggleMute}
+                  className={`px-3 py-1.5 text-xs font-mono uppercase tracking-wider rounded-[3px] border transition-colors ${
+                    isSoundMuted
+                      ? 'bg-[#B3363B]/20 text-[#fca5a5] border-[#B3363B]'
+                      : 'bg-[#101216] text-[#D9A441] border-[#D9A441]'
+                  }`}
+                >
+                  {isSoundMuted ? 'UNMUTE' : 'MUTE'}
+                </button>
+              </div>
+
+              {/* Background Ambience Volume */}
+              <div className="p-3.5 bg-[#171A20] border border-[#262A33] rounded-[4px] space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="t text-[#A39D90] uppercase tracking-wider">Background Ambience</span>
+                  <span className="t text-[#D9A441] font-mono font-bold">{ambienceVol}%</span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={ambienceVol}
+                  onChange={(e) => handleAmbienceChange(Number(e.target.value))}
+                  className="w-full accent-[#D9A441] cursor-pointer h-1.5 bg-[#101216] rounded appearance-none"
+                />
+                <p className="text-[11px] text-[#A39D90]/70">
+                  Vinyl warmth, lo-fi organ chords & suspenseful atmosphere
+                </p>
+              </div>
+
+              {/* SFX Volume */}
+              <div className="p-3.5 bg-[#171A20] border border-[#262A33] rounded-[4px] space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="t text-[#A39D90] uppercase tracking-wider">Sound Effects (SFX)</span>
+                  <span className="t text-[#D9A441] font-mono font-bold">{sfxVol}%</span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={sfxVol}
+                  onChange={(e) => handleSfxChange(Number(e.target.value))}
+                  className="w-full accent-[#D9A441] cursor-pointer h-1.5 bg-[#101216] rounded appearance-none"
+                />
+                <div className="flex items-center justify-between pt-1">
+                  <p className="text-[11px] text-[#A39D90]/70">
+                    Clicks, bells, chimes & gunshots
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => playUiTick()}
+                    className="text-[11px] font-mono text-[#D9A441] hover:underline"
+                  >
+                    Test Cues
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => setAudioModalOpen(false)}
+                className="w-full h-11 text-sm font-semibold rounded-[3px] bg-[#171A20] border border-[#262A33] text-[#ECE6D8] hover:border-[#D9A441] hover:text-[#D9A441] transition-colors uppercase tracking-wider font-mono cursor-pointer"
+              >
+                CLOSE CONSOLE
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

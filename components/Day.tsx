@@ -17,6 +17,7 @@ interface DayProps {
 export function Day({ gameView, onVote, onReadyToVote, onSendChat }: DayProps) {
   const [chatInput, setChatInput] = useState('');
   const [readyConfirmOpen, setReadyConfirmOpen] = useState(false);
+  const [pendingVoteId, setPendingVoteId] = useState<string | null>(null);
 
   const { phase, round, me, players, readyToVote, voteCounts, log } = gameView;
   const isDead = me ? !me.alive : false;
@@ -223,7 +224,9 @@ export function Day({ gameView, onVote, onReadyToVote, onSendChat }: DayProps) {
                       <div className="space-y-1.5 max-h-40 overflow-y-auto">
                         {me.policeInbox.map((entry, idx) => {
                           const target = players.find((p) => p.id === entry.targetId);
-                          const isSuspect = entry.result.toLowerCase().includes('mafia');
+                          const resLower = entry.result.toLowerCase();
+                          const isNotMafia = resLower.includes('not');
+                          const isSuspect = !isNotMafia && (resLower.includes('mafia') || resLower.includes('godfather'));
                           return (
                             <div
                               key={idx}
@@ -234,13 +237,14 @@ export function Day({ gameView, onVote, onReadyToVote, onSendChat }: DayProps) {
                                 <span className="text-[10px] text-[#A39D90]">Round {entry.round} Investigation</span>
                               </div>
                               <span
-                                className={`px-2 py-0.5 font-bold font-mono text-[10px] border shrink-0 ${
+                                className={`inline-flex items-center gap-1.5 px-2.5 py-1 font-bold font-mono text-[11px] uppercase tracking-wider rounded-[2px] border shrink-0 ${
                                   isSuspect
-                                    ? 'bg-[#7E2327]/80 border-[#B3363B] text-[#fca5a5]'
-                                    : 'bg-[#16222F] border-[#5E8C7B] text-[#86efac]'
+                                    ? 'bg-[#1C0D0E] border-[#B3363B] text-[#FF8585] shadow-[0_0_8px_rgba(179,54,59,0.35)]'
+                                    : 'bg-[#0A1814] border-[#5E8C7B] text-[#7CE4B5] shadow-[0_0_8px_rgba(94,140,123,0.35)]'
                                 }`}
                               >
-                                {entry.result}
+                                <span className={`w-1.5 h-1.5 rounded-full ${isSuspect ? 'bg-[#FF8585]' : 'bg-[#7CE4B5]'}`} />
+                                <span>{isSuspect ? 'MAFIA' : 'NOT MAFIA'}</span>
                               </span>
                             </div>
                           );
@@ -359,12 +363,36 @@ export function Day({ gameView, onVote, onReadyToVote, onSendChat }: DayProps) {
               <TargetPicker
                 players={players}
                 myPlayerId={me?.id || ''}
-                selectedId={me?.vote || null}
-                onSelect={(targetId) => onVote(targetId as any)}
+                selectedId={pendingVoteId || me?.vote || null}
+                onSelect={(targetId) => setPendingVoteId(targetId as any)}
                 mode="voting"
                 allowSkip={gameView.settings.allowSkipVote}
                 investigations={me?.policeInbox}
               />
+
+              {pendingVoteId && pendingVoteId !== me?.vote && (
+                <div className="p-3 bg-[#171A20] border border-[#D9A441] rounded flex items-center justify-between gap-3 animate-in fade-in duration-200">
+                  <div className="text-xs font-mono text-[#ECE6D8]">
+                    Selected Candidate: <strong className="text-[#D9A441]">{pendingVoteId === 'skip' ? 'Abstain / Skip Vote' : players.find((p) => p.id === pendingVoteId)?.name}</strong>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button variant="secondary" size="sm" onClick={() => setPendingVoteId(null)}>
+                      Cancel
+                    </Button>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={() => {
+                        onVote(pendingVoteId as any);
+                        setPendingVoteId(null);
+                      }}
+                      className="font-bold uppercase tracking-wider"
+                    >
+                      Confirm Vote
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Vote Tally & Assembly Chat (5 cols on Desktop) */}
@@ -504,10 +532,10 @@ export function Day({ gameView, onVote, onReadyToVote, onSendChat }: DayProps) {
             Are you ready to end discussion and cast your official vote now?
           </p>
           <div className="flex items-center justify-end gap-3 pt-2">
-            <Button variant="secondary" onClick={() => setReadyConfirmOpen(false)} kbd="Esc">
+            <Button variant="secondary" onClick={() => setReadyConfirmOpen(false)}>
               Cancel
             </Button>
-            <Button variant="primary" onClick={handleConfirmReady} kbd="Enter">
+            <Button variant="primary" onClick={handleConfirmReady}>
               I am Ready
             </Button>
           </div>

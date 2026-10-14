@@ -180,16 +180,19 @@ export function TargetPicker({
                 {(() => {
                   const inv = investigations?.find((i) => i.targetId === p.id);
                   if (!inv) return null;
-                  const isMaf = inv.result.toLowerCase().includes('mafia');
+                  const resLower = inv.result.toLowerCase();
+                  const isNotMafia = resLower.includes('not');
+                  const isMaf = !isNotMafia && (resLower.includes('mafia') || resLower.includes('godfather'));
                   return (
                     <span
-                      className={`px-1.5 py-0.5 text-[9px] font-mono font-bold border ${
+                      className={`inline-flex items-center gap-1.5 px-2 py-0.5 text-[10px] font-mono font-bold tracking-wider uppercase rounded-[2px] border shadow-md ${
                         isMaf
-                          ? 'bg-[#7E2327]/80 text-[#fca5a5] border-[#B3363B]'
-                          : 'bg-[#16222F] text-[#86efac] border-[#5E8C7B]'
+                          ? 'bg-[#1C0D0E] text-[#FF8585] border-[#B3363B] shadow-[0_0_8px_rgba(179,54,59,0.35)]'
+                          : 'bg-[#0A1814] text-[#7CE4B5] border-[#5E8C7B] shadow-[0_0_8px_rgba(94,140,123,0.35)]'
                       }`}
                     >
-                      🕵️ {inv.result}
+                      <span className={`w-1.5 h-1.5 rounded-full ${isMaf ? 'bg-[#FF8585]' : 'bg-[#7CE4B5]'}`} />
+                      <span>{isMaf ? 'MAFIA' : 'NOT MAFIA'}</span>
                     </span>
                   );
                 })()}
@@ -280,10 +283,10 @@ export function TargetPicker({
             </div>
           </div>
           <div className="flex items-center justify-end gap-3 pt-2">
-            <Button variant="secondary" onClick={handleCancelAction} kbd="N">
+            <Button variant="secondary" onClick={handleCancelAction}>
               Cancel
             </Button>
-            <Button variant="primary" onClick={handleConfirmAction} kbd="Y">
+            <Button variant="primary" onClick={handleConfirmAction}>
               Confirm
             </Button>
           </div>
@@ -312,10 +315,10 @@ export function TargetPicker({
             </div>
           </div>
           <div className="flex items-center justify-end gap-3 pt-2">
-            <Button variant="secondary" onClick={handleCancelAction} kbd="N">
+            <Button variant="secondary" onClick={handleCancelAction}>
               Cancel
             </Button>
-            <Button variant="primary" onClick={handleConfirmAction} kbd="Y">
+            <Button variant="primary" onClick={handleConfirmAction}>
               Confirm
             </Button>
           </div>

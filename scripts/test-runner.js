@@ -4,6 +4,10 @@ const ts = require('typescript');
 
 require('./patch-exfat.js');
 
+if (typeof global.SVGElement === 'undefined') {
+  global.SVGElement = class SVGElement {};
+}
+
 const path = require('path');
 const Module = require('module');
 
@@ -16,7 +20,7 @@ Module._resolveFilename = function (request, parent, isMain, options) {
   return origResolve.call(this, request, parent, isMain, options);
 };
 
-// Mock lucide-react in node tests
+// Mock lucide-react and framer-motion in node tests
 const origLoad = Module._load;
 Module._load = function (request, parent, isMain) {
   if (request === 'lucide-react') {
@@ -24,6 +28,19 @@ Module._load = function (request, parent, isMain) {
     return new Proxy({}, {
       get: (_, prop) => (props) => React.createElement('svg', { 'data-icon': prop, ...props }),
     });
+  }
+  if (request === 'framer-motion') {
+    const React = require('react');
+    const motion = new Proxy({}, {
+      get: (_, tag) => React.forwardRef((props, ref) => {
+        const { initial, animate, exit, transition, whileHover, whileTap, layout, ...rest } = props;
+        return React.createElement(tag, { ref, ...rest });
+      }),
+    });
+    return {
+      motion,
+      AnimatePresence: ({ children }) => children,
+    };
   }
   return origLoad.call(this, request, parent, isMain);
 };

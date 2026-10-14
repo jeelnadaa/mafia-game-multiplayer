@@ -93,16 +93,19 @@ export function buildViewFor(state: GameState, observerId: string, now: number):
   // Teammates and picks for Mafia
   let teammates: string[] | undefined = undefined;
   let teammatePicks: Record<string, string | null> | undefined = undefined;
+  let teammateConfirmed: Record<string, boolean> | undefined = undefined;
   if (isObserverMafia) {
     teammates = state.players
       .filter((p) => (p.role === 'mafia' || p.role === 'godfather') && p.id !== observerId)
       .map((p) => p.id);
 
     teammatePicks = {};
+    teammateConfirmed = {};
     state.players
       .filter((p) => (p.role === 'mafia' || p.role === 'godfather') && p.alive)
       .forEach((p) => {
         teammatePicks![p.id] = state.night.picks[p.id] || null;
+        teammateConfirmed![p.id] = Boolean(state.night.confirmed?.[p.id]);
       });
   }
 
@@ -178,6 +181,7 @@ export function buildViewFor(state: GameState, observerId: string, now: number):
       isConfirmed,
       teammates,
       teammatePicks,
+      teammateConfirmed,
       nightPick: state.night.picks[observerId] || null,
       nightLocked: Boolean(state.night.locked[observerId]),
       shotsRemaining: me?.role === 'vigilante'

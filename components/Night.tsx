@@ -11,7 +11,7 @@ import { useShortcut } from '@/lib/shortcuts';
 
 interface NightProps {
   gameView: ClientGameView;
-  onNightAction: (targetId: string | 'hold') => void;
+  onNightAction: (targetId: string | 'hold', confirm?: boolean) => void;
   onConfirmNightAction?: (targetId?: string) => void;
   onSendChat: (channel: 'mafia' | 'dead', text: string) => void;
   onOpenHelp: (tab?: 'basics' | 'my-role' | 'roles' | 'rules' | 'log' | 'notes' | 'keys') => void;
@@ -28,7 +28,7 @@ export function Night({
   const [isPeeking, setIsPeeking] = useState(false);
   const [chatInput, setChatInput] = useState('');
   const [decoyTaps, setDecoyTaps] = useState(0);
-  const [confirmModalOpen, setConfirmModalOpen] = useState(false);
+  const [pendingTargetId, setPendingTargetId] = useState<string | null>(null);
 
   const me = gameView.me;
   const role = me?.role;
@@ -39,65 +39,22 @@ export function Night({
   const canActNow = Boolean(me?.canActNow);
   const isConfirmed = Boolean(me?.isConfirmed);
 
-  // Auto-show briefing card on first night if enabled
-  useEffect(() => {
-    if (gameView.round === 1) {
-      const disabled = localStorage.getItem('mafia-hide-role-brief') === 'true';
-      if (!disabled) {
-        setShowBriefing(true);
-        const t = setTimeout(() => setShowBriefing(false), 12000);
-        return () => clearTimeout(t);
-      }
-    }
-  }, [gameView.round]);
+  const effectivePick = pendingTargetId || me?.nightPick;
+  const selectedTargetPlayer = gameView.players.find((p) => p.id === effectivePick);
 
-  // Hold 'R' shortcut to peek role HUD
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.key === 'r' || e.key === 'R') && !isPeeking) {
-        const active = document.activeElement;
-        if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) return;
-        setIsPeeking(true);
-      }
-    };
-    const handleKeyUp = (e: KeyboardEvent) => {
-      if (e.key === 'r' || e.key === 'R') {
-        setIsPeeking(false);
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup', handleKeyUp);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keyup', handleKeyUp);
-    };
-  }, [isPeeking]);
-
-  // Esc closes briefing card
-  useShortcut('Escape', () => {
-    if (showBriefing) setShowBriefing(false);
-  });
+  const handleConfirmActionClick = () => {
+    if (!canActNow || isConfirmed || !effectivePick) return;
+    onNightAction(effectivePick, true);
+    onConfirmNightAction?.(effectivePick);
+  };
 
   const handleSendChat = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!chatInput.trim()) return;
-    const channel = isDead ? 'dead' : 'mafia';
+    if (!chatInput.trim() || !onSendChat) return;
+    const channel: 'mafia' | 'dead' = isMafia ? 'mafia' : 'dead';
     onSendChat(channel, chatInput.trim());
     setChatInput('');
   };
-
-  const handleConfirmActionClick = () => {
-    if (!canActNow || isConfirmed) return;
-    setConfirmModalOpen(true);
-  };
-
-  const handleFinalConfirm = () => {
-    setConfirmModalOpen(false);
-    onConfirmNightAction?.(me?.nightPick || undefined);
-  };
-
-  const selectedTargetPlayer = gameView.players.find((p) => p.id === me?.nightPick);
 
   // Check Mafia agreement in unanimous mode
   const teammatePicks = me?.teammatePicks || {};
@@ -250,10 +207,10 @@ export function Night({
                 players={gameView.players}
                 myPlayerId={me?.id || ''}
                 roleDef={roleDef}
-                selectedId={me?.nightPick || null}
+                selectedId={effectivePick || null}
                 onSelect={(targetId) => {
-                  onNightAction(targetId);
-                  onConfirmNightAction?.(targetId);
+                  setPendingTargetId(targetId);
+                  onNightAction(targetId, false);
                 }}
                 mode="night"
                 allowHoldFire={role === 'vigilante'}
@@ -276,7 +233,7 @@ export function Night({
                     <span>
                       Selected: <strong className="text-[#ECE6D8] underline font-bold font-serif">{selectedTargetPlayer.name}</strong>
                     </span>
-                  ) : me?.nightPick === 'hold' ? (
+                  ) : effectivePick === 'hold' ? (
                     <span className="text-[#D9A441] font-bold">Holding fire tonight</span>
                   ) : (
                     <span>Select a target above to confirm</span>
@@ -286,7 +243,7 @@ export function Night({
                 <Button
                   variant="primary"
                   size="lg"
-                  disabled={(!me?.nightPick && me?.nightPick !== 'hold') || isConfirmed}
+                  disabled={(!effectivePick && effectivePick !== 'hold') || isConfirmed}
                   onClick={handleConfirmActionClick}
                   className="w-full sm:w-auto font-serif font-black tracking-wider text-xs uppercase"
                 >
@@ -320,15 +277,24 @@ export function Night({
                   <div className="space-y-2">
                     {me.policeInbox.map((entry, idx) => {
                       const target = gameView.players.find((p) => p.id === entry.targetId);
-                      const isMaf = entry.result.toLowerCase().includes('mafia');
+                      const resLower = entry.result.toLowerCase();
+                      const isNotMafia = resLower.includes('not');
+                      const isMaf = !isNotMafia && (resLower.includes('mafia') || resLower.includes('godfather'));
                       return (
                         <div
                           key={idx}
                           className="flex items-center justify-between p-3 bg-[#171A20] border border-[#262A33] text-xs font-mono"
                         >
                           <span className="font-bold text-[#ECE6D8] font-serif">{target?.name || 'Subject'}:</span>
-                          <span className={`px-2.5 py-0.5 font-bold border ${isMaf ? 'bg-[#7E2327]/60 text-[#fca5a5] border-[#B3363B]' : 'bg-[#16222F] text-[#86efac] border-[#5E8C7B]'}`}>
-                            {entry.result}
+                          <span
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 font-bold font-mono text-[11px] uppercase tracking-wider rounded-[2px] border shrink-0 ${
+                              isMaf
+                                ? 'bg-[#1C0D0E] text-[#FF8585] border-[#B3363B] shadow-[0_0_8px_rgba(179,54,59,0.35)]'
+                                : 'bg-[#0A1814] text-[#7CE4B5] border-[#5E8C7B] shadow-[0_0_8px_rgba(94,140,123,0.35)]'
+                            }`}
+                          >
+                            <span className={`w-1.5 h-1.5 rounded-full ${isMaf ? 'bg-[#FF8585]' : 'bg-[#7CE4B5]'}`} />
+                            <span>{isMaf ? 'MAFIA' : 'NOT MAFIA'}</span>
                           </span>
                         </div>
                       );
@@ -363,9 +329,19 @@ export function Night({
                         const mate = gameView.players.find((p) => p.id === mateId);
                         const pickedPlayer = gameView.players.find((p) => p.id === pickId);
                         const isMe = mateId === me.id;
+                        const roleName = isMe ? (role === 'godfather' ? 'Godfather' : 'Mafia') : (mate?.role === 'godfather' ? 'Godfather' : 'Mafia');
                         return (
                           <div key={mateId} className="flex items-center justify-between">
-                            <span className="text-[#A39D90]">{isMe ? 'You' : mate?.name}:</span>
+                            <span className="text-[#A39D90] flex items-center gap-1.5">
+                              <span>{isMe ? 'You' : mate?.name}</span>
+                              <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded-[2px] font-bold uppercase ${
+                                roleName === 'Godfather'
+                                  ? 'bg-[#D9A441]/20 text-[#D9A441] border border-[#D9A441]/50'
+                                  : 'bg-[#B3363B]/20 text-[#fca5a5] border border-[#B3363B]/50'
+                              }`}>
+                                {roleName === 'Godfather' ? '👑 Godfather' : '🔪 Mafia'}
+                              </span>
+                            </span>
                             <span className={pickedPlayer ? 'text-[#D9A441] font-bold' : 'text-[#A39D90]/50'}>
                               {pickedPlayer ? pickedPlayer.name : 'Choosing...'}
                             </span>
@@ -513,35 +489,7 @@ export function Night({
         </div>
       </div>
 
-      {/* Action Confirmation Modal */}
-      <Modal
-        isOpen={confirmModalOpen}
-        onClose={() => setConfirmModalOpen(false)}
-        title="Confirm Night Action"
-      >
-        <div className="space-y-4">
-          <div className="p-4 bg-[#171A20] border border-[#262A33] flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-[#D9A441] shrink-0 mt-0.5" />
-            <div className="space-y-1 text-xs font-mono text-[#ECE6D8] leading-relaxed">
-              {me?.nightPick === 'hold' ? (
-                <div>Are you sure you want to hold fire tonight?</div>
-              ) : (
-                <div>
-                  Are you sure you want to confirm action on <strong className="text-[#D9A441] underline font-bold">{selectedTargetPlayer?.name}</strong>?
-                </div>
-              )}
-            </div>
-          </div>
-          <div className="flex items-center justify-end gap-3 pt-2">
-            <Button variant="secondary" onClick={() => setConfirmModalOpen(false)} kbd="Esc">
-              Cancel
-            </Button>
-            <Button variant="primary" onClick={handleFinalConfirm} kbd="Enter">
-              Confirm Action
-            </Button>
-          </div>
-        </div>
-      </Modal>
+
 
       {/* Role Peek HUD Modal (When holding R) */}
       <AnimatePresence>

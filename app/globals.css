@@ -1,4 +1,5 @@
-@import url('https://api.fontshare.com/v2/css?f[]=satoshi@900,700,600,500,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800;900&family=Instrument+Sans:wght@400;500;600&family=Special+Elite&display=swap');
+@import '../src/styles/tokens.css';
 
 @tailwind base;
 @tailwind components;
@@ -14,11 +15,15 @@
   --lamp: #D9A441;
   --lamp-soft: #F0D79A;
   --blood: #B3363B;
+  --blood-bright: #C2373D;
   --blood-deep: #7E2327;
   --night: #3E5A78;
-  --night-deep: #16222F;
+  --night-steel: #5B7A99;
+  --night-deep: #16171B;
   --verdigris: #5E8C7B;
-  --plum: #7A5C86;
+  --verdigris-deep: #3d6657;
+  --plum: #8C6FA0;
+  --gold: #C9A86A;
 
   /* Aliases for backwards compatibility */
   --bg: var(--ink-950);
@@ -66,14 +71,14 @@ html[data-phase="lobby"] {
 }
 
 html[data-phase="night"] {
-  --bg: #07090E;
-  --surface: #0C0F17;
-  --surface-2: #121824;
-  --border: #1E293B;
-  --border-light: #2c3a50;
-  --text: #F1F5F9;
-  --muted: #94A3B8;
-  --accent-phase: #38BDF8;
+  --bg: #0A0B0E;
+  --surface: #101216;
+  --surface-2: #171A20;
+  --border: #262A33;
+  --border-light: #363b47;
+  --text: #ECE6D8;
+  --muted: #A39D90;
+  --accent-phase: #D9A441;
 }
 
 html[data-phase="day"],
@@ -194,8 +199,8 @@ html[data-phase="gameover"] {
 }
 
 html[data-phase="night"] .phase-atmosphere-overlay {
-  background: radial-gradient(circle 50vw at 50% 30%, rgba(56, 189, 248, 0.04) 0%, transparent 70%),
-              radial-gradient(circle 70vw at 50% 100%, rgba(15, 23, 42, 0.6) 0%, transparent 100%);
+  background: radial-gradient(circle 50vw at 50% 30%, rgba(217, 164, 65, 0.03) 0%, transparent 70%),
+              radial-gradient(circle 70vw at 50% 100%, rgba(10, 11, 14, 0.7) 0%, transparent 100%);
   opacity: 1;
 }
 

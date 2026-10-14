@@ -36,21 +36,21 @@ export function Button({
   type?: 'button' | 'submit' | 'reset';
 }) {
   const baseStyles =
-    'relative inline-flex items-center justify-center font-sans text-xs md:text-sm font-medium rounded-none transition-colors duration-150 focus:outline-none focus:ring-1 focus:ring-white disabled:opacity-40 disabled:cursor-not-allowed select-none border active:scale-[0.99]';
+    'relative inline-flex items-center justify-center font-sans font-medium rounded-[4px] transition-all duration-150 focus:outline-none focus:ring-1 focus:ring-[#D9A441] disabled:opacity-40 disabled:cursor-not-allowed select-none border active:scale-[0.98] cursor-pointer';
 
   const sizeStyles = {
     sm: 'px-3 py-1.5 min-h-[36px] gap-1.5 text-xs',
-    md: 'px-4 py-2 min-h-[42px] gap-2 text-xs md:text-sm',
-    lg: 'px-6 py-2.5 min-h-[46px] gap-2.5 text-sm',
+    md: 'px-4 py-2 min-h-[44px] gap-2 text-sm',
+    lg: 'px-6 py-2.5 min-h-[52px] gap-2.5 text-base font-semibold',
   };
 
   const variantStyles = {
-    primary: 'bg-white text-black border-white hover:bg-zinc-200 focus:ring-white',
-    secondary: 'bg-surface-2 hover:bg-zinc-800 text-text border-border hover:border-zinc-500 focus:ring-zinc-400',
-    accent: 'bg-white text-black border-white hover:bg-zinc-200 focus:ring-white',
-    danger: 'bg-surface-2 text-white border-zinc-600 hover:bg-white hover:text-black hover:border-white focus:ring-white',
-    outline: 'bg-transparent text-text border-border hover:border-text hover:bg-surface-2 focus:ring-zinc-400',
-    ghost: 'bg-transparent hover:bg-surface-2 text-muted hover:text-text border-transparent hover:border-border focus:ring-zinc-500',
+    primary: 'bg-[#D9A441] hover:bg-[#F0D79A] text-[#0A0B0E] border-transparent font-semibold shadow-md',
+    secondary: 'bg-[#101216] hover:bg-[#171A20] text-[#ECE6D8] border-[#262A33] hover:border-[#6b6455]',
+    accent: 'bg-[#D9A441] hover:bg-[#F0D79A] text-[#0A0B0E] border-transparent font-semibold shadow-md',
+    danger: 'bg-[#171A20] text-[#fca5a5] border-[#B3363B]/60 hover:bg-[#B3363B] hover:text-white hover:border-[#B3363B]',
+    outline: 'bg-transparent text-[#ECE6D8] border-[#6b6455] hover:border-[#D9A441] hover:text-[#ECE6D8]',
+    ghost: 'bg-transparent hover:bg-[#171A20] text-[#A39D90] hover:text-[#ECE6D8] border-transparent hover:border-[#262A33]',
   };
 
   return (
@@ -83,9 +83,11 @@ export function Card({
   return (
     <div
       onClick={onClick}
-      className={`rounded-none border transition-colors ${
-        active ? 'border-white bg-surface-2' : 'border-border bg-surface'
-      } ${onClick ? 'cursor-pointer hover:border-zinc-500' : ''} ${className}`}
+      className={`rounded-[4px] border transition-colors ${
+        active
+          ? 'border-[#D9A441] bg-[#171A20] shadow-[0_0_15px_rgba(217,164,65,0.2)]'
+          : 'border-[#262A33] bg-[#101216]'
+      } ${onClick ? 'cursor-pointer hover:border-[#6b6455]' : ''} ${className}`}
     >
       {children}
     </div>
@@ -102,20 +104,20 @@ export function Badge({
   className?: string;
 }) {
   const colorMap = {
-    mafia: 'bg-surface-2 text-white border-zinc-500',
-    doctor: 'bg-surface-2 text-zinc-200 border-zinc-600',
-    police: 'bg-surface-2 text-zinc-100 border-zinc-400',
-    vigilante: 'bg-surface-2 text-zinc-300 border-zinc-600',
-    jester: 'bg-surface-2 text-zinc-200 border-zinc-500',
-    civilian: 'bg-surface-2 text-zinc-400 border-zinc-700',
-    god: 'bg-white text-black border-white',
-    amber: 'bg-surface-2 text-zinc-100 border-zinc-400',
-    muted: 'bg-surface-2 text-muted border-border',
+    mafia: 'bg-[#171A20] text-[#fca5a5] border-[#B3363B]/60',
+    doctor: 'bg-[#171A20] text-[#a7f3d0] border-[#5E8C7B]/60',
+    police: 'bg-[#171A20] text-[#93c5fd] border-[#5B7FA6]/60',
+    vigilante: 'bg-[#171A20] text-[#fed7aa] border-[#C9A86A]/60',
+    jester: 'bg-[#171A20] text-[#e9d5ff] border-[#8C6FA0]/60',
+    civilian: 'bg-[#171A20] text-[#ECE6D8] border-[#262A33]',
+    god: 'bg-[#D9A441] text-[#0A0B0E] border-transparent font-bold',
+    amber: 'bg-[#171A20] text-[#D9A441] border-[#D9A441]/50',
+    muted: 'bg-[#101216] text-[#A39D90] border-[#262A33]',
   };
 
   return (
     <span
-      className={`inline-flex items-center px-2 py-0.5 rounded-none text-[11px] font-sans font-medium border ${colorMap[color]} ${className}`}
+      className={`inline-flex items-center px-2 py-0.5 rounded-[3px] text-[11px] font-sans font-medium border ${colorMap[color]} ${className}`}
     >
       {children}
     </span>
@@ -137,14 +139,14 @@ export function Chip({
     <button
       type="button"
       onClick={onClick}
-      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-none text-xs font-sans border transition-colors ${
+      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-[4px] text-xs font-sans border transition-colors ${
         active
-          ? 'bg-white text-black border-white'
-          : 'bg-surface text-muted border-border hover:border-zinc-500 hover:text-text'
+          ? 'bg-[#D9A441] text-[#0A0B0E] border-[#D9A441] font-semibold'
+          : 'bg-[#101216] text-[#A39D90] border-[#262A33] hover:border-[#6b6455] hover:text-[#ECE6D8]'
       }`}
     >
       <span>{label}</span>
-      {value !== undefined && <span className="opacity-70">({value})</span>}
+      {value !== undefined && <span className="opacity-75">({value})</span>}
     </button>
   );
 }
@@ -165,11 +167,13 @@ export function Switch({
       aria-checked={checked}
       disabled={disabled}
       onClick={() => onChange(!checked)}
-      className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-none border border-border transition-colors duration-150 focus:outline-none focus:ring-1 focus:ring-white disabled:opacity-40 bg-surface-2`}
+      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border transition-colors duration-200 focus:outline-none focus:ring-1 focus:ring-[#D9A441] disabled:opacity-40 ${
+        checked ? 'bg-[#D9A441] border-[#D9A441]' : 'bg-[#171A20] border-[#262A33]'
+      }`}
     >
       <span
-        className={`pointer-events-none inline-block h-3.5 w-3.5 mt-0.5 rounded-none transition-transform duration-150 ${
-          checked ? 'translate-x-5 bg-white' : 'translate-x-0.5 bg-zinc-600'
+        className={`pointer-events-none inline-block h-4 w-4 mt-0.5 rounded-full shadow transition-transform duration-200 ${
+          checked ? 'translate-x-5 bg-[#0A0B0E]' : 'translate-x-1 bg-[#A39D90]'
         }`}
       />
     </button>
@@ -192,21 +196,23 @@ export function Stepper({
   disabled?: boolean;
 }) {
   return (
-    <div className="inline-flex items-center rounded-none border border-border bg-surface-2">
+    <div className="inline-flex items-center rounded-[4px] border border-[#262A33] bg-[#101216]">
       <button
         type="button"
         disabled={disabled || value <= min}
         onClick={() => onChange(Math.max(min, value - step))}
-        className="w-7 h-7 flex items-center justify-center text-text hover:bg-zinc-800 rounded-none disabled:opacity-30 font-mono text-sm"
+        className="w-8 h-8 flex items-center justify-center text-[#ECE6D8] hover:bg-[#171A20] hover:text-[#D9A441] rounded-l-[3px] disabled:opacity-30 font-mono text-sm transition-colors"
       >
         -
       </button>
-      <span className="w-8 text-center text-xs font-mono font-semibold text-text border-x border-border">{value}</span>
+      <span className="w-9 text-center font-mono text-sm font-bold text-[#D9A441] border-x border-[#262A33]">
+        {value}
+      </span>
       <button
         type="button"
         disabled={disabled || value >= max}
         onClick={() => onChange(Math.min(max, value + step))}
-        className="w-7 h-7 flex items-center justify-center text-text hover:bg-zinc-800 rounded-none disabled:opacity-30 font-mono text-sm"
+        className="w-8 h-8 flex items-center justify-center text-[#ECE6D8] hover:bg-[#171A20] hover:text-[#D9A441] rounded-r-[3px] disabled:opacity-30 font-mono text-sm transition-colors"
       >
         +
       </button>
@@ -345,12 +351,14 @@ export function Modal({
   isOpen,
   onClose,
   title,
+  subtitle,
   children,
   maxWidth = 'max-w-md',
 }: {
   isOpen: boolean;
   onClose: () => void;
   title?: string;
+  subtitle?: string;
   children: ReactNode;
   maxWidth?: string;
 }) {
@@ -363,23 +371,34 @@ export function Modal({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-black/85"
+            className="fixed inset-0 bg-black/85 backdrop-blur-sm"
           />
           <motion.div
-            initial={{ opacity: 0, scale: 0.98 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.98 }}
-            className={`relative z-10 w-full ${maxWidth} bg-surface border border-border rounded-none p-6 shadow-2xl`}
+            initial={{ opacity: 0, scale: 0.96, y: 8 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.96, y: 8 }}
+            className={`relative z-10 w-full ${maxWidth} bg-[#101216] border border-[#262A33] rounded-[6px] p-6 sm:p-7 shadow-[0_24px_64px_rgba(0,0,0,0.85)] text-[#ECE6D8] font-sans`}
           >
-            <div className="flex items-center justify-between pb-3 border-b border-border mb-4">
-              {title && <h3 className="text-sm font-sans font-bold text-text">{title}</h3>}
+            <div className="flex items-start justify-between pb-3.5 border-b border-[#262A33] mb-5">
+              <div>
+                {title && (
+                  <h3 className="d text-2xl sm:text-3xl font-extrabold tracking-[2px] uppercase text-[#ECE6D8] leading-tight">
+                    {title}
+                  </h3>
+                )}
+                {subtitle && (
+                  <p className="t text-xs text-[#A39D90] mt-1 tracking-wide">
+                    {subtitle}
+                  </p>
+                )}
+              </div>
               <button
                 type="button"
                 onClick={onClose}
-                className="p-1 rounded-none text-muted hover:text-text hover:bg-surface-2 border border-transparent hover:border-border transition-colors ml-auto"
+                className="w-9 h-9 flex items-center justify-center rounded-[4px] bg-transparent text-[#A39D90] hover:text-[#ECE6D8] border border-[#262A33] hover:border-[#6b6455] transition-colors ml-auto text-xl"
                 aria-label="Close dialog"
               >
-                <X className="w-4 h-4" />
+                ×
               </button>
             </div>
             {children}
@@ -544,3 +563,125 @@ export function TimerRing({
     </div>
   );
 }
+
+export function IconButton({
+  children,
+  onClick,
+  ariaLabel,
+  className = '',
+}: {
+  children: ReactNode;
+  onClick?: () => void;
+  ariaLabel?: string;
+  className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={ariaLabel}
+      className={`hb flex items-center justify-center hover:border-bone transition-colors ${className}`}
+    >
+      {children}
+    </button>
+  );
+}
+
+export function PaperCard({
+  children,
+  borderColor = '#B3363B',
+  className = '',
+}: {
+  children: ReactNode;
+  borderColor?: string;
+  className?: string;
+}) {
+  return (
+    <div
+      className={`p-5 rounded-[4px] shadow-2xl ${className}`}
+      style={{
+        background: '#ECE6D8',
+        color: '#15130f',
+        borderTop: `6px solid ${borderColor}`,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+export function RedactionBar({
+  width = '80%',
+  className = '',
+}: {
+  width?: string;
+  className?: string;
+}) {
+  return (
+    <div
+      className={`h-4 bg-[#0A0B0E] rounded-[1px] ${className}`}
+      style={{ width }}
+      aria-hidden="true"
+    />
+  );
+}
+
+export function PhaseTitle({
+  children,
+  className = '',
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={`d text-3xl sm:text-[46px] font-extrabold tracking-[4px] uppercase text-[#ECE6D8] ${className}`}>
+      {children}
+    </div>
+  );
+}
+
+export function NarratorLine({
+  children,
+  className = '',
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={`t text-base sm:text-[21px] text-[#A39D90] text-center ${className}`}>
+      {children}
+    </div>
+  );
+}
+
+export function VoteToken({
+  voterColor = '#B3363B',
+  className = '',
+}: {
+  voterColor?: string;
+  className?: string;
+}) {
+  return (
+    <span
+      className={`inline-block w-[22px] h-[22px] rounded-full bg-[#D9A441] border-[3px] box-border ${className}`}
+      style={{ borderColor: voterColor }}
+    />
+  );
+}
+
+export function LampCone({
+  className = '',
+}: {
+  className?: string;
+}) {
+  return (
+    <div
+      className={`pointer-events-none absolute left-1/2 -translate-x-1/2 top-0 w-[640px] h-[700px] z-0 ${className}`}
+      style={{
+        background: 'radial-gradient(ellipse 60% 70% at 50% 0%, rgba(217,164,65,.24), transparent 70%)',
+      }}
+      aria-hidden="true"
+    />
+  );
+}
+
