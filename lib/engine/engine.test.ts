@@ -45,6 +45,30 @@ describe('Mafia Engine: Rules & Validation', () => {
       },
     };
     expect(validateSettings(validSettings, 5).valid).toBe(true);
+
+    // 3 Mafia requires at least 7 players (2 * 3 + 1 = 7)
+    const settings3Mafia = {
+      ...DEFAULT_SETTINGS,
+      roles: {
+        ...DEFAULT_SETTINGS.roles,
+        mafia: { count: 3 },
+        godfather: { enabled: false, count: 0 },
+        doctor: { enabled: true, count: 1 },
+        police: { enabled: true, count: 1 },
+      },
+    };
+    const val3Mafia1 = validateSettings(settings3Mafia, 1);
+    expect(val3Mafia1.valid).toBe(false);
+    expect(val3Mafia1.reason).toContain('Need at least 7 players for 3 Mafia');
+
+    // 6 players with 3 mafia fails (3 mafia vs 3 town is parity)
+    const val3Mafia6 = validateSettings(settings3Mafia, 6);
+    expect(val3Mafia6.valid).toBe(false);
+    expect(val3Mafia6.reason).toContain('Need at least 7 players for 3 Mafia');
+
+    // 7 players with 3 mafia succeeds
+    const val3Mafia7 = validateSettings(settings3Mafia, 7);
+    expect(val3Mafia7.valid).toBe(true);
   });
 
   it('assigns roles cleanly without leaking duplicates', () => {

@@ -5,14 +5,6 @@ export function validateSettings(settings: Settings, playerCount: number): { val
   const isGodMode = settings.moderatorMode === 'god';
   const effectivePlayingCount = isGodMode ? Math.max(0, playerCount - 1) : playerCount;
 
-  if (effectivePlayingCount < 4) {
-    return {
-      valid: false,
-      reason: isGodMode
-        ? `Need at least 4 active players excluding the God Narrator (currently ${effectivePlayingCount})`
-        : `Need at least 4 players to start (currently ${playerCount})`,
-    };
-  }
   if (playerCount > settings.maxPlayers) {
     return { valid: false, reason: `Room exceeds max player limit (${playerCount}/${settings.maxPlayers})` };
   }
@@ -26,6 +18,46 @@ export function validateSettings(settings: Settings, playerCount: number): { val
     return { valid: false, reason: 'At least 1 Mafia member is required' };
   }
 
+  const doctorCount = roles.doctor.enabled ? roles.doctor.count : 0;
+  const policeCount = roles.police.enabled ? roles.police.count : 0;
+  const vigilanteCount = roles.vigilante.enabled ? roles.vigilante.count : 0;
+  const jesterCount = roles.jester.enabled ? roles.jester.count : 0;
+
+  const totalSpecial = totalMafia + doctorCount + policeCount + vigilanteCount + jesterCount;
+
+  // Minimum required active playing players:
+  // 1. Baseline game rule: at least 4 active players
+  // 2. Mafia ratio rule: Town must strictly outnumber Mafia at match start (totalMafia < active / 2 => active >= 2 * totalMafia + 1)
+  // 3. Special roles rule: Every configured special role requires a distinct player (active >= totalSpecial)
+  const minForMafiaBalance = 2 * totalMafia + 1;
+  const minRequiredActive = Math.max(4, totalSpecial, minForMafiaBalance);
+  const minTotalPlayers = isGodMode ? minRequiredActive + 1 : minRequiredActive;
+
+  if (effectivePlayingCount < minRequiredActive) {
+    if (minRequiredActive === minForMafiaBalance && minForMafiaBalance > 4) {
+      return {
+        valid: false,
+        reason: isGodMode
+          ? `Need at least ${minTotalPlayers} players (${minRequiredActive} active) for ${totalMafia} Mafia (currently ${playerCount})`
+          : `Need at least ${minRequiredActive} players for ${totalMafia} Mafia (currently ${playerCount})`,
+      };
+    }
+    if (minRequiredActive === totalSpecial && totalSpecial > 4) {
+      return {
+        valid: false,
+        reason: isGodMode
+          ? `Need at least ${minTotalPlayers} players (${totalSpecial} active) for ${totalSpecial} assigned roles (currently ${playerCount})`
+          : `Need at least ${totalSpecial} players for ${totalSpecial} assigned roles (currently ${playerCount})`,
+      };
+    }
+    return {
+      valid: false,
+      reason: isGodMode
+        ? `Need at least 4 active players excluding the God Narrator (currently ${effectivePlayingCount})`
+        : `Need at least 4 players to start (currently ${playerCount})`,
+    };
+  }
+
   if (totalMafia >= Math.ceil(effectivePlayingCount / 2)) {
     return {
       valid: false,
@@ -33,12 +65,6 @@ export function validateSettings(settings: Settings, playerCount: number): { val
     };
   }
 
-  const doctorCount = roles.doctor.enabled ? roles.doctor.count : 0;
-  const policeCount = roles.police.enabled ? roles.police.count : 0;
-  const vigilanteCount = roles.vigilante.enabled ? roles.vigilante.count : 0;
-  const jesterCount = roles.jester.enabled ? roles.jester.count : 0;
-
-  const totalSpecial = totalMafia + doctorCount + policeCount + vigilanteCount + jesterCount;
   if (totalSpecial > effectivePlayingCount) {
     return {
       valid: false,

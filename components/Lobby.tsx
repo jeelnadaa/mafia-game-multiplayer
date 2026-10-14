@@ -81,7 +81,10 @@ export function Lobby({
   const copTotal = settings.roles.police.enabled ? settings.roles.police.count : 0;
   const vigTotal = settings.roles.vigilante.enabled ? settings.roles.vigilante.count : 0;
   const jesterTotal = settings.roles.jester.enabled ? settings.roles.jester.count : 0;
-  const civTotal = Math.max(0, playingCount - (mafiaTotal + docTotal + copTotal + vigTotal + jesterTotal));
+  const specialTotal = mafiaTotal + docTotal + copTotal + vigTotal + jesterTotal;
+  const minPlayersNeeded = Math.max(4, specialTotal, 2 * mafiaTotal + 1);
+  const displayTotal = Math.max(playingCount, minPlayersNeeded);
+  const civTotal = Math.max(0, displayTotal - specialTotal);
 
   const shareUrl = getRoomShareUrl(gameView.code);
 
@@ -407,16 +410,30 @@ export function Lobby({
                   <div className="flex items-center justify-between text-xs md:text-sm">
                     <span className="font-semibold text-text">Composition:</span>
                     <span className="text-muted">
-                      {playingCount} Players: {mafiaTotal} Mafia · {docTotal} Doctor · {copTotal} Police · {civTotal} Civilians
+                      {playingCount < minPlayersNeeded ? (
+                        <>
+                          <strong className="text-white font-mono">{mafiaTotal} Mafia</strong>
+                          {docTotal > 0 && ` · ${docTotal} Doctor`}
+                          {copTotal > 0 && ` · ${copTotal} Police`}
+                          {vigTotal > 0 && ` · ${vigTotal} Vigilante`}
+                          {jesterTotal > 0 && ` · ${jesterTotal} Jester`}
+                          {civTotal > 0 && ` · ${civTotal} Civilians`}
+                          <span className="ml-1.5 text-amber-400 font-medium">
+                            (Requires min {minPlayersNeeded} players · currently {playingCount})
+                          </span>
+                        </>
+                      ) : (
+                        `${playingCount} Players: ${mafiaTotal} Mafia · ${docTotal} Doctor · ${copTotal} Police · ${civTotal} Civilians`
+                      )}
                     </span>
                   </div>
                   <div className="h-3 w-full bg-surface-2 border border-border overflow-hidden flex">
-                    <div style={{ width: `${(mafiaTotal / Math.max(1, playingCount)) * 100}%` }} className="bg-white h-full" />
-                    <div style={{ width: `${(docTotal / Math.max(1, playingCount)) * 100}%` }} className="bg-zinc-400 h-full" />
-                    <div style={{ width: `${(copTotal / Math.max(1, playingCount)) * 100}%` }} className="bg-zinc-500 h-full" />
-                    <div style={{ width: `${(vigTotal / Math.max(1, playingCount)) * 100}%` }} className="bg-zinc-600 h-full" />
-                    <div style={{ width: `${(jesterTotal / Math.max(1, playingCount)) * 100}%` }} className="bg-zinc-700 h-full" />
-                    <div style={{ width: `${(civTotal / Math.max(1, playingCount)) * 100}%` }} className="bg-zinc-800 h-full" />
+                    <div style={{ width: `${(mafiaTotal / displayTotal) * 100}%` }} className="bg-white h-full" title={`${mafiaTotal} Mafia`} />
+                    <div style={{ width: `${(docTotal / displayTotal) * 100}%` }} className="bg-zinc-400 h-full" title={`${docTotal} Doctor`} />
+                    <div style={{ width: `${(copTotal / displayTotal) * 100}%` }} className="bg-zinc-500 h-full" title={`${copTotal} Police`} />
+                    <div style={{ width: `${(vigTotal / displayTotal) * 100}%` }} className="bg-zinc-600 h-full" title={`${vigTotal} Vigilante`} />
+                    <div style={{ width: `${(jesterTotal / displayTotal) * 100}%` }} className="bg-zinc-700 h-full" title={`${jesterTotal} Jester`} />
+                    <div style={{ width: `${(civTotal / displayTotal) * 100}%` }} className="bg-zinc-800 h-full" title={`${civTotal} Civilians`} />
                   </div>
                 </div>
 
