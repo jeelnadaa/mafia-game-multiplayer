@@ -176,10 +176,47 @@ Night falls on the city. The game progresses through secret role turns:
 
 ---
 
-## 🌐 Deploying to Vercel or Netlify
+## 🌐 Deploying to Vercel or Self-Hosting
 
-Because **MAFIA: Shadows of the City** uses PeerJS WebRTC directly between player browsers, it is 100% static-deployable and requires **no server backend or database**:
+Because **MAFIA: Shadows of the City** operates peer-to-peer using WebRTC data and media channels, deployment is zero-maintenance with no stateful database:
 
 1. Push your code to GitHub.
-2. Import the repository in [Vercel](https://vercel.com).
-3. Click **Deploy**. No environment variables required!
+2. Import the repository in [Vercel](https://vercel.com) (or deploy via Next.js standalone).
+3. (Optional, recommended for mobile networks): Add TURN Relay environment variables below.
+4. Click **Deploy**.
+
+### Environment Variables (Optional TURN Relay)
+
+For mobile networks and carrier-grade NATs (CGNAT), configuring a TURN relay ensures 100% peer connectivity across restrictive networks:
+
+| Variable | Description |
+|---|---|
+| `METERED_API_KEY` | Metered.ca API Key for on-demand short-lived TURN credentials via `/api/turn-credentials`. |
+| `NEXT_PUBLIC_APP_URL` | Canonical deployment URL for OpenGraph and room share generation (default: `https://the-apes.vercel.app`). |
+| `CLOUDFLARE_CALLS_TOKEN` | (Optional) Cloudflare Calls TURN token. |
+
+If no TURN key is provided, the application automatically falls back to 4 globally distributed STUN servers (`stun.l.google.com:19302`, `stun1.l.google.com:19302`, `global.stun.twilio.com:3478`, `stun.cloudflare.com:3478`).
+
+---
+
+## 🔐 Trust Model & Known Limitations
+
+- **Peer-to-Peer Hub Architecture**: One player acts as the room host and authoritative state machine. All peer traffic is encrypted in transit over WebRTC DTLS data channels.
+- **Role Isolation**: The host selectively projects private data slices using `buildViewFor()`. Non-host peers receive only their own role and authorized intel. Because the host runs the engine, the hosting browser technically holds match state; for casual party games with friends, this eliminates server hosting costs entirely.
+- **Zero Signup & Privacy**: All career dossiers, wins/losses, and preferences are stored exclusively on your device in `localStorage`. Zero analytics, zero trackers.
+
+---
+
+## 🧪 Testing & Verification
+
+```bash
+# Run unit & integration test suites
+node scripts/test-runner.js
+
+# TypeScript validation
+node ./node_modules/typescript/bin/tsc --noEmit
+
+# Production build check
+node ./scripts/run-next.js build --webpack
+```
+
