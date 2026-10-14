@@ -130,6 +130,7 @@ export interface GameState {
   secretLog: SecretLogEntry[];
   chat: ChatMessage[];
   winner?: 'town' | 'mafia' | 'jester';
+  voiceMuted?: Record<string, boolean>;
 }
 
 
@@ -198,6 +199,7 @@ export interface ClientGameView {
   suspicions?: Record<string, string>;
   suspicionCounts?: Record<string, number>;
   reactions?: Record<string, { reaction: string; timestamp: number }>;
+  voiceMuted?: Record<string, boolean>;
 }
 
 export type QuickReaction = 'suspicious' | 'agree' | 'nope' | 'same' | 'trust' | 'question';
@@ -222,6 +224,7 @@ export type IntentType =
   | 'setSuspicion'
   | 'clearSuspicion'
   | 'sendReaction'
+  | 'voiceMute'
   | 'godAction'
   | 'rematch'
   | 'leave'

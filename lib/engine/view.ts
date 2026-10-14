@@ -203,6 +203,7 @@ export function buildViewFor(state: GameState, observerId: string, now: number):
     suspicions: state.suspicions,
     suspicionCounts,
     reactions: recentReactions,
+    voiceMuted: state.voiceMuted,
   };
 }
 

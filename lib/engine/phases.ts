@@ -331,7 +331,7 @@ export function getSubPhaseDuration(
 }
 
 export function maybeAdvance(state: GameState, now: number, rng: () => number): GameState {
-  if (state.paused || !state.phaseEndsAt || now < state.phaseEndsAt || state.winner) {
+  if (state.paused || state.phase === 'gameOver' || !state.phaseEndsAt || now < state.phaseEndsAt) {
     return state;
   }
 
@@ -552,7 +552,7 @@ export function maybeAdvance(state: GameState, now: number, rng: () => number): 
         log: newLogs,
         chat: newChat.slice(-149),
         phase: 'voteResult',
-        phaseEndsAt: now + 6000, // 6s result banner
+        phaseEndsAt: now + (winner ? 3500 : 5000), // Show verdict then smoothly advance
         revotePending: false,
         version: state.version + 1,
       };

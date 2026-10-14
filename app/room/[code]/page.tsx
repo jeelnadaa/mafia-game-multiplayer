@@ -13,6 +13,7 @@ import { HelpSheet, HelpTab } from '@/components/HelpSheet';
 import { CircleSittingArena } from '@/components/CircleSittingArena';
 import { RoleReveal } from '@/components/RoleReveal';
 import { DawnAnnouncement } from '@/components/DawnAnnouncement';
+import { VoiceOverlay } from '@/components/VoiceOverlay';
 import { Button, Avatar } from '@/components/ui';
 import { AlertCircle, RotateCcw, Moon } from 'lucide-react';
 import { useShortcut } from '@/lib/shortcuts';
@@ -373,6 +374,7 @@ export default function RoomPage() {
   }
 
   const { phase, me } = gameView;
+  const isMatchEnded = phase === 'gameOver' || Boolean(gameView.winner);
 
   return (
     <div className="min-h-screen flex flex-col text-text bg-transparent relative">
@@ -406,122 +408,122 @@ export default function RoomPage() {
         onToggleVoiceMute={toggleVoiceMute}
       />
 
+      {/* Discord-style Gaming Voice Overlay on Left Side */}
+      <VoiceOverlay
+        gameView={gameView}
+        isVoiceActive={isVoiceActive}
+        isVoiceMuted={isVoiceMuted}
+        onToggleVoice={toggleVoice}
+        onToggleVoiceMute={toggleVoiceMute}
+        speakingPeers={speakingPeers}
+      />
+
       {/* Main Game Screen Routing */}
       <main className="flex-1 flex flex-col">
-        {/* God Mode Override Screen */}
-        {me?.isGod && phase !== 'lobby' && (
-          <God
+        {/* Match Finished Screen: Shows who won and full docket directly without sitting deck or scrolling */}
+        {isMatchEnded ? (
+          <End
             gameView={gameView}
-            onGodAction={(action) => sendIntent('godAction', { action })}
+            isHost={isHost}
+            onRematch={() => sendIntent('rematch')}
+            onLeave={handleLeaveRoom}
+            onSendChat={(channel, text) => sendChat(channel, text)}
           />
-        )}
-
-        {/* Regular Player Screen by Phase */}
-        {(!me?.isGod || phase === 'lobby') && (
+        ) : (
           <>
-            {phase === 'lobby' && (
-              <Lobby
+            {/* God Mode Override Screen */}
+            {me?.isGod && phase !== 'lobby' && (
+              <God
                 gameView={gameView}
-                isHost={isHost}
-                onStart={startMatch}
-                onToggleReady={toggleReady}
-                onKick={kickPlayer}
-                onBan={banPlayer}
-                onToggleLockRoom={toggleLockRoom}
-                onToggleGod={setGodMode}
-                onUpdateSettings={updateSettings}
-                onUpdateProfile={(profile) => {
-                  handleSaveProfile(profile.name || name, profile.avatar);
-                  updateProfile(profile);
-                }}
-                onSendChat={(channel, text) => sendChat(channel, text)}
-                onAddBots={addBots}
-                onClearBots={clearBots}
-                isVoiceActive={isVoiceActive}
-                isVoiceMuted={isVoiceMuted}
-                onToggleVoice={toggleVoice}
-                onToggleVoiceMute={toggleVoiceMute}
-                speakingPeers={speakingPeers}
+                onGodAction={(action) => sendIntent('godAction', { action })}
               />
             )}
 
-            {/* ROLE REVEAL SCREEN: Press-and-hold confidential dossier */}
-            {phase === 'roleReveal' && (
-              <RoleReveal
-                gameView={gameView}
-                onConfirmReady={toggleReady}
-              />
-            )}
+            {/* Regular Player Screen by Phase */}
+            {(!me?.isGod || phase === 'lobby') && (
+              <>
+                {phase === 'lobby' && (
+                  <Lobby
+                    gameView={gameView}
+                    isHost={isHost}
+                    onStart={startMatch}
+                    onToggleReady={toggleReady}
+                    onKick={kickPlayer}
+                    onBan={banPlayer}
+                    onToggleLockRoom={toggleLockRoom}
+                    onToggleGod={setGodMode}
+                    onUpdateSettings={updateSettings}
+                    onUpdateProfile={(profile) => {
+                      handleSaveProfile(profile.name || name, profile.avatar);
+                      updateProfile(profile);
+                    }}
+                    onSendChat={(channel, text) => sendChat(channel, text)}
+                    onAddBots={addBots}
+                    onClearBots={clearBots}
+                    isVoiceActive={isVoiceActive}
+                    isVoiceMuted={isVoiceMuted}
+                    onToggleVoice={toggleVoice}
+                    onToggleVoiceMute={toggleVoiceMute}
+                    speakingPeers={speakingPeers}
+                  />
+                )}
 
-            {/* DAWN ANNOUNCEMENT SCREEN: Sequenced morning casualties & saves report */}
-            {phase === 'morning' && (
-              <DawnAnnouncement
-                gameView={gameView}
-                onProceed={() => sendIntent('godAction', { action: 'next' })}
-              />
-            )}
+                {/* ROLE REVEAL SCREEN: Press-and-hold confidential dossier */}
+                {phase === 'roleReveal' && (
+                  <RoleReveal
+                    gameView={gameView}
+                    onConfirmReady={toggleReady}
+                  />
+                )}
 
-            {/* CIRCLE SITTING ARENA: 3D Round Table Seating Mode */}
-            {gameView.settings?.circleSitting &&
-              phase !== 'lobby' &&
-              phase !== 'roleReveal' &&
-              phase !== 'morning' &&
-              phase !== 'gameOver' && (
-                <CircleSittingArena
-                  gameView={gameView}
-                  onNightAction={(targetId) => sendIntent('nightAction', { targetId })}
-                  onConfirmNightAction={(targetId) => sendIntent('confirmNightAction', { targetId })}
-                  onVote={(targetId) => sendIntent('vote', { targetId })}
-                  onReadyToVote={() => sendIntent('readyToVote')}
-                  onSendChat={(channel, text) => sendChat(channel, text)}
-                  onOpenHelp={handleOpenHelp}
-                  onSetSuspicion={setSuspicion}
-                  onClearSuspicion={clearSuspicion}
-                  onSendReaction={sendReaction}
-                />
-              )}
+                {/* DAWN ANNOUNCEMENT SCREEN: Sequenced morning casualties & saves report */}
+                {phase === 'morning' && (
+                  <DawnAnnouncement
+                    gameView={gameView}
+                    onProceed={() => sendIntent('godAction', { action: 'next' })}
+                  />
+                )}
 
-            {/* STANDARD MODE: Night & Day separate views */}
-            {!gameView.settings?.circleSitting && phase === 'night' && (
-              <Night
-                gameView={gameView}
-                onNightAction={(targetId) => sendIntent('nightAction', { targetId })}
-                onConfirmNightAction={(targetId) => sendIntent('confirmNightAction', { targetId })}
-                onSendChat={(channel, text) => sendChat(channel, text)}
-                onOpenHelp={handleOpenHelp}
-              />
-            )}
+                {/* CIRCLE SITTING ARENA: 3D Round Table Seating Mode */}
+                {gameView.settings?.circleSitting &&
+                  phase !== 'lobby' &&
+                  phase !== 'roleReveal' &&
+                  phase !== 'morning' && (
+                    <CircleSittingArena
+                      gameView={gameView}
+                      onNightAction={(targetId) => sendIntent('nightAction', { targetId })}
+                      onConfirmNightAction={(targetId) => sendIntent('confirmNightAction', { targetId })}
+                      onVote={(targetId) => sendIntent('vote', { targetId })}
+                      onReadyToVote={() => sendIntent('readyToVote')}
+                      onSendChat={(channel, text) => sendChat(channel, text)}
+                      onOpenHelp={handleOpenHelp}
+                      onSetSuspicion={setSuspicion}
+                      onClearSuspicion={clearSuspicion}
+                      onSendReaction={sendReaction}
+                    />
+                  )}
 
-            {!gameView.settings?.circleSitting &&
-              (phase === 'discussion' || phase === 'voting' || phase === 'voteResult') && (
-                <Day
-                  gameView={gameView}
-                  onVote={(targetId) => sendIntent('vote', { targetId })}
-                  onReadyToVote={() => sendIntent('readyToVote')}
-                  onSendChat={(channel, text) => sendChat(channel, text)}
-                />
-              )}
+                {/* STANDARD MODE: Night & Day separate views */}
+                {!gameView.settings?.circleSitting && phase === 'night' && (
+                  <Night
+                    gameView={gameView}
+                    onNightAction={(targetId) => sendIntent('nightAction', { targetId })}
+                    onConfirmNightAction={(targetId) => sendIntent('confirmNightAction', { targetId })}
+                    onSendChat={(channel, text) => sendChat(channel, text)}
+                    onOpenHelp={handleOpenHelp}
+                  />
+                )}
 
-
-            {phase === 'gameOver' && (
-              <End
-                gameView={gameView}
-                isHost={isHost}
-                onRematch={() => sendIntent('rematch')}
-                onLeave={handleLeaveRoom}
-                onSendChat={(channel, text) => sendChat(channel, text)}
-              />
-            )}
-
-            {/* Graveyard Lounge for dead players during active phases */}
-            {!me?.alive && phase !== 'lobby' && phase !== 'gameOver' && (
-              <End
-                gameView={gameView}
-                isHost={isHost}
-                onRematch={() => {}}
-                onLeave={handleLeaveRoom}
-                onSendChat={(channel, text) => sendChat(channel, text)}
-              />
+                {!gameView.settings?.circleSitting &&
+                  (phase === 'discussion' || phase === 'voting' || phase === 'voteResult') && (
+                    <Day
+                      gameView={gameView}
+                      onVote={(targetId) => sendIntent('vote', { targetId })}
+                      onReadyToVote={() => sendIntent('readyToVote')}
+                      onSendChat={(channel, text) => sendChat(channel, text)}
+                    />
+                  )}
+              </>
             )}
           </>
         )}

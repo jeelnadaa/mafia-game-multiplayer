@@ -63,6 +63,10 @@ export function TopBar({
     enabled: Boolean(isHost && isPlayingActivePhase),
     scope: 'screen',
   });
+  useShortcut('Shift+M', () => {
+    if (isVoiceActive) onToggleVoiceMute?.();
+    else onToggleVoice?.();
+  }, { scope: 'screen' });
 
   const handleCopyCode = () => {
     if (typeof navigator !== 'undefined') {
@@ -282,6 +286,30 @@ export function TopBar({
               <HelpCircle className="w-4 h-4" />
               <span className="hidden md:inline">Guide</span>
               <Kbd>H</Kbd>
+            </button>
+
+            {/* Dedicated Quick Mic Toggle Button */}
+            <button
+              type="button"
+              onClick={isVoiceActive ? onToggleVoiceMute : onToggleVoice}
+              title={isVoiceActive ? (isVoiceMuted ? 'Unmute Mic (Shift+M)' : 'Mute Mic (Shift+M)') : 'Join Voice Chat (Shift+M)'}
+              className={`p-2 rounded-none border transition-colors flex items-center justify-center ${
+                isVoiceActive
+                  ? isVoiceMuted
+                    ? 'bg-amber-950/40 border-amber-500/50 text-amber-400 hover:text-amber-300'
+                    : 'bg-emerald-950/40 border-emerald-500/50 text-emerald-400 hover:text-emerald-300'
+                  : 'bg-surface-2 hover:bg-zinc-800 border-border text-muted hover:text-text'
+              }`}
+            >
+              {isVoiceActive ? (
+                isVoiceMuted ? (
+                  <MicOff className="w-4 h-4 text-amber-400" />
+                ) : (
+                  <Mic className="w-4 h-4 text-emerald-400 animate-pulse" />
+                )
+              ) : (
+                <Mic className="w-4 h-4 text-muted" />
+              )}
             </button>
 
             {/* Sound Toggle Button */}

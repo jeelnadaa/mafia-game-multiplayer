@@ -98,19 +98,38 @@ export function End({ gameView, isHost, onRematch, onLeave, onSendChat }: EndPro
     const playerStats = getPlayerStats();
     const achievements = getPlayerAchievements();
 
+    const myRole = me?.role;
+    const isTownRole = myRole === 'doctor' || myRole === 'police' || myRole === 'vigilante' || myRole === 'civilian';
+    const isMafiaRole = myRole === 'mafia' || myRole === 'godfather';
+    const didIWin =
+      (winner === 'town' && isTownRole) ||
+      (winner === 'mafia' && isMafiaRole) ||
+      (winner === 'jester' && myRole === 'jester');
+
     return (
-      <div className="w-full max-w-[1650px] 2xl:max-w-[1850px] mx-auto p-4 md:p-8 lg:p-10 space-y-6">
+      <div className="w-full max-w-[1650px] 2xl:max-w-[1850px] mx-auto p-3 sm:p-5 lg:p-6 space-y-4">
         {/* 16:9 Widescreen Grid on PC */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
           {/* Victory Headline Banner & Match Awards (4 cols on Desktop) */}
-          <div className="lg:col-span-4 bg-surface border border-border p-6 md:p-8 flex flex-col justify-between space-y-6">
-            <div className="space-y-4">
-              <div className="inline-flex items-center justify-center p-3.5 border border-border bg-surface-2 text-white">
-                <Trophy className="w-9 h-9" />
+          <div className="lg:col-span-4 bg-surface border border-border p-5 md:p-6 flex flex-col justify-between space-y-4">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="inline-flex items-center justify-center p-2.5 border border-border bg-surface-2 text-white">
+                  <Trophy className="w-7 h-7 text-amber-400" />
+                </div>
+                <span
+                  className={`px-2.5 py-1 text-xs font-mono font-bold uppercase tracking-wider border ${
+                    didIWin
+                      ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40'
+                      : 'bg-red-500/20 text-red-400 border-red-500/40'
+                  }`}
+                >
+                  {didIWin ? '★ YOU WON' : 'DEFEATED'}
+                </span>
               </div>
               <div>
-                <span className="text-xs text-muted">Match Concluded</span>
-                <h2 className="text-2xl md:text-3xl font-sans font-bold text-white mt-1 tracking-tight">
+                <span className="text-xs text-muted block">Match Concluded</span>
+                <h2 className="text-xl md:text-2xl font-sans font-bold text-white mt-0.5 tracking-tight">
                   {winner === 'town'
                     ? 'Town Prevails!'
                     : winner === 'mafia'
@@ -118,7 +137,7 @@ export function End({ gameView, isHost, onRematch, onLeave, onSendChat }: EndPro
                     : 'Jester Claims Victory!'}
                 </h2>
               </div>
-              <p className="text-sm text-muted leading-relaxed">
+              <p className="text-xs text-muted leading-relaxed">
                 {winner === 'town'
                   ? 'All members of the covert syndicate have been purged from the city. Order restored.'
                   : winner === 'mafia'

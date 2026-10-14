@@ -845,6 +845,13 @@ export function useRoom(
           break;
         }
 
+        case 'voiceMute': {
+          if (!nextState.voiceMuted) nextState.voiceMuted = {};
+          nextState.voiceMuted[playerId] = Boolean(payload?.muted);
+          nextState.version++;
+          break;
+        }
+
         case 'godAction': {
           if (!callingPlayer?.isHost && !callingPlayer?.isGod) return; // Host or Narrator only
 
@@ -1641,17 +1648,19 @@ export function useRoom(
             } catch (_) {}
           }
         }
+        sendIntent('voiceMute', { muted: voiceEngine.isMuted() });
         return { ok: true, active: true };
       }
       return res;
     }
-  }, [isHost, roomCode, gameView?.players.length]);
+  }, [isHost, roomCode, gameView?.players.length, sendIntent]);
 
   const toggleVoiceMute = useCallback(() => {
     const muted = voiceEngine.toggleSelfMute();
     setIsVoiceMuted(muted);
+    sendIntent('voiceMute', { muted });
     return muted;
-  }, []);
+  }, [sendIntent]);
 
   return {
     gameView,

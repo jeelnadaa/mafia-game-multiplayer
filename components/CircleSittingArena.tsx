@@ -22,6 +22,7 @@ import {
   Gavel,
   Search,
   FileText,
+  Trophy,
 } from 'lucide-react';
 import { ClientGameView, PlayerView, ChatChannel, ChatMessage, QuickReaction } from '@/lib/types';
 import { ROLES } from '@/lib/content';
@@ -469,7 +470,25 @@ export function CircleSittingArena({
               <div className="w-[180px] h-[180px] sm:w-[240px] sm:h-[240px] lg:w-[270px] lg:h-[270px] rounded-full border border-zinc-800/80 bg-zinc-950/60 flex flex-col items-center justify-center shadow-inner relative">
                 
                 {/* Center Mafia Seal / Phase Announcements */}
-                {phase === 'morning' ? (
+                {gameView.winner ? (
+                  <div className="text-center p-3 space-y-1 z-10 animate-in fade-in zoom-in duration-300">
+                    <Trophy className="w-7 h-7 text-amber-400 mx-auto animate-bounce" />
+                    <div className="text-[10px] font-mono tracking-widest text-amber-400 uppercase font-bold">
+                      {gameView.winner === 'mafia'
+                        ? 'MAFIA SYNDICATE WINS'
+                        : gameView.winner === 'town'
+                        ? 'TOWN PREVAILS'
+                        : 'JESTER WINS'}
+                    </div>
+                    <div className="text-xs font-bold text-white max-w-[210px]">
+                      {gameView.winner === 'mafia'
+                        ? 'Syndicate achieved parity over the town!'
+                        : gameView.winner === 'town'
+                        ? 'All mafia syndicate members eliminated!'
+                        : 'The Jester tricked town into execution!'}
+                    </div>
+                  </div>
+                ) : phase === 'morning' ? (
                   <div className="text-center p-3 space-y-1 z-10 animate-in fade-in zoom-in duration-300">
                     <Sun className="w-6 h-6 text-amber-400 mx-auto animate-pulse" />
                     <div className="text-[10px] font-mono tracking-widest text-amber-400 uppercase font-bold">
