@@ -296,22 +296,33 @@ export function HelpSheet({ isOpen, onClose, initialTab = 'basics', gameView }: 
               {/* Tab 3: Enabled Roles */}
               {activeTab === 'roles' && (
                 <div className="space-y-3">
-                  <div className="text-xs text-muted">
-                    All game roles:
-                  </div>
-                  {Object.values(ROLES)
-                    .filter((r) => r.id !== 'god')
-                    .map((r) => (
-                      <div key={r.id} className="p-3 bg-surface-2 border border-border rounded-none space-y-1">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-semibold text-text">{r.name}</span>
-                          <span className="text-[11px] capitalize px-2 py-0.5 border border-border bg-black text-white">
-                            {r.team}
-                          </span>
-                        </div>
-                        <p className="text-xs text-muted leading-relaxed">{r.summary}</p>
+                  {gameView?.settings?.revealRoleList === false ? (
+                    <div className="p-6 text-center border border-dashed border-border space-y-2">
+                      <div className="text-xs font-semibold text-text">Role Pool is Secret</div>
+                      <p className="text-xs text-muted">
+                        Room settings have concealed the active role roster. Use discussion and deduction to uncover roles!
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="text-xs text-muted">
+                        Active match roles and directives:
                       </div>
-                    ))}
+                      {Object.values(ROLES)
+                        .filter((r) => r.id !== 'god')
+                        .map((r) => (
+                          <div key={r.id} className="p-3 bg-surface-2 border border-border rounded-none space-y-1">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-semibold text-text">{r.name}</span>
+                              <span className="text-[11px] capitalize px-2 py-0.5 border border-border bg-black text-white">
+                                {r.team}
+                              </span>
+                            </div>
+                            <p className="text-xs text-muted leading-relaxed">{r.summary}</p>
+                          </div>
+                        ))}
+                    </>
+                  )}
                 </div>
               )}
 

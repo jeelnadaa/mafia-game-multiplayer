@@ -89,6 +89,15 @@ export const SETTINGS_SCHEMA: SettingField[] = [
     default: 'auto',
     plain: (v) => (v === 'god' ? 'Host acts as God Narrator' : 'Automated browser moderator'),
   },
+  {
+    key: 'dayChat',
+    group: 'General',
+    label: 'Town Public Chat',
+    tooltip: 'Allow living players to type and converse in day discussion chat',
+    type: 'toggle',
+    default: true,
+    plain: (v) => (v ? 'Town chat enabled' : 'Town chat disabled'),
+  },
 
   // Mafia
   {
@@ -106,6 +115,20 @@ export const SETTINGS_SCHEMA: SettingField[] = [
     plain: (v) => `Mafia agreement requires ${v}`,
   },
   {
+    key: 'mafiaDisagreeFallback',
+    group: 'Mafia',
+    label: 'Disagreement Fallback',
+    tooltip: 'Action taken if Mafia members fail to agree in unanimous mode',
+    type: 'select',
+    options: [
+      { value: 'random_pick', label: 'Random pick from selections' },
+      { value: 'no_kill', label: 'No elimination tonight' },
+    ],
+    default: 'random_pick',
+    showIf: (s) => s.mafiaKillMode === 'unanimous',
+    plain: (v) => (v === 'random_pick' ? 'Random pick on disagreement' : 'No kill on disagreement'),
+  },
+  {
     key: 'noKillFirstNight',
     group: 'Mafia',
     label: 'Peaceful Night 1',
@@ -113,6 +136,15 @@ export const SETTINGS_SCHEMA: SettingField[] = [
     type: 'toggle',
     default: false,
     plain: (v) => (v ? 'No night kill on Round 1' : 'Mafia strikes on Night 1'),
+  },
+  {
+    key: 'mafiaNightChat',
+    group: 'Mafia',
+    label: 'Syndicate Night Chat',
+    tooltip: 'Allow Mafia members to chat privately over encrypted channel at night',
+    type: 'toggle',
+    default: true,
+    plain: (v) => (v ? 'Syndicate night chat enabled' : 'Syndicate night chat disabled'),
   },
 
   // Doctor
@@ -141,6 +173,16 @@ export const SETTINGS_SCHEMA: SettingField[] = [
     showIf: (s) => s.roles.doctor.enabled && s.roles.doctor.count > 0,
     plain: (v) => (v ? 'Doctor may save same target consecutively' : 'Doctor cannot save same target twice in a row'),
   },
+  {
+    key: 'announceSave',
+    group: 'Doctor',
+    label: 'Announce Saves at Dawn',
+    tooltip: 'Publicly report when a Doctor successfully protects an attack victim',
+    type: 'toggle',
+    default: true,
+    showIf: (s) => s.roles.doctor.enabled && s.roles.doctor.count > 0,
+    plain: (v) => (v ? 'Doctor saves announced at dawn' : 'Doctor saves silent'),
+  },
 
   // Police
   {
@@ -155,6 +197,20 @@ export const SETTINGS_SCHEMA: SettingField[] = [
     default: 0,
     showIf: (s) => s.roles.police.enabled && s.roles.police.count > 0,
     plain: (v) => (v === 0 ? 'Police reports arrive immediately' : `Police reports arrive ${v} round(s) later`),
+  },
+  {
+    key: 'policeResultDetail',
+    group: 'Police',
+    label: 'Dossier Detail Level',
+    tooltip: 'Investigation reveals allegiance (Mafia / Not mafia) or exact role',
+    type: 'select',
+    options: [
+      { value: 'alignment', label: 'Alignment (Mafia / Not mafia)' },
+      { value: 'exact_role', label: 'Exact Role Title' },
+    ],
+    default: 'alignment',
+    showIf: (s) => s.roles.police.enabled && s.roles.police.count > 0,
+    plain: (v) => (v === 'exact_role' ? 'Exact role revealed' : 'Alignment revealed'),
   },
 
   // Vigilante
@@ -209,8 +265,39 @@ export const SETTINGS_SCHEMA: SettingField[] = [
     default: 45,
     plain: (v) => `Voting: ${v}s`,
   },
+  {
+    key: 'endNightEarly',
+    group: 'Timing',
+    label: 'End Night Early',
+    tooltip: 'Advance night phase immediately once all living action holders confirm choices',
+    type: 'toggle',
+    default: true,
+    plain: (v) => (v ? 'Night ends early when actions confirmed' : 'Night waits for full countdown timer'),
+  },
 
   // Voting & Roles
+  {
+    key: 'voteVisibility',
+    group: 'Voting & Roles',
+    label: 'Vote Ballot Visibility',
+    tooltip: 'Whether individual player votes are visible or completely anonymous',
+    type: 'select',
+    options: [
+      { value: 'public', label: 'Public (Ballots & voters revealed)' },
+      { value: 'anonymous', label: 'Anonymous (Secret ballots)' },
+    ],
+    default: 'public',
+    plain: (v) => (v === 'anonymous' ? 'Anonymous secret voting' : 'Public voting'),
+  },
+  {
+    key: 'allowSkipVote',
+    group: 'Voting & Roles',
+    label: 'Allow Skip Voting',
+    tooltip: 'Allow townspeople to cast a ballot to skip elimination',
+    type: 'toggle',
+    default: true,
+    plain: (v) => (v ? 'Skip vote allowed' : 'Skip vote disabled'),
+  },
   {
     key: 'tieRule',
     group: 'Voting & Roles',
@@ -218,7 +305,7 @@ export const SETTINGS_SCHEMA: SettingField[] = [
     tooltip: 'What happens when two suspects tie for top votes',
     type: 'select',
     options: [
-      { value: 'revote_then_none', label: 'Revote, then nobody' },
+      { value: 'revote_then_none', label: 'Revote runoff, then nobody' },
       { value: 'no_elimination', label: 'Nobody eliminated' },
       { value: 'random', label: 'Random pick' },
     ],
@@ -238,6 +325,15 @@ export const SETTINGS_SCHEMA: SettingField[] = [
     ],
     default: 'full',
     plain: (v) => `Role on death: ${v}`,
+  },
+  {
+    key: 'revealRoleList',
+    group: 'Voting & Roles',
+    label: 'Reveal Role Pool in Help',
+    tooltip: 'Display enabled role composition and counts in match reference sheet',
+    type: 'toggle',
+    default: true,
+    plain: (v) => (v ? 'Role pool visible in help sheet' : 'Role pool kept secret'),
   },
   {
     key: 'deadChat',

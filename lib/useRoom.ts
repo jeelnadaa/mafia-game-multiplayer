@@ -297,6 +297,11 @@ export function useRoom(
           }
         }
 
+        // If endNightEarly is false, do not advance early; let the full night timer elapse
+        if (!st.settings.endNightEarly) {
+          return st;
+        }
+
         let canAdvance = eligible.every(
           (p) => Boolean(st.night.picks[p.id]) || Boolean(st.night.confirmed[p.id])
         );
@@ -370,6 +375,9 @@ export function useRoom(
 
         case 'updateSettings': {
           if (!callingPlayer?.isHost) return; // Host only
+          const isModeratorModeChanged = payload?.moderatorMode !== undefined;
+          const targetModeratorMode = payload?.moderatorMode || nextState.settings.moderatorMode;
+
           nextState.settings = {
             ...nextState.settings,
             ...payload,
@@ -398,15 +406,28 @@ export function useRoom(
                 }
               : nextState.settings.roles,
           };
+
+          if (isModeratorModeChanged) {
+            const isGod = targetModeratorMode === 'god';
+            nextState.players = nextState.players.map((p) =>
+              p.isHost ? { ...p, isGod } : p
+            );
+          }
+
           nextState.version++;
           break;
         }
 
         case 'setGod': {
           if (!callingPlayer?.isHost) return; // Host only
+          const isGod = Boolean(payload);
           nextState.players = nextState.players.map((p) =>
-            p.id === playerId ? { ...p, isGod: Boolean(payload) } : p
+            p.id === playerId ? { ...p, isGod } : p
           );
+          nextState.settings = {
+            ...nextState.settings,
+            moderatorMode: isGod ? 'god' : 'auto',
+          };
           nextState.version++;
           break;
         }
@@ -550,10 +571,11 @@ export function useRoom(
       const isDead = !player.alive;
       const isGod = player.isGod;
 
-      // Channel access rules
-      if (channel === 'mafia' && !isMafia && !isGod) return;
-      if (channel === 'dead' && !isDead && !isGod) return;
+      // Channel access rules and room settings enforcement
+      if (channel === 'mafia' && (!state.settings.mafiaNightChat || (!isMafia && !isGod))) return;
+      if (channel === 'dead' && (!state.settings.deadChat || (!isDead && !isGod))) return;
       if (channel === 'public') {
+        if (!state.settings.dayChat && !isGod) return;
         if (isDead && !isGod) return;
         if (state.phase === 'night' && !isGod) return;
       }

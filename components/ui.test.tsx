@@ -195,4 +195,104 @@ describe('Frontend UI Components: Rendering & Reflection', () => {
     // Verify badge next to suspect name
     assert.ok(html.includes('Mafia'), 'Expected Mafia result badge in Day view');
   });
+
+  it('renders Day with public voter names vs anonymous secret ballots based on voteVisibility', () => {
+    const publicVoteView: ClientGameView = {
+      code: 'TESTX',
+      version: 4,
+      phase: 'voting',
+      round: 1,
+      phaseEndsAt: Date.now() + 30000,
+      paused: false,
+      settings: { ...DEFAULT_SETTINGS, voteVisibility: 'public' },
+      players: [
+        { id: 'p1', name: 'Alice', avatar: 1, isHost: true, isGod: false, ready: true, alive: true, connected: true, voteTarget: 'p3' },
+        { id: 'p2', name: 'Bob', avatar: 2, isHost: false, isGod: false, ready: true, alive: true, connected: true, voteTarget: 'p3' },
+        { id: 'p3', name: 'Charlie', avatar: 3, isHost: false, isGod: false, ready: true, alive: true, connected: true, voteTarget: 'p1' },
+      ],
+      me: {
+        id: 'p1',
+        token: 'tok-p1',
+        name: 'Alice',
+        avatar: 1,
+        isGod: false,
+        isHost: true,
+        alive: true,
+        vote: 'p3',
+        readyToVote: false,
+        isReady: true,
+      },
+      voteCounts: { p3: 2, p1: 1 },
+      readyToVote: [],
+      chat: [],
+      log: [],
+      serverNow: Date.now(),
+    };
+
+    const publicHtml = renderToStaticMarkup(
+      <Day gameView={publicVoteView} onVote={() => {}} onReadyToVote={() => {}} onSendChat={() => {}} />
+    );
+    assert.ok(publicHtml.includes('Voted by:'), 'Expected public voters list in markup');
+    assert.ok(publicHtml.includes('Alice, Bob'), 'Expected Alice and Bob listed under Charlie');
+
+    const anonVoteView: ClientGameView = {
+      ...publicVoteView,
+      settings: { ...DEFAULT_SETTINGS, voteVisibility: 'anonymous' },
+      players: publicVoteView.players.map((p) => ({ ...p, voteTarget: undefined })),
+    };
+
+    const anonHtml = renderToStaticMarkup(
+      <Day gameView={anonVoteView} onVote={() => {}} onReadyToVote={() => {}} onSendChat={() => {}} />
+    );
+    assert.ok(anonHtml.includes('Anonymous Secret Ballots'), 'Expected Anonymous Secret Ballots header');
+    assert.ok(anonHtml.includes('Secret vote'), 'Expected Secret vote label on tally rows');
+  });
+
+  it('renders disabled notice in Day and Night when chat channels are disabled by room settings', () => {
+    const noChatView: ClientGameView = {
+      code: 'TESTX',
+      version: 5,
+      phase: 'discussion',
+      round: 1,
+      phaseEndsAt: Date.now() + 30000,
+      paused: false,
+      settings: { ...DEFAULT_SETTINGS, dayChat: false, mafiaNightChat: false },
+      players: [
+        { id: 'p1', name: 'Alice', avatar: 1, isHost: true, isGod: false, ready: true, alive: true, connected: true },
+        { id: 'p2', name: 'Bob', avatar: 2, isHost: false, isGod: false, ready: true, alive: true, connected: true },
+      ],
+      me: {
+        id: 'p1',
+        token: 'tok-p1',
+        name: 'Alice',
+        avatar: 1,
+        isGod: false,
+        isHost: true,
+        alive: true,
+        role: 'mafia',
+        readyToVote: false,
+        isReady: true,
+      },
+      readyToVote: [],
+      chat: [],
+      log: [],
+      serverNow: Date.now(),
+    };
+
+    const dayHtml = renderToStaticMarkup(
+      <Day gameView={noChatView} onVote={() => {}} onReadyToVote={() => {}} onSendChat={() => {}} />
+    );
+    assert.ok(dayHtml.includes('Town public chat is disabled by room rules'), 'Expected day chat disabled notice');
+
+    const nightView: ClientGameView = {
+      ...noChatView,
+      phase: 'night',
+      nightSubPhase: 'mafia',
+      me: { ...noChatView.me, canActNow: true },
+    };
+    const nightHtml = renderToStaticMarkup(
+      <Night gameView={nightView} onNightAction={() => {}} onSendChat={() => {}} onOpenHelp={() => {}} />
+    );
+    assert.ok(nightHtml.includes('Syndicate night chat is disabled by room rules'), 'Expected mafia night chat disabled notice');
+  });
 });

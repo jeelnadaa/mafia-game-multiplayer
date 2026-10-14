@@ -213,6 +213,14 @@ export function Night({
                       Ammo: {me.shotsRemaining} remaining
                     </span>
                   )}
+                  {role === 'doctor' && (
+                    <span className="text-xs text-muted">
+                      Self-saves: <strong className="text-white">{me?.doctorSelfSavesRemaining === 999 ? 'Unlimited' : (me?.doctorSelfSavesRemaining ?? 1)}</strong>
+                      {!gameView.settings.doctorSameTargetTwice && me?.doctorLastSavedId && (
+                        <span> · No repeat saves</span>
+                      )}
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -231,6 +239,9 @@ export function Night({
                 disabled={isConfirmed}
                 teammatePicks={me?.teammatePicks}
                 investigations={me?.policeInbox}
+                doctorSelfSavesRemaining={me?.doctorSelfSavesRemaining}
+                doctorLastSavedId={me?.doctorLastSavedId}
+                doctorSameTargetTwice={gameView.settings.doctorSameTargetTwice}
               />
 
               {/* Confirm Action Button & Status Bar */}
@@ -368,20 +379,26 @@ export function Night({
               </div>
 
               {/* Chat Input */}
-              <form onSubmit={handleSendChat} className="flex gap-2.5 pt-2 border-t border-border">
-                <input
-                  type="text"
-                  value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
-                  placeholder="Whisper to syndicate partner..."
-                  maxLength={300}
-                  className="flex-1 bg-surface-2 border border-border rounded-none px-3.5 py-2 text-sm text-text placeholder-muted/50 focus:outline-none focus:border-white"
-                />
-                <Button type="submit" variant="primary" size="md">
-                  <Send className="w-4 h-4 mr-1" />
-                  <span>Send</span>
-                </Button>
-              </form>
+              {gameView.settings.mafiaNightChat ? (
+                <form onSubmit={handleSendChat} className="flex gap-2.5 pt-2 border-t border-border">
+                  <input
+                    type="text"
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    placeholder="Whisper to syndicate partner..."
+                    maxLength={300}
+                    className="flex-1 bg-surface-2 border border-border rounded-none px-3.5 py-2 text-sm text-text placeholder-muted/50 focus:outline-none focus:border-white"
+                  />
+                  <Button type="submit" variant="primary" size="md">
+                    <Send className="w-4 h-4 mr-1" />
+                    <span>Send</span>
+                  </Button>
+                </form>
+              ) : (
+                <div className="p-3 border-t border-border bg-surface-2 text-xs text-muted text-center">
+                  Syndicate night chat is disabled by room rules.
+                </div>
+              )}
             </div>
           ) : isDead ? (
             /* Graveyard Chat for Dead Players */
@@ -407,20 +424,26 @@ export function Night({
                 </div>
               </div>
 
-              <form onSubmit={handleSendChat} className="flex gap-2.5 pt-2 border-t border-border">
-                <input
-                  type="text"
-                  value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
-                  placeholder="Whisper among the fallen..."
-                  maxLength={300}
-                  className="flex-1 bg-surface-2 border border-border rounded-none px-3.5 py-2 text-sm text-text placeholder-muted/50 focus:outline-none focus:border-white"
-                />
-                <Button type="submit" variant="secondary" size="md">
-                  <Send className="w-4 h-4 mr-1" />
-                  <span>Send</span>
-                </Button>
-              </form>
+              {gameView.settings.deadChat ? (
+                <form onSubmit={handleSendChat} className="flex gap-2.5 pt-2 border-t border-border">
+                  <input
+                    type="text"
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    placeholder="Whisper among the fallen..."
+                    maxLength={300}
+                    className="flex-1 bg-surface-2 border border-border rounded-none px-3.5 py-2 text-sm text-text placeholder-muted/50 focus:outline-none focus:border-white"
+                  />
+                  <Button type="submit" variant="secondary" size="md">
+                    <Send className="w-4 h-4 mr-1" />
+                    <span>Send</span>
+                  </Button>
+                </form>
+              ) : (
+                <div className="p-3 border-t border-border bg-surface-2 text-xs text-muted text-center">
+                  Graveyard spirits chat is disabled by room rules.
+                </div>
+              )}
             </div>
           ) : (
             /* Night Guidance & Manual */

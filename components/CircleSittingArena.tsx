@@ -102,6 +102,10 @@ export function CircleSittingArena({
     if (phase === 'night' && canActAtNight) {
       // Cannot target self for Mafia kill, Vigilante, or Police investigation
       if ((nightSubPhase === 'mafia' || nightSubPhase === 'vigilante' || nightSubPhase === 'police') && player.id === me?.id) return;
+      // Doctor rules: cannot self-save if none remaining, cannot repeat target if doctorSameTargetTwice is false
+      if (nightSubPhase === 'doctor' && player.id === me?.id && me?.doctorSelfSavesRemaining === 0) return;
+      if (nightSubPhase === 'doctor' && !gameView.settings.doctorSameTargetTwice && me?.doctorLastSavedId === player.id) return;
+
       // Immediately notify host & teammates of this tap so other mafias see the reticle live!
       onNightAction(player.id);
       setPendingTarget(player);
@@ -297,25 +301,38 @@ export function CircleSittingArena({
           </div>
 
           {/* Chat Composer */}
-          <form onSubmit={handleSendChat} className="p-3 border-t border-border bg-surface-2 flex items-center gap-2">
-            <input
-              type="text"
-              value={chatInput}
-              onChange={(e) => setChatInput(e.target.value)}
-              placeholder={
-                activeChannel === 'mafia'
-                  ? 'Whisper to syndicate...'
-                  : activeChannel === 'dead'
-                  ? 'Speak from the afterlife...'
-                  : 'Type public assembly message...'
-              }
-              maxLength={300}
-              className="flex-1 bg-black border border-border px-3 py-2 text-xs md:text-sm text-text placeholder-muted/60 focus:outline-none focus:border-white rounded-none"
-            />
-            <Button type="submit" variant="primary" size="sm" className="px-3 shrink-0">
-              <Send className="w-3.5 h-3.5" />
-            </Button>
-          </form>
+          {((activeChannel === 'public' && gameView.settings.dayChat) ||
+            (activeChannel === 'mafia' && gameView.settings.mafiaNightChat) ||
+            (activeChannel === 'dead' && gameView.settings.deadChat) ||
+            isGod) ? (
+            <form onSubmit={handleSendChat} className="p-3 border-t border-border bg-surface-2 flex items-center gap-2">
+              <input
+                type="text"
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                placeholder={
+                  activeChannel === 'mafia'
+                    ? 'Whisper to syndicate...'
+                    : activeChannel === 'dead'
+                    ? 'Speak from the afterlife...'
+                    : 'Type public assembly message...'
+                }
+                maxLength={300}
+                className="flex-1 bg-black border border-border px-3 py-2 text-xs md:text-sm text-text placeholder-muted/60 focus:outline-none focus:border-white rounded-none"
+              />
+              <Button type="submit" variant="primary" size="sm" className="px-3 shrink-0">
+                <Send className="w-3.5 h-3.5" />
+              </Button>
+            </form>
+          ) : (
+            <div className="p-3 border-t border-border bg-surface-2 text-center text-xs text-muted">
+              {activeChannel === 'public'
+                ? 'Town public chat is disabled by room rules.'
+                : activeChannel === 'mafia'
+                ? 'Syndicate night chat is disabled by room rules.'
+                : 'Graveyard chat is disabled by room rules.'}
+            </div>
+          )}
         </div>
 
         {/* ========================================================= */}

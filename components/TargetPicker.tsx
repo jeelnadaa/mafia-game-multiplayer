@@ -19,6 +19,9 @@ interface TargetPickerProps {
   disabled?: boolean;
   teammatePicks?: Record<string, string | null>;
   investigations?: { targetId: string; result: string }[];
+  doctorSelfSavesRemaining?: number;
+  doctorLastSavedId?: string | null;
+  doctorSameTargetTwice?: boolean;
 }
 
 export function TargetPicker({
@@ -33,6 +36,9 @@ export function TargetPicker({
   disabled = false,
   teammatePicks,
   investigations,
+  doctorSelfSavesRemaining,
+  doctorLastSavedId,
+  doctorSameTargetTwice = false,
 }: TargetPickerProps) {
   const [pendingTarget, setPendingTarget] = useState<PlayerView | null>(null);
   const [pendingSpecial, setPendingSpecial] = useState<'skip' | 'hold' | null>(null);
@@ -52,6 +58,8 @@ export function TargetPicker({
     if (!p.alive || p.isGod) return false;
     if (mode === 'night' && roleDef) {
       if (!roleDef.allowSelfTarget && p.id === myPlayerId) return false;
+      if (roleDef.id === 'doctor' && p.id === myPlayerId && doctorSelfSavesRemaining === 0) return false;
+      if (roleDef.id === 'doctor' && !doctorSameTargetTwice && doctorLastSavedId === p.id) return false;
     }
     if (mode === 'voting' && p.id === myPlayerId) return false; // cannot vote for self
     return true;

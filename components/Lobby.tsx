@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Crown, Shield, Users, Play, Copy, Check, QrCode, UserMinus, AlertTriangle, MessageSquare, Send, Activity } from 'lucide-react';
 import { ClientGameView, Settings, PlayerView } from '@/lib/types';
-import { SETTINGS_SCHEMA, ROLE_PRESETS } from '@/lib/settings';
+import { SETTINGS_SCHEMA, ROLE_PRESETS, RULE_PRESETS } from '@/lib/settings';
 import { validateSettings } from '@/lib/engine/rules';
 import { Button, Badge, Switch, Stepper, Avatar, Modal, Kbd } from './ui';
 import { getRoomShareUrl } from '@/lib/net';
@@ -577,7 +577,33 @@ export function Lobby({
 
             {/* Settings Tab */}
             {activeTab === 'settings' && (
-              <div className="space-y-3">
+              <div className="space-y-4">
+                {/* Rule Presets Quick Selector */}
+                <div className="p-4 bg-surface-2 border border-border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  <div>
+                    <span className="text-xs font-bold uppercase tracking-wider text-muted block">Match Rule Presets</span>
+                    <span className="text-xs text-muted">Quick configurations for pacing, timers, and secrecy</span>
+                  </div>
+                  {isHost ? (
+                    <div className="flex flex-wrap gap-2">
+                      {Object.keys(RULE_PRESETS).map((presetName) => (
+                        <button
+                          key={presetName}
+                          type="button"
+                          onClick={() => onUpdateSettings(RULE_PRESETS[presetName])}
+                          className="px-2.5 py-1 text-xs border border-border hover:border-white bg-surface hover:bg-zinc-800 text-text transition-colors"
+                        >
+                          {presetName}
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <span className="text-xs text-muted font-mono border border-border px-2.5 py-1 bg-surface">
+                      Host Configured
+                    </span>
+                  )}
+                </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                   {SETTINGS_SCHEMA.filter((s) => !s.showIf || s.showIf(settings)).map((s) => (
                     <div key={s.key} className="p-3.5 bg-surface-2 border border-border flex items-center justify-between">

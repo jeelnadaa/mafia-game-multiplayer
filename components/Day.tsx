@@ -275,20 +275,26 @@ export function Day({ gameView, onVote, onReadyToVote, onSendChat }: DayProps) {
                 )}
               </div>
 
-              <form onSubmit={handleSendChat} className="flex gap-2.5 pt-3 border-t border-border">
-                <input
-                  type="text"
-                  value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
-                  placeholder="Share accusations, defenses, deductions..."
-                  maxLength={300}
-                  className="flex-1 bg-surface-2 border border-border rounded-none px-4 py-2.5 text-sm text-text placeholder-muted/50 focus:outline-none focus:border-white"
-                />
-                <Button type="submit" variant="primary" size="md" className="px-5">
-                  <Send className="w-4 h-4 mr-1" />
-                  <span>Send</span>
-                </Button>
-              </form>
+              {gameView.settings.dayChat ? (
+                <form onSubmit={handleSendChat} className="flex gap-2.5 pt-3 border-t border-border">
+                  <input
+                    type="text"
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    placeholder="Share accusations, defenses, deductions..."
+                    maxLength={300}
+                    className="flex-1 bg-surface-2 border border-border rounded-none px-4 py-2.5 text-sm text-text placeholder-muted/50 focus:outline-none focus:border-white"
+                  />
+                  <Button type="submit" variant="primary" size="md" className="px-5">
+                    <Send className="w-4 h-4 mr-1" />
+                    <span>Send</span>
+                  </Button>
+                </form>
+              ) : (
+                <div className="p-3 border-t border-border bg-surface-2 text-xs text-muted text-center">
+                  Town public chat is disabled by room rules.
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -321,8 +327,11 @@ export function Day({ gameView, onVote, onReadyToVote, onSendChat }: DayProps) {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
             {/* Target Picker (7 cols on Desktop) */}
             <div className="lg:col-span-7 bg-surface border border-border p-6 space-y-4">
-              <div className="text-sm font-bold text-text pb-2.5 border-b border-border">
-                Select Prime Suspect:
+              <div className="text-sm font-bold text-text pb-2.5 border-b border-border flex items-center justify-between">
+                <span>Select Prime Suspect:</span>
+                <span className="text-xs text-muted font-normal font-mono">
+                  {gameView.settings.voteVisibility === 'public' ? 'Public Ballots' : 'Anonymous Secret Ballots'}
+                </span>
               </div>
               <TargetPicker
                 players={players}
@@ -339,28 +348,49 @@ export function Day({ gameView, onVote, onReadyToVote, onSendChat }: DayProps) {
             <div className="lg:col-span-5 bg-surface border border-border p-6 space-y-5 flex flex-col justify-between">
               {/* Live Vote Tally Bars */}
               <div className="space-y-3">
-                <div className="text-sm font-bold text-text pb-2.5 border-b border-border">
-                  Current Vote Tally:
+                <div className="text-sm font-bold text-text pb-2.5 border-b border-border flex items-center justify-between">
+                  <span>Current Vote Tally:</span>
+                  <span className="text-xs text-muted font-mono">
+                    {gameView.settings.voteVisibility === 'public' ? 'Voters Public' : 'Ballots Anonymous'}
+                  </span>
                 </div>
                 {voteCounts && Object.keys(voteCounts).length > 0 ? (
-                  <div className="space-y-2.5">
+                  <div className="space-y-3">
                     {Object.entries(voteCounts).map(([targetId, count]) => {
                       const isSkip = targetId === 'skip';
                       const targetName = isSkip
                         ? 'Skip Vote'
                         : players.find((p) => p.id === targetId)?.name || 'Unknown';
+
+                      const voters = gameView.settings.voteVisibility === 'public'
+                        ? players.filter((p) => p.voteTarget === targetId).map((p) => p.name)
+                        : [];
+
                       return (
-                        <div key={targetId} className="flex items-center gap-3 text-sm">
-                          <span className="w-32 truncate font-semibold text-text">
-                            {targetName}
-                          </span>
-                          <div className="flex-1 h-3 bg-surface-2 border border-border overflow-hidden">
-                            <div
-                              style={{ width: `${(count / Math.max(1, players.filter((p) => p.alive && !p.isGod).length)) * 100}%` }}
-                              className="h-full bg-white"
-                            />
+                        <div key={targetId} className="space-y-1">
+                          <div className="flex items-center gap-3 text-sm">
+                            <span className="w-32 truncate font-semibold text-text">
+                              {targetName}
+                            </span>
+                            <div className="flex-1 h-3 bg-surface-2 border border-border overflow-hidden">
+                              <div
+                                style={{ width: `${(count / Math.max(1, players.filter((p) => p.alive && !p.isGod).length)) * 100}%` }}
+                                className="h-full bg-white"
+                              />
+                            </div>
+                            <span className="w-8 text-right font-mono font-bold text-white">[{count}]</span>
                           </div>
-                          <span className="w-8 text-right font-mono font-bold text-white">[{count}]</span>
+
+                          {gameView.settings.voteVisibility === 'public' && voters.length > 0 && (
+                            <div className="text-[11px] text-muted truncate pl-1">
+                              Voted by: <span className="text-white/80">{voters.join(', ')}</span>
+                            </div>
+                          )}
+                          {gameView.settings.voteVisibility === 'anonymous' && (
+                            <div className="text-[10px] text-muted/60 italic pl-1">
+                              Secret vote
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -391,19 +421,25 @@ export function Day({ gameView, onVote, onReadyToVote, onSendChat }: DayProps) {
                     ))}
                 </div>
 
-                <form onSubmit={handleSendChat} className="flex gap-2 pt-2.5">
-                  <input
-                    type="text"
-                    value={chatInput}
-                    onChange={(e) => setChatInput(e.target.value)}
-                    placeholder="Discuss vote rationale..."
-                    maxLength={300}
-                    className="flex-1 bg-surface-2 border border-border rounded-none px-3.5 py-2 text-xs md:text-sm text-text placeholder-muted/50 focus:outline-none focus:border-white"
-                  />
-                  <Button type="submit" variant="primary" size="sm">
-                    <Send className="w-4 h-4" />
-                  </Button>
-                </form>
+                {(isDead ? gameView.settings.deadChat : gameView.settings.dayChat) ? (
+                  <form onSubmit={handleSendChat} className="flex gap-2 pt-2.5">
+                    <input
+                      type="text"
+                      value={chatInput}
+                      onChange={(e) => setChatInput(e.target.value)}
+                      placeholder="Discuss vote rationale..."
+                      maxLength={300}
+                      className="flex-1 bg-surface-2 border border-border rounded-none px-3.5 py-2 text-xs md:text-sm text-text placeholder-muted/50 focus:outline-none focus:border-white"
+                    />
+                    <Button type="submit" variant="primary" size="sm">
+                      <Send className="w-4 h-4" />
+                    </Button>
+                  </form>
+                ) : (
+                  <div className="p-2 border-t border-border bg-surface-2 text-xs text-muted text-center">
+                    {isDead ? 'Graveyard chat is disabled by room rules.' : 'Town public chat is disabled by room rules.'}
+                  </div>
+                )}
               </div>
             </div>
           </div>

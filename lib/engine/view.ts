@@ -10,23 +10,38 @@ export function buildViewFor(state: GameState, observerId: string, now: number):
   // Format players list with masked roles
   const playerViews: PlayerView[] = state.players.map((p) => {
     let roleVisible = false;
+    let alignment: 'town' | 'mafia' | 'jester' | undefined = undefined;
+
+    const pAlignment: 'town' | 'mafia' | 'jester' =
+      p.role === 'mafia' || p.role === 'godfather'
+        ? 'mafia'
+        : p.role === 'jester'
+        ? 'jester'
+        : 'town';
 
     if (p.id === observerId) {
       roleVisible = true;
+      alignment = pAlignment;
     } else if (isGod || isGameOver) {
       roleVisible = true;
+      alignment = pAlignment;
     } else if (isObserverMafia && (p.role === 'mafia' || p.role === 'godfather')) {
       roleVisible = true;
+      alignment = 'mafia';
     } else if (isDead && state.settings.deadSeeRoles) {
       roleVisible = true;
+      alignment = pAlignment;
     } else if (!p.alive) {
       if (state.settings.revealRoleOnDeath === 'full') {
         roleVisible = true;
+        alignment = pAlignment;
+      } else if (state.settings.revealRoleOnDeath === 'alignment') {
+        alignment = pAlignment;
       }
     }
 
     let voteTarget: string | 'skip' | null | undefined = undefined;
-    if (state.settings.voteVisibility === 'public' && state.phase === 'voting') {
+    if (state.settings.voteVisibility === 'public' && (state.phase === 'voting' || state.phase === 'voteResult')) {
       voteTarget = state.votes[p.id] || null;
     }
 
@@ -40,6 +55,7 @@ export function buildViewFor(state: GameState, observerId: string, now: number):
       connected: p.connected,
       alive: p.alive,
       role: roleVisible ? p.role : undefined,
+      alignment,
       diedInRound: p.diedInRound,
       diedBy: p.diedBy,
       voteTarget,
@@ -89,17 +105,30 @@ export function buildViewFor(state: GameState, observerId: string, now: number):
 
   // Filter police inbox for this specific police player
   const myPoliceInbox = state.policeInbox
-    .filter((entry) => entry.policeId === observerId && entry.revealRound <= state.round)
+    .filter((entry) => entry.policeId === observerId)
     .map((e) => ({
       targetId: e.targetId,
-      result: e.result,
+      result: e.revealRound <= state.round ? e.result : 'Report pending...',
       round: e.fromRound,
+      ready: e.revealRound <= state.round,
     }));
 
-  // Filter chats by readable channel
+  // Doctor self saves and history
+  const doctorHistory = state.doctorHistory[observerId];
+  const doctorSelfSavesRemaining =
+    me?.role === 'doctor'
+      ? state.settings.doctorSelfSave === 'never'
+        ? 0
+        : state.settings.doctorSelfSave === 'once'
+        ? Math.max(0, 1 - (doctorHistory?.selfSavesUsed || 0))
+        : 999
+      : undefined;
+  const doctorLastSavedId = me?.role === 'doctor' ? doctorHistory?.lastSavedId || null : undefined;
+
+  // Filter chats by readable channel and room settings
   const allowedChannels: string[] = ['public'];
-  if (isObserverMafia) allowedChannels.push('mafia');
-  if (isDead) allowedChannels.push('dead');
+  if (isObserverMafia && (state.settings.mafiaNightChat || isGod)) allowedChannels.push('mafia');
+  if (isDead && (state.settings.deadChat || isGod)) allowedChannels.push('dead');
   if (isGod) allowedChannels.push('god', 'mafia', 'dead');
 
   const filteredChat = state.chat.filter((msg) => allowedChannels.includes(msg.channel));
@@ -133,6 +162,8 @@ export function buildViewFor(state: GameState, observerId: string, now: number):
         ? Math.max(0, state.settings.vigilanteShots - (state.shotsUsed[observerId] || 0))
         : undefined,
       policeInbox: myPoliceInbox,
+      doctorSelfSavesRemaining,
+      doctorLastSavedId,
       vote: state.votes[observerId] || null,
       readyToVote: state.readyToVote.includes(observerId),
       isReady: me?.ready || false,

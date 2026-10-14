@@ -316,19 +316,25 @@ export function End({ gameView, isHost, onRematch, onLeave, onSendChat }: EndPro
                 ))}
             </div>
 
-            <form onSubmit={handleSendGhostChat} className="flex gap-2.5 pt-3 border-t border-border">
-              <input
-                type="text"
-                value={ghostChatInput}
-                onChange={(e) => setGhostChatInput(e.target.value)}
-                placeholder="Whisper among the dead..."
-                maxLength={300}
-                className="flex-1 bg-surface-2 border border-border rounded-none px-3.5 py-2 text-sm text-text placeholder-muted/50 focus:outline-none focus:border-white"
-              />
-              <Button type="submit" variant="primary" size="md">
-                <Send className="w-4 h-4" />
-              </Button>
-            </form>
+            {settings.deadChat ? (
+              <form onSubmit={handleSendGhostChat} className="flex gap-2.5 pt-3 border-t border-border">
+                <input
+                  type="text"
+                  value={ghostChatInput}
+                  onChange={(e) => setGhostChatInput(e.target.value)}
+                  placeholder="Whisper among the dead..."
+                  maxLength={300}
+                  className="flex-1 bg-surface-2 border border-border rounded-none px-3.5 py-2 text-sm text-text placeholder-muted/50 focus:outline-none focus:border-white"
+                />
+                <Button type="submit" variant="primary" size="md">
+                  <Send className="w-4 h-4" />
+                </Button>
+              </form>
+            ) : (
+              <div className="p-3 border-t border-border bg-surface-2 text-xs text-muted text-center">
+                Graveyard spirits chat is disabled by room rules.
+              </div>
+            )}
           </div>
         </div>
       </div>

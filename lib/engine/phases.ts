@@ -325,9 +325,9 @@ export function getSubPhaseDuration(
   settings: Settings
 ): number {
   if (subPhase === 'mafia') {
-    return Math.min(settings.nightDuration, 35);
+    return Math.max(15, settings.nightDuration);
   }
-  return 20; // 20s for Doctor, Police, Vigilante turns
+  return Math.min(Math.max(15, settings.nightDuration), 25);
 }
 
 export function maybeAdvance(state: GameState, now: number, rng: () => number): GameState {
@@ -415,7 +415,54 @@ export function maybeAdvance(state: GameState, now: number, rng: () => number): 
 
     case 'voting': {
       const aliveIds = state.players.filter((p) => p.alive && !p.isGod).map((p) => p.id);
-      const { eliminatedId, skipWon } = tallyVotes(state.votes, aliveIds, settings.tieRule, rng);
+      const { eliminatedId, skipWon, tiedIds } = tallyVotes(state.votes, aliveIds, settings.tieRule, rng);
+
+      // Handle revote_then_none first tie runoff
+      if (
+        !eliminatedId &&
+        !skipWon &&
+        settings.tieRule === 'revote_then_none' &&
+        !state.revotePending &&
+        tiedIds &&
+        tiedIds.length > 1
+      ) {
+        const tiedNames = tiedIds
+          .map((id) => state.players.find((p) => p.id === id)?.name || 'Suspect')
+          .join(', ');
+        const revoteText = `Votes tied between ${tiedNames}! A runoff revote has begun.`;
+
+        const newLogs = [...state.log];
+        const newChat = [...(state.chat || [])];
+
+        newLogs.push({
+          id: `log-${round}-revote-${now}`,
+          round,
+          phase: 'voting',
+          text: revoteText,
+          timestamp: now,
+          type: 'vote',
+        });
+
+        newChat.push({
+          id: `msg-${round}-revote-${now}`,
+          senderId: 'system',
+          senderName: 'SYSTEM',
+          channel: 'public',
+          text: `⚖️ Town Verdict: ${revoteText}`,
+          timestamp: now,
+        });
+
+        return {
+          ...state,
+          phase: 'voting',
+          revotePending: true,
+          phaseEndsAt: now + Math.min(30, settings.votingDuration) * 1000,
+          votes: {},
+          log: newLogs,
+          chat: newChat.slice(-149),
+          version: state.version + 1,
+        };
+      }
 
       let updatedPlayers = state.players;
       let jesterWon = false;
@@ -469,6 +516,8 @@ export function maybeAdvance(state: GameState, now: number, rng: () => number): 
       } else {
         const noneText = skipWon
           ? 'The town chose to skip voting.'
+          : state.revotePending
+          ? 'The runoff revote also ended in a tie. Nobody was eliminated.'
           : 'The town votes were tied. Nobody was eliminated.';
 
         newLogs.push({
@@ -500,6 +549,7 @@ export function maybeAdvance(state: GameState, now: number, rng: () => number): 
         chat: newChat.slice(-149),
         phase: 'voteResult',
         phaseEndsAt: now + 6000, // 6s result banner
+        revotePending: false,
         version: state.version + 1,
       };
     }
@@ -510,6 +560,7 @@ export function maybeAdvance(state: GameState, now: number, rng: () => number): 
           ...state,
           phase: 'gameOver',
           phaseEndsAt: null,
+          revotePending: false,
           version: state.version + 1,
         };
       }
@@ -521,6 +572,7 @@ export function maybeAdvance(state: GameState, now: number, rng: () => number): 
         phase: 'night',
         phaseEndsAt: now + duration * 1000,
         votes: {},
+        revotePending: false,
         night: {
           subPhase: firstRole,
           picks: {},

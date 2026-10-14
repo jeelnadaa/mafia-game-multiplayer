@@ -135,6 +135,7 @@ export interface PlayerView {
   connected: boolean;
   alive: boolean;
   role?: Role;
+  alignment?: 'town' | 'mafia' | 'jester';
   diedInRound?: number;
   diedBy?: 'mafia' | 'vote' | 'vigilante' | 'god' | 'left';
   voteTarget?: string | 'skip' | null;
@@ -166,7 +167,9 @@ export interface ClientGameView {
     nightPick?: string | null | 'hold';
     nightLocked?: boolean;
     shotsRemaining?: number;
-    policeInbox?: { targetId: string; result: string; round: number }[];
+    policeInbox?: { targetId: string; result: string; round: number; ready?: boolean }[];
+    doctorSelfSavesRemaining?: number;
+    doctorLastSavedId?: string | null;
     vote?: string | 'skip' | null;
     readyToVote?: boolean;
     isReady?: boolean;
