@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Mic, MicOff, Volume2, ChevronLeft, ChevronRight, Radio } from 'lucide-react';
+import { Mic, MicOff, Volume2, ChevronLeft, ChevronRight, Radio, PhoneOff } from 'lucide-react';
 import { ClientGameView } from '@/lib/types';
 import { Avatar } from './ui';
 
@@ -33,33 +33,47 @@ export function VoiceOverlay({
       aria-label="Voice Chat Overlay"
       className="fixed left-3 top-20 z-40 flex flex-col items-start gap-1.5 select-none pointer-events-auto transition-all duration-200"
     >
-      {/* Voice Status Pill / Quick Mic Toggle */}
+      {/* Voice Status Pill / Quick Mic Toggle & Leave */}
       <div className="flex items-center gap-1 bg-surface/95 backdrop-blur-md border border-border px-2 py-1 shadow-lg text-xs">
-        <button
-          type="button"
-          onClick={isVoiceActive ? onToggleVoiceMute : onToggleVoice}
-          title={isVoiceActive ? (isVoiceMuted ? 'Unmute microphone (Click or press V)' : 'Mute microphone (Click or press V)') : 'Click to connect to voice chat mesh'}
-          className={`flex items-center gap-1.5 px-1.5 py-0.5 font-mono text-[11px] font-bold transition-colors ${
-            isVoiceActive
-              ? isVoiceMuted
-                ? 'text-amber-400 hover:text-amber-300'
-                : 'text-emerald-400 hover:text-emerald-300'
-              : 'text-muted hover:text-white'
-          }`}
-        >
-          {isVoiceActive ? (
-            isVoiceMuted ? (
-              <MicOff className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-            ) : (
-              <Mic className="w-3.5 h-3.5 text-emerald-400 animate-pulse shrink-0" />
-            )
-          ) : (
+        {isVoiceActive ? (
+          <>
+            <button
+              type="button"
+              onClick={onToggleVoiceMute}
+              title={isVoiceMuted ? 'Unmute microphone (Click or press Shift+M)' : 'Mute microphone (Click or press Shift+M)'}
+              className={`flex items-center gap-1.5 px-1.5 py-0.5 font-mono text-[11px] font-bold transition-colors ${
+                isVoiceMuted
+                  ? 'text-amber-400 hover:text-amber-300'
+                  : 'text-emerald-400 hover:text-emerald-300'
+              }`}
+            >
+              {isVoiceMuted ? (
+                <MicOff className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+              ) : (
+                <Mic className="w-3.5 h-3.5 text-emerald-400 animate-pulse shrink-0" />
+              )}
+              <span>{isVoiceMuted ? 'MIC MUTED' : 'VOICE LIVE'}</span>
+            </button>
+            <button
+              type="button"
+              onClick={onToggleVoice}
+              title="Leave voice chat"
+              className="p-1 text-red-400 hover:text-white hover:bg-red-500/20 transition-colors border-l border-border/80 ml-0.5"
+            >
+              <PhoneOff className="w-3 h-3 shrink-0" />
+            </button>
+          </>
+        ) : (
+          <button
+            type="button"
+            onClick={onToggleVoice}
+            title="Click to connect to voice chat mesh"
+            className="flex items-center gap-1.5 px-1.5 py-0.5 font-mono text-[11px] font-bold transition-colors text-muted hover:text-white"
+          >
             <Radio className="w-3.5 h-3.5 text-muted shrink-0" />
-          )}
-          <span>
-            {isVoiceActive ? (isVoiceMuted ? 'MIC MUTED' : 'VOICE LIVE') : 'JOIN VOICE'}
-          </span>
-        </button>
+            <span>JOIN VOICE</span>
+          </button>
+        )}
 
         <button
           type="button"

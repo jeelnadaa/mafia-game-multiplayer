@@ -15,6 +15,7 @@ export type VoiceStateListener = (speakingMap: Record<string, boolean>) => void;
 
 class VoiceEngine {
   private localStream: MediaStream | null = null;
+  private processedStream: MediaStream | null = null;
   private localAudioCtx: AudioContext | null = null;
   private localAnalyser: AnalyserNode | null = null;
   private localDataArray: Uint8Array | null = null;
@@ -45,7 +46,7 @@ class VoiceEngine {
 
   private notify() {
     const map: Record<string, boolean> = {};
-    if (this.localStream && !this.isSelfMuted && !this.isNightMuted && !this.isDeadMuted) {
+    if ((this.processedStream || this.localStream) && !this.isSelfMuted && !this.isNightMuted && !this.isDeadMuted) {
       map['local'] = this.checkLocalSpeaking();
     }
     this.peers.forEach((peer, id) => {
@@ -67,27 +68,63 @@ class VoiceEngine {
     }
 
     try {
+      // Disabling aggressive noiseSuppression avoids cutting off soft speech and word endings.
+      // autoGainControl boosts quiet speakers naturally.
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: true,
-          noiseSuppression: true,
+          noiseSuppression: false,
           autoGainControl: true,
           channelCount: 1,
-        },
+          sampleRate: 48000,
+          // Extended Chromium properties
+          googEchoCancellation: true,
+          googAutoGainControl: true,
+          googNoiseSuppression: false,
+          googHighpassFilter: false,
+          googTypingNoiseDetection: false,
+        } as MediaTrackConstraints,
       });
 
       this.localStream = stream;
       this.isEnabled = true;
 
-      // Audio analysis for local speaking indicator
+      // Audio analysis and dynamic normalization so quiet speakers are heard clearly without shouting
       const AudioCtxClass = window.AudioContext || (window as any).webkitAudioContext;
       if (AudioCtxClass) {
         this.localAudioCtx = new AudioCtxClass();
         const source = this.localAudioCtx.createMediaStreamSource(stream);
+
+        // Dynamics compressor to lift quiet speech and gently level loud speech
+        const compressor = this.localAudioCtx.createDynamicsCompressor();
+        compressor.threshold.setValueAtTime(-36, this.localAudioCtx.currentTime);
+        compressor.knee.setValueAtTime(24, this.localAudioCtx.currentTime);
+        compressor.ratio.setValueAtTime(5, this.localAudioCtx.currentTime);
+        compressor.attack.setValueAtTime(0.003, this.localAudioCtx.currentTime);
+        compressor.release.setValueAtTime(0.2, this.localAudioCtx.currentTime);
+
+        // Clean makeup gain (1.6x) so friends hear normal conversational volume without strain
+        const boostGain = this.localAudioCtx.createGain();
+        boostGain.gain.setValueAtTime(1.6, this.localAudioCtx.currentTime);
+
+        source.connect(compressor);
+        compressor.connect(boostGain);
+
         this.localAnalyser = this.localAudioCtx.createAnalyser();
         this.localAnalyser.fftSize = 256;
+        this.localAnalyser.smoothingTimeConstant = 0.4;
         this.localDataArray = new Uint8Array(this.localAnalyser.frequencyBinCount);
-        source.connect(this.localAnalyser);
+        boostGain.connect(this.localAnalyser);
+
+        if (this.localAudioCtx.createMediaStreamDestination) {
+          const dest = this.localAudioCtx.createMediaStreamDestination();
+          boostGain.connect(dest);
+          this.processedStream = dest.stream;
+        } else {
+          this.processedStream = stream;
+        }
+      } else {
+        this.processedStream = stream;
       }
 
       this.applyTrackState();
@@ -111,6 +148,10 @@ class VoiceEngine {
       this.localStream.getTracks().forEach((t) => t.stop());
       this.localStream = null;
     }
+    if (this.processedStream) {
+      this.processedStream.getTracks().forEach((t) => t.stop());
+      this.processedStream = null;
+    }
     if (this.localAudioCtx) {
       this.localAudioCtx.close().catch(() => {});
       this.localAudioCtx = null;
@@ -129,7 +170,7 @@ class VoiceEngine {
   }
 
   public getLocalStream(): MediaStream | null {
-    return this.localStream;
+    return this.processedStream || this.localStream;
   }
 
   public isVoiceActive(): boolean {
@@ -171,7 +212,6 @@ class VoiceEngine {
   }
 
   private applyTrackState() {
-    if (!this.localStream) return;
     const shouldTransmit =
       this.isEnabled &&
       !this.isSelfMuted &&
@@ -179,7 +219,11 @@ class VoiceEngine {
       !this.isDeadMuted &&
       (!this.isPushToTalk || this.isPttActive);
 
-    this.localStream.getAudioTracks().forEach((track) => {
+    const tracks = [
+      ...(this.localStream ? this.localStream.getAudioTracks() : []),
+      ...(this.processedStream ? this.processedStream.getAudioTracks() : []),
+    ];
+    tracks.forEach((track) => {
       track.enabled = shouldTransmit;
     });
   }
@@ -208,6 +252,7 @@ class VoiceEngine {
       const source = audioCtx.createMediaStreamSource(stream);
       const analyser = audioCtx.createAnalyser();
       analyser.fftSize = 256;
+      analyser.smoothingTimeConstant = 0.4;
       const dataArray = new Uint8Array(analyser.frequencyBinCount);
       source.connect(analyser);
 
@@ -257,33 +302,33 @@ class VoiceEngine {
     return peer.isMuted;
   }
 
+  private isSpeechActive(analyser: AnalyserNode, dataArray: Uint8Array): boolean {
+    analyser.getByteFrequencyData(dataArray as any);
+    // Human voice frequencies reside primarily in 100 Hz - 3500 Hz (first 24 bins)
+    const vocalBins = Math.min(24, dataArray.length);
+    let sum = 0;
+    for (let i = 1; i < vocalBins; i++) {
+      sum += dataArray[i];
+    }
+    const vocalAvg = sum / (vocalBins - 1);
+    // Sensitive threshold (8) triggers reliably on soft conversational speech without shouting
+    return vocalAvg > 8;
+  }
+
   private checkLocalSpeaking(): boolean {
     if (!this.localAnalyser || !this.localDataArray) return false;
-    this.localAnalyser.getByteFrequencyData(this.localDataArray as any);
-    let sum = 0;
-    for (let i = 0; i < this.localDataArray.length; i++) {
-      sum += this.localDataArray[i];
-    }
-    const avg = sum / this.localDataArray.length;
-    return avg > 18; // RMS sensitivity threshold
+    return this.isSpeechActive(this.localAnalyser, this.localDataArray);
   }
 
   private startPolling() {
     if (this.pollInterval) clearInterval(this.pollInterval);
-    // Poll at 10 Hz (every 100ms) with hysteresis
+    // Poll at 10 Hz (every 100ms)
     this.pollInterval = setInterval(() => {
       let changed = false;
       this.peers.forEach((peer) => {
-        peer.analyser.getByteFrequencyData(peer.dataArray as any);
-        let sum = 0;
-        for (let i = 0; i < peer.dataArray.length; i++) {
-          sum += peer.dataArray[i];
-        }
-        const avg = sum / peer.dataArray.length;
-        const speakingNow = avg > 18;
+        const speakingNow = this.isSpeechActive(peer.analyser, peer.dataArray);
         if (speakingNow !== peer.isSpeaking) {
           peer.isSpeaking = speakingNow;
-
           changed = true;
         }
       });

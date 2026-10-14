@@ -121,13 +121,15 @@ export default function RoomPage() {
     let themeColor = '#09090b';
     let bannerText = '';
 
-    if (currentPhase === 'lobby') {
+    if (!currentPhase || currentPhase === 'lobby') {
       htmlPhase = 'lobby';
       themeColor = '#09090b';
+      setPhaseAmbience('lobby');
     } else if (currentPhase === 'roleReveal') {
       htmlPhase = 'night';
       themeColor = '#07090e';
       bannerText = 'ROLE REVEAL';
+      setPhaseAmbience('night');
     } else if (currentPhase === 'night') {
       htmlPhase = 'night';
       themeColor = '#07090e';

@@ -12,6 +12,7 @@ class AudioManager {
   private sfxVol: number = 0.8;
   private ambienceVol: number = 0.4;
   private isMuted: boolean = false;
+  private currentPhase: 'lobby' | 'night' | 'day' | 'voting' | 'gameover' = 'lobby';
 
   constructor() {
     if (typeof window !== 'undefined') {
@@ -28,6 +29,37 @@ class AudioManager {
         const savedAmb = localStorage.getItem('mafia-ambience-vol');
         if (savedAmb !== null) this.ambienceVol = Math.max(0, Math.min(1, parseFloat(savedAmb)));
       } catch (_) {}
+
+      // Automatically unlock and resume audio on user interaction (pointerdown, click, touch, keydown)
+      const unlockAudio = () => {
+        if (!this.isMuted) {
+          if (!this.ctx) {
+            this.initCtx();
+            this.startLoFi(this.currentPhase);
+          } else if (this.ctx.state === 'suspended') {
+            this.ctx.resume().then(() => {
+              if (!this.isMuted && !this.lofiTimer) {
+                this.startLoFi(this.currentPhase);
+              }
+            }).catch(() => {});
+          } else if (!this.lofiTimer) {
+            this.startLoFi(this.currentPhase);
+          }
+        }
+      };
+
+      window.addEventListener('pointerdown', unlockAudio, { passive: true });
+      window.addEventListener('keydown', unlockAudio, { passive: true });
+      window.addEventListener('click', unlockAudio, { passive: true });
+      window.addEventListener('touchstart', unlockAudio, { passive: true });
+
+      // If autoplay policy allows on refresh, start lo-fi immediately
+      if (!this.isMuted) {
+        setTimeout(() => {
+          this.initCtx();
+          this.startLoFi(this.currentPhase);
+        }, 100);
+      }
 
       // Mute audio when tab is hidden to respect user background audio
       document.addEventListener('visibilitychange', () => {
@@ -103,7 +135,7 @@ class AudioManager {
     if (this.isMuted) {
       this.stopLoFi();
     } else {
-      this.startLoFi('lobby');
+      this.startLoFi(this.currentPhase);
     }
     return !this.isMuted;
   }
@@ -249,6 +281,7 @@ class AudioManager {
   }
 
   public setPhaseAmbience(phase: 'lobby' | 'night' | 'day' | 'voting' | 'gameover') {
+    this.currentPhase = phase;
     if (this.isMuted) return;
     this.startLoFi(phase);
   }

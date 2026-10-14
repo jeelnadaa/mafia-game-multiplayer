@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Volume2, VolumeX, HelpCircle, Copy, Check, ArrowLeft, LogOut, FastForward, Lock, QrCode, Mic, MicOff } from 'lucide-react';
+import { Volume2, VolumeX, HelpCircle, Copy, Check, ArrowLeft, LogOut, FastForward, Lock, QrCode, Mic, MicOff, PhoneOff } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { ClientGameView } from '@/lib/types';
 import { ROLES } from '@/lib/content';
@@ -189,28 +189,49 @@ export function TopBar({
               <span>QR</span>
             </Button>
 
-            {/* Voice Chat Button */}
+            {/* Voice Chat Controls (Join / Mute & Leave) */}
             {onToggleVoice && (
-              <Button
-                variant={isVoiceActive ? (isVoiceMuted ? 'secondary' : 'primary') : 'secondary'}
-                size="sm"
-                onClick={isVoiceActive ? onToggleVoiceMute : onToggleVoice}
-                title={isVoiceActive ? (isVoiceMuted ? 'Unmute microphone' : 'Mute microphone') : 'Join voice chat mesh'}
-                className="flex items-center gap-1.5 font-medium px-2.5 h-8 text-xs"
-              >
-                {isVoiceActive ? (
-                  isVoiceMuted ? (
-                    <MicOff className="w-3.5 h-3.5 text-amber-400" />
-                  ) : (
-                    <Mic className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
-                  )
-                ) : (
-                  <MicOff className="w-3.5 h-3.5 text-muted" />
-                )}
-                <span className="hidden sm:inline">
-                  {isVoiceActive ? (isVoiceMuted ? 'Muted' : 'Voice Live') : 'Voice Chat'}
-                </span>
-              </Button>
+              isVoiceActive ? (
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant={isVoiceMuted ? 'secondary' : 'primary'}
+                    size="sm"
+                    onClick={onToggleVoiceMute}
+                    title={isVoiceMuted ? 'Unmute microphone (Shift+M)' : 'Mute microphone (Shift+M)'}
+                    className="flex items-center gap-1.5 font-medium px-2.5 h-8 text-xs"
+                  >
+                    {isVoiceMuted ? (
+                      <MicOff className="w-3.5 h-3.5 text-amber-400" />
+                    ) : (
+                      <Mic className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
+                    )}
+                    <span className="hidden sm:inline">
+                      {isVoiceMuted ? 'Unmute' : 'Mute'}
+                    </span>
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={onToggleVoice}
+                    title="Leave voice chat"
+                    className="flex items-center gap-1 px-2 h-8 text-xs text-red-400 hover:text-white hover:bg-red-500/20 border border-transparent hover:border-red-500 font-medium"
+                  >
+                    <PhoneOff className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Leave</span>
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={onToggleVoice}
+                  title="Join peer-to-peer voice chat"
+                  className="flex items-center gap-1.5 font-medium px-2.5 h-8 text-xs hover:border-white"
+                >
+                  <Mic className="w-3.5 h-3.5 text-muted" />
+                  <span className="hidden sm:inline">Join Voice</span>
+                </Button>
+              )
             )}
 
             {/* Connection Status Chip */}

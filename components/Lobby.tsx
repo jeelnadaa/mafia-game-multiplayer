@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { Crown, Shield, Users, Play, Copy, Check, QrCode, UserMinus, AlertTriangle, MessageSquare, Send, Activity, Lock, Ban, Bot, Mic, MicOff } from 'lucide-react';
+import { Crown, Shield, Users, Play, Copy, Check, QrCode, UserMinus, AlertTriangle, MessageSquare, Send, Activity, Lock, Ban, Bot, Mic, MicOff, PhoneOff } from 'lucide-react';
 import { ClientGameView, Settings, PlayerView } from '@/lib/types';
 import { SETTINGS_SCHEMA, ROLE_PRESETS, RULE_PRESETS } from '@/lib/settings';
 import { validateSettings } from '@/lib/engine/rules';
@@ -240,14 +240,38 @@ export function Lobby({
                         : 'WebRTC Audio Available'}
                     </div>
                   </div>
-                  <Button
-                    variant={isVoiceActive ? (isVoiceMuted ? 'secondary' : 'primary') : 'secondary'}
-                    size="sm"
-                    onClick={isVoiceActive ? onToggleVoiceMute : onToggleVoice}
-                    className="shrink-0 text-xs font-semibold"
-                  >
-                    {isVoiceActive ? (isVoiceMuted ? 'Unmute' : 'Mute') : 'Join Voice'}
-                  </Button>
+                  {isVoiceActive ? (
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <Button
+                        variant={isVoiceMuted ? 'secondary' : 'primary'}
+                        size="sm"
+                        onClick={onToggleVoiceMute}
+                        className="text-xs font-semibold"
+                        title={isVoiceMuted ? 'Unmute microphone' : 'Mute microphone'}
+                      >
+                        {isVoiceMuted ? 'Unmute' : 'Mute'}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={onToggleVoice}
+                        className="text-xs font-semibold text-red-400 hover:text-white hover:bg-red-500/20 border border-transparent hover:border-red-500"
+                        title="Leave voice chat"
+                      >
+                        <PhoneOff className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">Leave</span>
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={onToggleVoice}
+                      className="shrink-0 text-xs font-semibold hover:border-white"
+                    >
+                      Join Voice
+                    </Button>
+                  )}
                 </div>
               )}
             </div>
