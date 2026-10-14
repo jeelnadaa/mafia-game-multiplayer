@@ -70,9 +70,9 @@ export default function HomePage() {
               <div className="flex items-center justify-between pb-4 border-b border-border text-xs text-muted">
                 <div className="flex items-center gap-2">
                   <span className="w-2 h-2 bg-white inline-block" />
-                  <span>Peer-to-Peer Mesh</span>
+                  <span>Peer-to-Peer</span>
                 </div>
-                <span>Zero Server · Encrypted</span>
+                <span>DTLS Encrypted · No Accounts</span>
               </div>
 
               {/* Title & Brand */}
@@ -84,8 +84,8 @@ export default function HomePage() {
                   Shadows of the City · Social Deduction Protocol
                 </div>
                 <p className="text-sm text-muted/80 max-w-xl leading-relaxed pt-1">
-                  A high-stakes multiplayer party game running directly in browser memory via WebRTC data channels. 
-                  Zero centralized servers, zero tracking. Deceive, investigate, and eliminate.
+                  A high-stakes multiplayer party game running directly between your friends&apos; devices via WebRTC data channels.
+                  No accounts, no tracking. Deceive, investigate, and eliminate.
                 </p>
               </div>
 
@@ -98,13 +98,13 @@ export default function HomePage() {
                 </div>
                 <div className="p-3 bg-surface-2 border border-border">
                   <div className="text-xs text-muted">Networking</div>
-                  <div className="text-sm font-semibold text-text mt-0.5">Pure WebRTC Mesh</div>
-                  <div className="text-[11px] text-muted/70 mt-1">Direct device-to-device synchronization</div>
+                  <div className="text-sm font-semibold text-text mt-0.5">WebRTC Data Channels</div>
+                  <div className="text-[11px] text-muted/70 mt-1">Direct peer-to-peer data synchronization</div>
                 </div>
                 <div className="p-3 bg-surface-2 border border-border">
-                  <div className="text-xs text-muted">Privacy</div>
-                  <div className="text-sm font-semibold text-text mt-0.5">End-to-End Private</div>
-                  <div className="text-[11px] text-muted/70 mt-1">Syndicate secret night channels</div>
+                  <div className="text-xs text-muted">Channels</div>
+                  <div className="text-sm font-semibold text-text mt-0.5">Role-Gated Privacy</div>
+                  <div className="text-[11px] text-muted/70 mt-1">Mafia-only and ghost channel routing</div>
                 </div>
               </div>
             </div>

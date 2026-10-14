@@ -107,13 +107,94 @@ export async function requestScreenWakeLock(): Promise<{ release: () => void } |
   return null;
 }
 
+/** Canonical site URL constant for production / deployment */
+export const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://the-apes.vercel.app';
+
 /** Get the absolute shareable URL for a room code dynamically on Vercel or any deployment */
 export function getRoomShareUrl(code: string): string {
   if (typeof window !== 'undefined' && window.location?.origin) {
     return `${window.location.origin}/room/${code}`;
   }
-  if (process.env.NEXT_PUBLIC_APP_URL) {
-    return `${process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, '')}/room/${code}`;
+  return `${SITE_URL.replace(/\/$/, '')}/room/${code}`;
+}
+
+let cachedIceServers: any[] | null = null;
+let cachedIceExpiry = 0;
+
+/** Retrieve multi-STUN and TURN configuration with short-lived credential caching */
+export async function getIceConfig(): Promise<{
+  iceServers: any[];
+  iceTransportPolicy?: 'relay' | 'all';
+}> {
+  const isForceRelay =
+    (typeof window !== 'undefined' &&
+      Boolean(window.location?.search?.includes('relay=1') || (window as any).__FORCE_RELAY__)) ||
+    process.env.NEXT_PUBLIC_FORCE_RELAY === 'true';
+
+  const defaultStuns = [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:stun2.l.google.com:19302' },
+    { urls: 'stun:stun.cloudflare.com:3478' },
+    { urls: 'stun:stun.services.mozilla.com:3478' },
+  ];
+
+  const now = Date.now();
+  if (cachedIceServers && now < cachedIceExpiry) {
+    return {
+      iceServers: cachedIceServers,
+      iceTransportPolicy: isForceRelay ? 'relay' : 'all',
+    };
   }
-  return `http://localhost:3000/room/${code}`;
+
+  if (typeof window !== 'undefined') {
+    try {
+      const res = await fetch('/api/turn-credentials');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.iceServers && Array.isArray(data.iceServers)) {
+          cachedIceServers = data.iceServers;
+          cachedIceExpiry = now + 1800000; // 30 min cache
+          return {
+            iceServers: data.iceServers,
+            iceTransportPolicy: isForceRelay ? 'relay' : 'all',
+          };
+        }
+      }
+    } catch (_) {
+      // Offline fallback
+    }
+  }
+
+  return {
+    iceServers: defaultStuns,
+    iceTransportPolicy: isForceRelay ? 'relay' : 'all',
+  };
+}
+
+/** Diagnostic helper: inspect active ICE candidate pair via getStats() */
+export async function logSelectedCandidatePair(pc: RTCPeerConnection): Promise<'direct' | 'relayed' | 'connecting'> {
+  if (!pc || typeof pc.getStats !== 'function') return 'direct';
+  try {
+    const stats = await pc.getStats();
+    let selectedCandidatePair: any = null;
+    stats.forEach((report) => {
+      if (report.type === 'transport' && report.selectedCandidatePairId) {
+        selectedCandidatePair = stats.get(report.selectedCandidatePairId);
+      }
+      if (report.type === 'candidate-pair' && (report.selected || report.nominated)) {
+        selectedCandidatePair = report;
+      }
+    });
+
+    if (selectedCandidatePair) {
+      const localCand = stats.get(selectedCandidatePair.localCandidateId);
+      const isRelayed = localCand?.candidateType === 'relay';
+      if (process.env.NODE_ENV !== 'production' || (typeof window !== 'undefined' && window.location.search.includes('debug=1'))) {
+        console.log(`[WebRTC Stats] Selected pair: ${localCand?.candidateType} ↔ ${stats.get(selectedCandidatePair.remoteCandidateId)?.candidateType} (${isRelayed ? 'TURN RELAY' : 'DIRECT P2P'})`);
+      }
+      return isRelayed ? 'relayed' : 'direct';
+    }
+  } catch (_) {}
+  return 'direct';
 }

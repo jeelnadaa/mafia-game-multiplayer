@@ -20,6 +20,7 @@ export default function RoomPage() {
   const params = useParams();
   const router = useRouter();
   const code = (params?.code as string)?.toUpperCase() || '';
+  const isValidCode = /^[A-HJ-NP-Z2-9]{5}$/i.test(code) || /^[A-Z0-9]{5}$/.test(code);
 
   const [name, setName] = useState<string>(() => {
     if (typeof window !== 'undefined') {
@@ -134,6 +135,30 @@ export default function RoomPage() {
     setHelpInitialTab(tab);
     setHelpOpen(true);
   };
+
+  // 0. Invalid Room Code Screen
+  if (!isValidCode) {
+    return (
+      <main className="min-h-screen flex items-center justify-center p-4 bg-transparent text-center">
+        <div className="max-w-md w-full bg-surface border border-border p-6 space-y-4">
+          <div className="inline-flex items-center justify-center p-3 border border-border bg-surface-2 text-white">
+            <AlertCircle className="w-6 h-6" />
+          </div>
+          <h2 className="text-sm font-mono font-bold uppercase tracking-widest text-text">
+            INVALID ROOM CODE
+          </h2>
+          <p className="text-xs font-mono text-muted leading-relaxed">
+            The room code &quot;{code}&quot; is invalid. Room codes must be exactly 5 alphanumeric characters.
+          </p>
+          <div className="pt-2">
+            <Button variant="primary" onClick={() => router.push('/')} className="w-full justify-center">
+              RETURN HOME
+            </Button>
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   // 1. Pre-Join Screen for Visitors (Ask for name & avatar before checking availability)
   if (!hasJoined) {

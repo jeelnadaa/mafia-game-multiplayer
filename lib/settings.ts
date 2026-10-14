@@ -15,6 +15,21 @@ export interface SettingField {
   plain: (value: any) => string;
 }
 
+export const PLAYER_COLORS = [
+  '#E5383B', // Crimson
+  '#5B8CFF', // Azure
+  '#F4F6FA', // Paper White
+  '#C9B79C', // Muted Khaki
+  '#B58AD6', // Lavender
+  '#7C8CA6', // Slate
+  '#D6B15E', // Warm Brass
+  '#F2B84B', // Amber
+  '#2DD4BF', // Teal
+  '#F43F5E', // Rose
+  '#8B5CF6', // Violet
+  '#10B981', // Emerald
+] as const;
+
 export const DEFAULT_SETTINGS: Settings = {
   maxPlayers: 12,
   moderatorMode: 'auto',

@@ -3,14 +3,31 @@ import './globals.css';
 import { BackgroundCrossLines } from '@/components/BackgroundCrossLines';
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'),
-  title: 'Mafia: Shadows of the City | Multiplayer Party Game',
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://the-apes.vercel.app'),
+  title: 'Mafia: Shadows of the City | Peer-to-Peer Party Game',
   description:
-    'A real-time multiplayer WebRTC Mafia party game with no servers, instant peer-to-peer rooms, and sleek minimalist aesthetics.',
+    'A real-time multiplayer WebRTC Mafia party game with no accounts, no tracking, instant peer-to-peer rooms, and sleek minimalist aesthetics.',
   openGraph: {
     title: 'Mafia: Shadows of the City',
-    description: 'Play real-time multiplayer Mafia directly in your browser with your friends.',
-    images: ['/assets/og.png'],
+    description: 'Play real-time multiplayer Mafia directly in your browser with your friends. Peer-to-peer, no accounts, no tracking.',
+    url: 'https://the-apes.vercel.app',
+    siteName: 'Mafia: Shadows of the City',
+    type: 'website',
+    images: [
+      {
+        url: 'https://the-apes.vercel.app/assets/og.png',
+        width: 1200,
+        height: 630,
+        alt: 'Mafia: Shadows of the City — Peer-to-Peer Party Game',
+        type: 'image/png',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Mafia: Shadows of the City',
+    description: 'Play real-time multiplayer Mafia directly in your browser with your friends. Peer-to-peer, no accounts, no tracking.',
+    images: ['https://the-apes.vercel.app/assets/og.png'],
   },
 };
 
@@ -18,7 +35,7 @@ export const viewport: Viewport = {
   themeColor: '#09090b',
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
+  viewportFit: 'cover',
 };
 
 export default function RootLayout({

@@ -6,7 +6,7 @@ export function BackgroundCrossLines() {
   const lineText1 =
     'MAFIA · SHADOWS OF THE CITY · PEER TO PEER MESH · TRUST NO ONE · COVERT SYNDICATE · TOWN ASSEMBLY · DECEIVE & SURVIVE · ';
   const lineText2 =
-    'VERIFIED ZERO-SERVER PROTOCOL · SECRET NIGHT FREQUENCY · INVESTIGATE OR BE ELIMINATED · TRUTH IN THE SHADOWS · ';
+    'PEER-TO-PEER DATA PROTOCOL · SECRET NIGHT FREQUENCY · INVESTIGATE OR BE ELIMINATED · TRUTH IN THE SHADOWS · ';
 
   // Repeat text just enough for seamless continuous looping across 250vw
   const textStream1 = lineText1.repeat(4);

@@ -7,6 +7,7 @@ export interface Player {
   token: string;
   name: string;
   avatar: number; // 1..12
+  color?: string; // Deterministic unique player color from noir palette
   isHost: boolean;
   isGod: boolean; // God does not play
   ready: boolean;
@@ -129,6 +130,7 @@ export interface PlayerView {
   id: string;
   name: string;
   avatar: number;
+  color?: string;
   isHost: boolean;
   isGod: boolean;
   ready: boolean;
@@ -156,6 +158,7 @@ export interface ClientGameView {
     token: string;
     name: string;
     avatar: number;
+    color?: string;
     role?: Role;
     isGod: boolean;
     isHost: boolean;

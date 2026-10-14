@@ -81,4 +81,40 @@ describe('Network Protocol & Zod Validation', () => {
     expect(t1).not.toBe(t2);
     expect(t1.length).toBeGreaterThan(6);
   });
+
+  it('generates production-ready room share URLs', () => {
+    const { getRoomShareUrl } = require('./net');
+    const shareUrl = getRoomShareUrl('ABCDE');
+    expect(shareUrl.includes('/room/ABCDE')).toBe(true);
+    expect(shareUrl.startsWith('https://') || shareUrl.startsWith('http://')).toBe(true);
+  });
+
+  it('provides multi-STUN fallback servers in getIceConfig', async () => {
+    const { getIceConfig } = require('./net');
+    const config = await getIceConfig();
+    expect(Array.isArray(config.iceServers)).toBe(true);
+    expect(config.iceServers.length).toBeGreaterThan(2);
+    const urls = config.iceServers.flatMap((s: any) => (Array.isArray(s.urls) ? s.urls : [s.urls]));
+    expect(urls.some((u: string) => u.includes('google'))).toBe(true);
+    expect(urls.some((u: string) => u.includes('cloudflare'))).toBe(true);
+  });
+
+  it('assigns 100% unique colors across 4, 8, and 12-player rosters', () => {
+    const { PLAYER_COLORS } = require('./settings');
+    expect(PLAYER_COLORS).toHaveLength(12);
+    const uniqueColors = new Set(PLAYER_COLORS);
+    expect(uniqueColors.size).toBe(12);
+
+    // Verify 4-player room
+    const p4 = Array.from({ length: 4 }, (_, i) => PLAYER_COLORS[i % PLAYER_COLORS.length]);
+    expect(new Set(p4).size).toBe(4);
+
+    // Verify 8-player room
+    const p8 = Array.from({ length: 8 }, (_, i) => PLAYER_COLORS[i % PLAYER_COLORS.length]);
+    expect(new Set(p8).size).toBe(8);
+
+    // Verify 12-player room
+    const p12 = Array.from({ length: 12 }, (_, i) => PLAYER_COLORS[i % PLAYER_COLORS.length]);
+    expect(new Set(p12).size).toBe(12);
+  });
 });

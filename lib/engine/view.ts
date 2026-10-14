@@ -1,4 +1,5 @@
 import { GameState, ClientGameView, PlayerView, Role } from '../types';
+import { PLAYER_COLORS } from '../settings';
 
 export function buildViewFor(state: GameState, observerId: string, now: number): ClientGameView {
   const me = state.players.find((p) => p.id === observerId);
@@ -8,7 +9,7 @@ export function buildViewFor(state: GameState, observerId: string, now: number):
   const isObserverMafia = me?.role === 'mafia' || me?.role === 'godfather';
 
   // Format players list with masked roles
-  const playerViews: PlayerView[] = state.players.map((p) => {
+  const playerViews: PlayerView[] = state.players.map((p, idx) => {
     let roleVisible = false;
     let alignment: 'town' | 'mafia' | 'jester' | undefined = undefined;
 
@@ -49,6 +50,7 @@ export function buildViewFor(state: GameState, observerId: string, now: number):
       id: p.id,
       name: p.name,
       avatar: p.avatar,
+      color: p.color || PLAYER_COLORS[idx % PLAYER_COLORS.length],
       isHost: p.isHost,
       isGod: p.isGod,
       ready: p.ready,
@@ -148,6 +150,7 @@ export function buildViewFor(state: GameState, observerId: string, now: number):
       token: me?.token || '',
       name: me?.name || 'Observer',
       avatar: me?.avatar || 1,
+      color: me?.color || PLAYER_COLORS[0],
       role: me?.role,
       isGod,
       isHost: me?.isHost || false,

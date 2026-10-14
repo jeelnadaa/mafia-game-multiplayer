@@ -2,8 +2,15 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { ClientGameView, GameState, IntentType, Player, Settings, Role } from './types';
-import { DEFAULT_SETTINGS } from './settings';
-import { generateRoomCode, generateToken, createTickWorker, requestScreenWakeLock } from './net';
+import { DEFAULT_SETTINGS, PLAYER_COLORS } from './settings';
+import {
+  generateRoomCode,
+  generateToken,
+  createTickWorker,
+  requestScreenWakeLock,
+  getIceConfig,
+  logSelectedCandidatePair,
+} from './net';
 import { buildViewFor } from './engine/view';
 import {
   maybeAdvance,
@@ -697,19 +704,33 @@ export function useRoom(
       // Screen Wake Lock
       requestScreenWakeLock();
 
-      // Lazy import PeerJS on client
-      import('peerjs').then(({ default: Peer }) => {
+      // Lazy import PeerJS on client with dynamic ICE / TURN configuration
+      getIceConfig().then((iceConfig) => {
         if (!active) return;
-        const peerId = `mafia-v1-${code}`;
-        const peer = new Peer(peerId, { debug: 0 });
-        peerRef.current = peer;
+        import('peerjs').then(({ default: Peer }) => {
+          if (!active) return;
+          const peerId = `mafia-v1-${code}`;
+          const peer = new Peer(peerId, {
+            debug: 0,
+            config: {
+              iceServers: iceConfig.iceServers,
+              iceTransportPolicy: iceConfig.iceTransportPolicy || 'all',
+            },
+          });
+          peerRef.current = peer;
 
-        peer.on('open', () => {
-          setIsConnected(true);
-        });
+          peer.on('open', () => {
+            setIsConnected(true);
+          });
 
-        peer.on('connection', (conn) => {
-          conn.on('data', (data: any) => {
+          peer.on('connection', (conn) => {
+            setTimeout(() => {
+              if (conn.peerConnection) {
+                logSelectedCandidatePair(conn.peerConnection);
+              }
+            }, 2000);
+
+            conn.on('data', (data: any) => {
             // Keepalive: mark peer active & connected
             if (hostStateRef.current) {
               const activeP = hostStateRef.current.players.find((p) => p.id === conn.peer);
@@ -768,6 +789,7 @@ export function useRoom(
                 token: data.token || generateToken(),
                 name: clientName,
                 avatar: clientAvatar,
+                color: PLAYER_COLORS[state.players.length % PLAYER_COLORS.length],
                 isHost: false,
                 isGod: false,
                 ready: false,
@@ -859,7 +881,8 @@ export function useRoom(
           });
         });
       });
-    } else {
+    });
+  } else {
       // Client Mode
       setIsHost(false);
       setIsConnecting(true);
@@ -867,11 +890,11 @@ export function useRoom(
 
       connectTimeout = setTimeout(() => {
         if (!clientConnRef.current || !clientConnRef.current.open) {
-          setError(`Room ${code} is unavailable or host is offline.`);
+          setError(`Unable to connect to room ${code}. The host may be offline or unreachable. Try switching between Wi-Fi and mobile data.`);
           setIsConnecting(false);
           try { clientConnRef.current?.close(); } catch (_) {}
         }
-      }, 8500);
+      }, 15000);
 
       const handleUnload = () => {
         if (clientConnRef.current && clientConnRef.current.open) {
@@ -891,29 +914,45 @@ export function useRoom(
         window.addEventListener('pagehide', handleUnload);
       }
 
-      import('peerjs').then(({ default: Peer }) => {
+      getIceConfig().then((iceConfig) => {
         if (!active) {
           if (connectTimeout) clearTimeout(connectTimeout);
           return;
         }
-        const peer = new Peer({ debug: 0 });
-        peerRef.current = peer;
-
-        peer.on('open', (id) => {
-          const conn = peer.connect(`mafia-v1-${code}`, { reliable: true });
-          clientConnRef.current = conn;
-
-          conn.on('open', () => {
+        import('peerjs').then(({ default: Peer }) => {
+          if (!active) {
             if (connectTimeout) clearTimeout(connectTimeout);
-            setIsConnected(true);
-            setIsConnecting(false);
-            conn.send({
-              type: 'hello',
-              code,
-              name: effectiveName,
-              avatar: effectiveAvatar,
-              token,
-            });
+            return;
+          }
+          const peer = new Peer({
+            debug: 0,
+            config: {
+              iceServers: iceConfig.iceServers,
+              iceTransportPolicy: iceConfig.iceTransportPolicy || 'all',
+            },
+          });
+          peerRef.current = peer;
+
+          peer.on('open', (id) => {
+            const conn = peer.connect(`mafia-v1-${code}`, { reliable: true });
+            clientConnRef.current = conn;
+
+            conn.on('open', () => {
+              if (connectTimeout) clearTimeout(connectTimeout);
+              setIsConnected(true);
+              setIsConnecting(false);
+              setTimeout(() => {
+                if (conn.peerConnection) {
+                  logSelectedCandidatePair(conn.peerConnection);
+                }
+              }, 2000);
+              conn.send({
+                type: 'hello',
+                code,
+                name: effectiveName,
+                avatar: effectiveAvatar,
+                token,
+              });
 
             // Start heartbeat pings every 2000ms
             if (pingIntervalRef.current) clearInterval(pingIntervalRef.current);
@@ -957,6 +996,7 @@ export function useRoom(
           setError(`Room ${code} is unavailable or host is offline.`);
           setIsConnecting(false);
         });
+      });
       });
     }
 
@@ -1078,6 +1118,7 @@ function createInitialState(
     token: hostToken,
     name: hostName || 'Host',
     avatar: hostAvatar || 1,
+    color: PLAYER_COLORS[0],
     isHost: true,
     isGod: false,
     ready: true,

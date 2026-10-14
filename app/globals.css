@@ -22,6 +22,27 @@
   --jester: #e4e4e7;
   --civilian: #71717a;
   --god: #ffffff;
+  /* Safe-area insets for notched mobile displays */
+  --sat: env(safe-area-inset-top, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+}
+
+/* Prevent mobile iOS Safari auto-zoom on input focus */
+input,
+textarea,
+select {
+  font-size: 16px !important;
+}
+
+/* Remove 300ms tap delay and double-tap zoom while keeping pinch-zoom active */
+button,
+[role="button"],
+input[type="button"],
+input[type="submit"],
+input[type="reset"] {
+  touch-action: manipulation;
 }
 
 html {

@@ -92,6 +92,7 @@ export function useShortcut(
         activeElement &&
         (activeElement.tagName === 'INPUT' ||
           activeElement.tagName === 'TEXTAREA' ||
+          activeElement.tagName === 'SELECT' ||
           (activeElement as HTMLElement).isContentEditable);
 
       // In input fields, allow Esc to blur and Enter in chat
