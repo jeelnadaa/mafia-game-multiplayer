@@ -352,7 +352,14 @@ export function CircleSittingArena({
               : `DAY · ${round}`}
           </div>
 
-          {secondsRemaining !== null && (
+          {gameView.settings.noTimer ? (
+            <div
+              className="w-13 h-13 sm:w-14 sm:h-14 rounded-full border-2 border-[#D9A441] flex items-center justify-center text-[#D9A441] font-bold text-2xl shrink-0 shadow-[0_0_12px_rgba(217,164,65,0.3)] select-none"
+              title="Untimed Play (No Timer)"
+            >
+              ∞
+            </div>
+          ) : secondsRemaining !== null ? (
             <div className="relative w-13 h-13 sm:w-14 sm:h-14 flex items-center justify-center shrink-0">
               <svg width="56" height="56" viewBox="0 0 56 56" aria-hidden="true" className="shrink-0 -rotate-90">
                 <circle cx="28" cy="28" r="23" fill="none" stroke="#262A33" strokeWidth="3.5" />
@@ -385,7 +392,7 @@ export function CircleSittingArena({
                 {secondsRemaining}s
               </span>
             </div>
-          )}
+          ) : null}
         </div>
 
         {/* Right: Secret Role Pill Badge */}

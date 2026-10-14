@@ -78,7 +78,7 @@ function tryAdvanceNightHelper(st: GameState, now: number): GameState {
     }
   }
 
-  if (!st.settings.endNightEarly) {
+  if (!st.settings.endNightEarly && !st.settings.noTimer) {
     return st;
   }
 
@@ -214,7 +214,7 @@ function processBotActions(state: GameState, now: number): GameState {
     const alivePlaying = st.players.filter((p) => p.alive && !p.isGod);
     if (st.readyToVote.length >= alivePlaying.length) {
       st.phase = 'voting';
-      st.phaseEndsAt = now + st.settings.votingDuration * 1000;
+      st.phaseEndsAt = st.settings.noTimer ? null : now + st.settings.votingDuration * 1000;
       st.votes = {};
       modified = true;
     }
@@ -240,7 +240,11 @@ function processBotActions(state: GameState, now: number): GameState {
     const alivePlayers = st.players.filter((p) => p.alive && !p.isGod);
     const allVoted = alivePlayers.length > 0 && alivePlayers.every((p) => Boolean(st.votes[p.id]));
     if (allVoted) {
-      st.phaseEndsAt = Math.min(st.phaseEndsAt || now + 1000, now + 1000);
+      if (st.settings.noTimer) {
+        st = maybeAdvance({ ...st, phaseEndsAt: now }, now, () => Math.random());
+      } else {
+        st.phaseEndsAt = Math.min(st.phaseEndsAt || now + 1000, now + 1000);
+      }
       modified = true;
     }
 
@@ -795,7 +799,11 @@ export function useRoom(
 
           if (allVoted) {
             // Speed up voting conclusion to 1s so players see the final tally before moving to voteResult
-            nextState.phaseEndsAt = Math.min(nextState.phaseEndsAt || now + 1000, now + 1000);
+            if (nextState.settings.noTimer) {
+              nextState = maybeAdvance({ ...nextState, phaseEndsAt: now }, now, () => Math.random());
+            } else {
+              nextState.phaseEndsAt = Math.min(nextState.phaseEndsAt || now + 1000, now + 1000);
+            }
           }
           nextState.version++;
           break;
@@ -812,7 +820,7 @@ export function useRoom(
           const alivePlaying = nextState.players.filter((p) => p.alive && !p.isGod);
           if (nextState.readyToVote.length >= alivePlaying.length) {
             nextState.phase = 'voting';
-            nextState.phaseEndsAt = now + nextState.settings.votingDuration * 1000;
+            nextState.phaseEndsAt = nextState.settings.noTimer ? null : now + nextState.settings.votingDuration * 1000;
             nextState.votes = {};
           }
           nextState.version++;

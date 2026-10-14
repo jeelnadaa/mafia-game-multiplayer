@@ -761,4 +761,47 @@ describe('Mafia Engine: View Information Masking', () => {
     expect(deaths2).not.toContain('maf');
     expect(state2.shotsUsed['vig']).toBeUndefined();
   });
+
+  it('strictly preserves untimed phases in maybeAdvance without auto-skipping when noTimer is enabled', () => {
+    const untimedNightState: GameState = {
+      code: 'UNTMD',
+      version: 1,
+      phase: 'night',
+      round: 1,
+      phaseEndsAt: null, // Untimed play
+      paused: false,
+      settings: { ...DEFAULT_SETTINGS, noTimer: true },
+      players: [
+        { id: 'vig1', token: 'tv1', name: 'Vigilante', avatar: 1, isHost: true, isGod: false, ready: true, connected: true, lastSeen: 0, role: 'vigilante', alive: true },
+        { id: 'maf1', token: 'tm1', name: 'Mob', avatar: 2, isHost: false, isGod: false, ready: true, connected: true, lastSeen: 0, role: 'mafia', alive: true },
+        { id: 'civ1', token: 'tc1', name: 'Citizen', avatar: 3, isHost: false, isGod: false, ready: true, connected: true, lastSeen: 0, role: 'civilian', alive: true },
+      ],
+      night: {
+        subPhase: 'vigilante',
+        picks: {},
+        confirmed: {}, // Vigilante has NOT confirmed action yet
+        locked: {},
+        earlyEndAt: null,
+      },
+      doctorHistory: {},
+      shotsUsed: {},
+      policeInbox: [],
+      votes: {},
+      revotePending: false,
+      readyToVote: [],
+      log: [],
+      secretLog: [],
+      chat: [],
+    };
+
+    // Advancing tick worker after 10 seconds of simulated time
+    const tickResult = maybeAdvance(untimedNightState, Date.now() + 10000, () => 0.5);
+
+    // Must NOT advance: stays in night vigilante subphase and does not resolve or skip
+    expect(tickResult.phase).toBe('night');
+    expect(tickResult.night.subPhase).toBe('vigilante');
+    expect(tickResult.phaseEndsAt).toBeNull();
+    expect(tickResult.version).toBe(untimedNightState.version);
+  });
 });
+

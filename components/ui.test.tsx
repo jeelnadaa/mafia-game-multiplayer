@@ -628,6 +628,55 @@ describe('Frontend UI Components: Rendering & Reflection', () => {
     assert.ok(html.includes('#2ED573'), 'Expected emerald glow color for active speaker');
   });
 
+  it('safely renders VoiceOverlay without throwing when voiceMuted is null', () => {
+    const nullMutedGameView: ClientGameView = {
+      code: 'VOIC2',
+      version: 1,
+      phase: 'discussion',
+      round: 1,
+      phaseEndsAt: null,
+      paused: false,
+      settings: DEFAULT_SETTINGS,
+      players: [
+        { id: 'p1', name: 'Player One', avatar: 1, isHost: true, isGod: false, ready: true, alive: true, connected: true },
+        { id: 'p2', name: 'Player Two', avatar: 2, isHost: false, isGod: false, ready: true, alive: true, connected: true },
+      ],
+      me: {
+        id: 'p1',
+        token: 'tp1',
+        name: 'Player One',
+        avatar: 1,
+        isGod: false,
+        isHost: true,
+        alive: true,
+        canActNow: false,
+        isConfirmed: false,
+        nightPick: null,
+        nightLocked: false,
+        vote: null,
+        readyToVote: false,
+        isReady: true,
+      },
+      readyToVote: [],
+      chat: [],
+      log: [],
+      serverNow: Date.now(),
+      voiceMuted: null as any,
+    };
+
+    assert.doesNotThrow(() => {
+      renderToStaticMarkup(
+        <VoiceOverlay
+          gameView={nullMutedGameView}
+          isVoiceActive={true}
+          isVoiceMuted={false}
+          onToggleVoice={() => {}}
+          onToggleVoiceMute={() => {}}
+        />
+      );
+    });
+  });
+
   it('renders MorningNewspaper with 1930s Observer broadsheet styling, headlines, and victim inquest', () => {
     const newspaperGameView: ClientGameView = {
       code: 'NEWS1',

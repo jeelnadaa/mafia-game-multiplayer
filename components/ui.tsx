@@ -279,12 +279,14 @@ export function CenterTimer({
   label,
   className = '',
   size = 'md',
+  noTimer = false,
 }: {
   phaseEndsAt: number | null | undefined;
   serverNow?: number | null;
   label?: string;
   className?: string;
   size?: 'sm' | 'md' | 'lg';
+  noTimer?: boolean;
 }) {
   const [now, setNow] = React.useState(() => Date.now());
   const offsetRef = React.useRef(0);
@@ -297,14 +299,14 @@ export function CenterTimer({
   }, [serverNow]);
 
   React.useEffect(() => {
-    if (!phaseEndsAt) return;
+    if (!phaseEndsAt || noTimer) return;
     const interval = setInterval(() => {
       setNow(Date.now());
     }, 200);
     return () => clearInterval(interval);
-  }, [phaseEndsAt]);
+  }, [phaseEndsAt, noTimer]);
 
-  if (!phaseEndsAt) return null;
+  if (!phaseEndsAt || noTimer) return null;
 
   const effectiveNow = now + offsetRef.current;
   const remainingMs = Math.max(0, phaseEndsAt - effectiveNow);

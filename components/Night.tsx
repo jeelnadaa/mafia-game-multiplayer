@@ -92,14 +92,17 @@ export function Night({
         </div>
 
         {/* Center Countdown Timer */}
-        <div className="flex items-center gap-4">
-          <CenterTimer
-            phaseEndsAt={gameView.phaseEndsAt}
-            serverNow={gameView.serverNow}
-            label={`${roleDef?.name || 'Night'} Ends In`}
-            size="md"
-          />
-        </div>
+        {!gameView.settings.noTimer && (
+          <div className="flex items-center gap-4">
+            <CenterTimer
+              phaseEndsAt={gameView.phaseEndsAt}
+              serverNow={gameView.serverNow}
+              label={`${roleDef?.name || 'Night'} Ends In`}
+              size="md"
+              noTimer={gameView.settings.noTimer}
+            />
+          </div>
+        )}
 
         {/* Role Peek / Badge */}
         <div className="flex items-center gap-3">
@@ -180,12 +183,15 @@ export function Night({
                 </span>
 
                 <div className="flex items-center gap-3">
-                  <CenterTimer
-                    phaseEndsAt={gameView.phaseEndsAt}
-                    serverNow={gameView.serverNow}
-                    label="Action Timer"
-                    size="sm"
-                  />
+                  {!gameView.settings.noTimer && (
+                    <CenterTimer
+                      phaseEndsAt={gameView.phaseEndsAt}
+                      serverNow={gameView.serverNow}
+                      label="Action Timer"
+                      size="sm"
+                      noTimer={gameView.settings.noTimer}
+                    />
+                  )}
                   {me?.shotsRemaining !== undefined && (
                     <span className="text-xs md:text-sm font-mono font-bold text-[#D9A441] px-2.5 py-1 bg-[#171A20] border border-[#262A33]">
                       Ammo: {me.shotsRemaining} remaining

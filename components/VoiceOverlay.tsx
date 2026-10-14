@@ -48,7 +48,8 @@ export function VoiceOverlay({
   const [soundMuted, setSoundMuted] = useState(getIsMuted());
   const [micSensitivity, setMicSensitivity] = useState(() => voiceEngine.getSensitivity());
   const [ambienceVol, setAmbienceVol] = useState(() => Math.round(getAmbienceVolume() * 100));
-  const { players, me, voiceMuted = {} } = gameView;
+  const { players, me } = gameView;
+  const voiceMuted = gameView.voiceMuted || {};
 
   // Real-time engine subscription for speaking state and voice levels
   const [internalSpeaking, setInternalSpeaking] = useState<Record<string, boolean>>({});
@@ -193,7 +194,11 @@ export function VoiceOverlay({
   // Wire participants only (people who joined the wire)
   const wireParticipants = participants.filter((p) => {
     if (p.id === me?.id) return isVoiceActive;
-    return voiceEngine.hasPeer(p.id) || voiceMuted[p.id] !== undefined || Boolean(activeSpeaking[p.id]);
+    return (
+      voiceEngine.hasPeer(p.id) ||
+      (voiceMuted && voiceMuted[p.id] !== undefined) ||
+      (activeSpeaking && activeSpeaking[p.id] !== undefined)
+    );
   });
 
   return (
@@ -244,7 +249,7 @@ export function VoiceOverlay({
                   const voiceLevel = isLocal
                     ? Math.max(activeLevels['local'] || 0, activeLevels[p.id] || 0)
                     : (activeLevels[p.id] || 0);
-                  const isMuted = isLocal ? isVoiceMuted : Boolean(voiceMuted[p.id]);
+                  const isMuted = isLocal ? isVoiceMuted : Boolean(voiceMuted?.[p.id]);
                   const isPeerDead = !p.alive;
                   const glow = getVoiceGlowStyle(voiceLevel, isSpeaking, isPeerDead && (!me?.alive || isLocal));
 
@@ -686,7 +691,7 @@ export function VoiceOverlay({
                     const voiceLevel = isLocal
                       ? Math.max(activeLevels['local'] || 0, activeLevels[p.id] || 0)
                       : (activeLevels[p.id] || 0);
-                    const isMuted = isLocal ? isVoiceMuted : Boolean(voiceMuted[p.id]);
+                    const isMuted = isLocal ? isVoiceMuted : Boolean(voiceMuted?.[p.id]);
                     const glow = getVoiceGlowStyle(voiceLevel, isSpeaking);
 
                     return (

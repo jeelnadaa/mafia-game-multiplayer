@@ -122,14 +122,17 @@ export function Day({ gameView, onVote, onReadyToVote, onSendChat }: DayProps) {
             </div>
 
             {/* Center Countdown Timer */}
-            <div className="flex items-center justify-center">
-              <CenterTimer
-                phaseEndsAt={gameView.phaseEndsAt}
-                serverNow={gameView.serverNow}
-                label="Discussion Closes In"
-                size="sm"
-              />
-            </div>
+            {!gameView.settings.noTimer && (
+              <div className="flex items-center justify-center">
+                <CenterTimer
+                  phaseEndsAt={gameView.phaseEndsAt}
+                  serverNow={gameView.serverNow}
+                  label="Discussion Closes In"
+                  size="sm"
+                  noTimer={gameView.settings.noTimer}
+                />
+              </div>
+            )}
 
             <Button
               variant={me?.readyToVote ? 'secondary' : 'primary'}
@@ -340,14 +343,17 @@ export function Day({ gameView, onVote, onReadyToVote, onSendChat }: DayProps) {
             </p>
 
             {/* Countdown Timer */}
-            <div className="pt-2 flex justify-center">
-              <CenterTimer
-                phaseEndsAt={gameView.phaseEndsAt}
-                serverNow={gameView.serverNow}
-                label="Voting Closes In"
-                size="lg"
-              />
-            </div>
+            {!gameView.settings.noTimer && (
+              <div className="pt-2 flex justify-center">
+                <CenterTimer
+                  phaseEndsAt={gameView.phaseEndsAt}
+                  serverNow={gameView.serverNow}
+                  label="Voting Closes In"
+                  size="lg"
+                  noTimer={gameView.settings.noTimer}
+                />
+              </div>
+            )}
           </div>
 
           {/* Two-Column Voting Layout */}
