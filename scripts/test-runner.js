@@ -49,7 +49,10 @@ require('../lib/engine/engine.test.ts');
 require('../lib/engine/settings-sync.test.ts');
 require('../lib/engine/peer-simulator.test.ts');
 require('../lib/net.test.ts');
+require('../lib/layout.test.ts');
+require('../lib/haptics.test.ts');
 require('../lib/storage.test.ts');
 if (fs.existsSync(path.join(__dirname, '../components/ui.test.tsx'))) {
   require('../components/ui.test.tsx');
 }
+
