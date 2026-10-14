@@ -96,6 +96,9 @@ export interface GameState {
   round: number;
   phaseEndsAt: number | null;
   paused: boolean;
+  isLocked?: boolean;
+  bannedTokens?: string[];
+  standbyHostId?: string;
   hostAwayAt?: number;
   updatedAt?: number;
   settings: Settings;
@@ -185,6 +188,8 @@ export interface ClientGameView {
   winner?: 'town' | 'mafia' | 'jester';
   serverNow: number;
   secretLog?: SecretLogEntry[];
+  isLocked?: boolean;
+  effectiveSettingsHash?: string;
 }
 
 export type IntentType =
@@ -193,6 +198,9 @@ export type IntentType =
   | 'suggestBalanced'
   | 'setReady'
   | 'kick'
+  | 'ban'
+  | 'lockRoom'
+  | 'skipPlayer'
   | 'setGod'
   | 'start'
   | 'assignRole'

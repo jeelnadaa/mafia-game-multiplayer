@@ -36,6 +36,9 @@ export interface UseRoomReturn {
   startMatch: () => { ok: boolean; reason?: string };
   toggleReady: () => void;
   kickPlayer: (playerId: string) => void;
+  banPlayer: (playerId: string) => void;
+  toggleLockRoom: () => void;
+  skipPlayer: (playerId: string) => void;
   setGodMode: (isGod: boolean) => void;
   updateSettings: (partial: Partial<Settings>) => void;
   updateProfile: (profile: { name?: string; avatar: number }) => void;
@@ -451,10 +454,49 @@ export function useRoom(
           break;
         }
 
+        case 'ban': {
+          if (!callingPlayer?.isHost) return; // Host only
+          const targetPlayer = nextState.players.find((p) => p.id === payload);
+          if (targetPlayer?.token) {
+            nextState.bannedTokens = [...(nextState.bannedTokens || []), targetPlayer.token];
+          }
+          nextState.players = nextState.players.filter((p) => p.id !== payload);
+          if (connectionsRef.current[payload]) {
+            connectionsRef.current[payload].send({ type: 'banned', reason: 'You have been banned from this room.' });
+            connectionsRef.current[payload].close();
+            delete connectionsRef.current[payload];
+          }
+          nextState.version++;
+          break;
+        }
+
+        case 'lockRoom': {
+          if (!callingPlayer?.isHost) return; // Host only
+          nextState.isLocked = Boolean(payload ?? !nextState.isLocked);
+          nextState.version++;
+          break;
+        }
+
+        case 'skipPlayer': {
+          if (!callingPlayer?.isHost) return; // Host only
+          const targetId = String(payload);
+          if (nextState.phase === 'night') {
+            nextState.night.picks[targetId] = 'hold';
+            nextState.night.confirmed[targetId] = true;
+            nextState = tryAdvanceNight(nextState);
+          } else if (nextState.phase === 'voting') {
+            nextState.votes[targetId] = 'skip';
+          }
+          nextState.version++;
+          break;
+        }
+
         case 'start': {
           if (!callingPlayer?.isHost) return; // Host only
           const validation = validateSettings(nextState.settings, nextState.players.length);
           if (!validation.valid) return;
+          const unready = nextState.players.filter((p) => !p.isHost && !p.ready);
+          if (unready.length > 0) return; // Require all players ready
 
           const rng = () => Math.random();
           nextState.players = assignRoles(nextState.players, nextState.settings, rng);
@@ -744,7 +786,24 @@ export function useRoom(
               const state = hostStateRef.current;
               if (!state) return;
 
-              const clientName = (data.name && String(data.name).trim()) || `Player ${state.players.length + 1}`;
+              // 1. Check if token is banned from this room
+              if (data.token && state.bannedTokens?.includes(data.token)) {
+                conn.send({ type: 'reject', reason: 'banned' });
+                setTimeout(() => {
+                  try { conn.close(); } catch (_) {}
+                }, 500);
+                return;
+              }
+
+              // 2. Sanitize codename: strip control chars and prevent system impersonation
+              let clientName = (data.name && String(data.name).trim()) || `Player ${state.players.length + 1}`;
+              clientName = clientName.replace(/[\u0000-\u001F\u007F-\u009F]/g, '').trim().slice(0, 20);
+              if (!clientName) clientName = `Player ${state.players.length + 1}`;
+              const reservedNames = ['SYSTEM', 'NARRATOR', 'HOST', 'MODERATOR', 'ADMIN'];
+              if (reservedNames.includes(clientName.toUpperCase())) {
+                clientName = `${clientName} (Player)`;
+              }
+
               const clientAvatar = Number(data.avatar) || 1;
               const now = Date.now();
 
@@ -752,7 +811,16 @@ export function useRoom(
                 (p) => p.token === data.token || p.id === conn.peer
               );
 
-              // Reject if game already running and this is a new player
+              // 3. Reject if room is locked and this is a new joiner (reconnects with existing token allowed)
+              if (state.isLocked && existingIndex === -1) {
+                conn.send({ type: 'reject', reason: 'locked' });
+                setTimeout(() => {
+                  try { conn.close(); } catch (_) {}
+                }, 500);
+                return;
+              }
+
+              // 4. Reject if game already running and this is a new player
               if (state.phase !== 'lobby' && existingIndex === -1) {
                 conn.send({ type: 'reject', reason: 'started' });
                 setTimeout(() => {
@@ -761,7 +829,7 @@ export function useRoom(
                 return;
               }
 
-              // Reject if room is full
+              // 5. Reject if room is full
               if (state.players.length >= state.settings.maxPlayers && existingIndex === -1) {
                 conn.send({ type: 'reject', reason: 'full' });
                 setTimeout(() => {
@@ -770,7 +838,7 @@ export function useRoom(
                 return;
               }
 
-              // Reject if codename is already taken by another player in this room
+              // 6. Reject if codename is already taken by another player in this room
               const isNameTaken = state.players.some((p) => {
                 if (p.token === data.token || p.id === conn.peer) return false;
                 return p.name.trim().toLowerCase() === clientName.toLowerCase();
@@ -972,12 +1040,17 @@ export function useRoom(
             } else if (msg?.type === 'kicked') {
               setError('You were removed from the room.');
               setIsConnected(false);
+            } else if (msg?.type === 'banned') {
+              setError('You have been banned from this room by the host.');
+              setIsConnected(false);
             } else if (msg?.type === 'reject') {
               if (connectTimeout) clearTimeout(connectTimeout);
               const reasonMap: Record<string, string> = {
                 started: 'Game is already in progress.',
                 full: 'Room is full (maximum 16 players).',
                 duplicate_name: `The codename "${effectiveName}" is already taken in this room. Please choose another name.`,
+                locked: 'This room is currently locked by the host.',
+                banned: 'You have been banned from this room by the host.',
               };
               setError(reasonMap[msg.reason] || 'Unable to join room.');
               setIsConnected(false);
@@ -1055,6 +1128,24 @@ export function useRoom(
     [sendIntent]
   );
 
+  const banPlayer = useCallback(
+    (playerId: string) => {
+      sendIntent('ban', playerId);
+    },
+    [sendIntent]
+  );
+
+  const toggleLockRoom = useCallback(() => {
+    sendIntent('lockRoom');
+  }, [sendIntent]);
+
+  const skipPlayer = useCallback(
+    (playerId: string) => {
+      sendIntent('skipPlayer', playerId);
+    },
+    [sendIntent]
+  );
+
   const setGodMode = useCallback(
     (isGod: boolean) => {
       sendIntent('setGod', isGod);
@@ -1099,6 +1190,9 @@ export function useRoom(
     startMatch,
     toggleReady,
     kickPlayer,
+    banPlayer,
+    toggleLockRoom,
+    skipPlayer,
     setGodMode,
     updateSettings,
     updateProfile,

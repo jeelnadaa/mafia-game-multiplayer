@@ -30,6 +30,21 @@ export const PLAYER_COLORS = [
   '#10B981', // Emerald
 ] as const;
 
+/** Deterministic hash of effective settings for cross-peer sync verification (Section 5.7) */
+export function computeSettingsHash(settings: Settings): string {
+  if (!settings) return 's_0';
+  const sorted = Object.keys(settings).sort().reduce((acc, key) => {
+    (acc as any)[key] = (settings as any)[key];
+    return acc;
+  }, {} as any);
+  const str = JSON.stringify(sorted);
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash + str.charCodeAt(i)) | 0;
+  }
+  return 's_' + (hash >>> 0).toString(16);
+}
+
 export const DEFAULT_SETTINGS: Settings = {
   maxPlayers: 12,
   moderatorMode: 'auto',

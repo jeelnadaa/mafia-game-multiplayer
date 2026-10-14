@@ -1,5 +1,5 @@
 import { GameState, ClientGameView, PlayerView, Role } from '../types';
-import { PLAYER_COLORS } from '../settings';
+import { PLAYER_COLORS, computeSettingsHash } from '../settings';
 
 export function buildViewFor(state: GameState, observerId: string, now: number): ClientGameView {
   const me = state.players.find((p) => p.id === observerId);
@@ -179,5 +179,7 @@ export function buildViewFor(state: GameState, observerId: string, now: number):
     winner: state.winner,
     serverNow: now,
     secretLog: isGameOver ? state.secretLog : undefined,
+    isLocked: Boolean(state.isLocked),
+    effectiveSettingsHash: computeSettingsHash(state.settings),
   };
 }
