@@ -112,7 +112,7 @@ export function Day({ gameView, onVote, onReadyToVote, onSendChat }: DayProps) {
                 phaseEndsAt={gameView.phaseEndsAt}
                 serverNow={gameView.serverNow}
                 label="Discussion Closes In"
-                size="md"
+                size="sm"
               />
             </div>
 

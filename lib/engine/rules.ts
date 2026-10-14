@@ -25,6 +25,13 @@ export function validateSettings(settings: Settings, playerCount: number): { val
 
   const totalSpecial = totalMafia + doctorCount + policeCount + vigilanteCount + jesterCount;
 
+  if (totalSpecial > settings.maxPlayers) {
+    return {
+      valid: false,
+      reason: `Combined special roles (${totalSpecial}) cannot exceed max players (${settings.maxPlayers})`,
+    };
+  }
+
   // Minimum required active playing players:
   // 1. Baseline game rule: at least 4 active players
   // 2. Mafia ratio rule: Town must strictly outnumber Mafia at match start (totalMafia < active / 2 => active >= 2 * totalMafia + 1)

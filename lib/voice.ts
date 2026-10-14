@@ -29,7 +29,7 @@ class VoiceEngine {
 
   private pollInterval: any = null;
   private listeners: Set<VoiceStateListener> = new Set();
-  private maxPlayersCap: number = 8;
+  private maxPlayersCap: number = 20;
 
   constructor() {
     if (typeof window !== 'undefined') {

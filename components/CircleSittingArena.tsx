@@ -386,12 +386,12 @@ export function CircleSittingArena({
               </span>
             </div>
 
-            {/* Prominent Center Countdown Timer */}
+            {/* Compact Center Countdown Timer */}
             <CenterTimer
               phaseEndsAt={gameView.phaseEndsAt}
               serverNow={gameView.serverNow}
-              label={phase === 'night' ? 'Night Operations' : phase === 'voting' ? 'Ballot Closes' : 'Discussion Timer'}
-              size="md"
+              label={phase === 'night' ? 'Night' : phase === 'voting' ? 'Ballot' : 'Discussion'}
+              size="sm"
             />
 
             <div className="text-right">

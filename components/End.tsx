@@ -258,8 +258,8 @@ export function End({ gameView, isHost, onRematch, onLeave, onSendChat }: EndPro
 
               <div className="space-y-3 overflow-y-auto max-h-[480px]">
                 {secretLog && secretLog.length > 0 ? (
-                  secretLog.map((entry) => (
-                    <div key={entry.round} className="p-3.5 bg-surface-2 border border-border space-y-1.5 text-xs">
+                  secretLog.map((entry, idx) => (
+                    <div key={`secret-${entry.round}-${idx}`} className="p-3.5 bg-surface-2 border border-border space-y-1.5 text-xs">
                       <div className="text-xs font-bold text-white">
                         Round {entry.round} Secrets:
                       </div>

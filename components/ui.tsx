@@ -306,15 +306,15 @@ export function CenterTimer({
   const isUrgent = remainingSeconds <= 10 && remainingSeconds > 0;
 
   const sizeClasses = {
-    sm: 'px-3 py-1 text-xs gap-1.5',
-    md: 'px-4 py-1.5 text-xs md:text-sm gap-2',
-    lg: 'px-6 py-2.5 text-sm md:text-base gap-3',
+    sm: 'px-2 py-0.5 text-[10px] gap-1.5 h-6',
+    md: 'px-2.5 py-0.5 text-[11px] gap-1.5 h-6.5',
+    lg: 'px-3 py-1 text-xs gap-2 h-7.5',
   };
 
   const numberSizes = {
-    sm: 'text-sm font-bold',
-    md: 'text-base md:text-lg font-bold',
-    lg: 'text-xl md:text-2xl font-bold font-mono',
+    sm: 'text-[11px] font-mono font-bold',
+    md: 'text-xs font-mono font-bold',
+    lg: 'text-sm font-mono font-bold',
   };
 
   return (
@@ -327,7 +327,7 @@ export function CenterTimer({
         }`}
       >
         <span
-          className={`font-sans tracking-wider uppercase font-semibold text-[10px] md:text-xs ${
+          className={`font-sans tracking-wider uppercase font-semibold text-[9px] md:text-[10px] ${
             isUrgent ? 'text-zinc-800' : 'text-muted'
           }`}
         >

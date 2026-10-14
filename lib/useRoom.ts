@@ -21,7 +21,8 @@ import {
   getSubPhaseDuration,
 } from './engine/phases';
 import { assignRoles, validateSettings, checkWinCondition } from './engine/rules';
-import { initSound, playNightBell, playDayChime, playGavelStrike, playFanfare } from './sfx';
+import { initSound, playNightBell, playDayChime, playGavelStrike, playFanfare, setVoiceDucking } from './sfx';
+import { voiceEngine } from './voice';
 import { saveHostState, clearRoomData, cleanExpiredGameData } from './storage';
 
 export interface UseRoomReturn {
@@ -48,6 +49,11 @@ export interface UseRoomReturn {
   addBots: () => void;
   clearBots: () => void;
   leaveRoom: () => void;
+  isVoiceActive: boolean;
+  isVoiceMuted: boolean;
+  toggleVoice: () => Promise<{ ok: boolean; reason?: string; active?: boolean }>;
+  toggleVoiceMute: () => boolean;
+  speakingPeers: Record<string, boolean>;
 }
 
 function tryAdvanceNightHelper(st: GameState, now: number): GameState {
@@ -275,6 +281,27 @@ export function useRoom(
   const tickWorkerRef = useRef<{ terminate: () => void } | null>(null);
   const pingIntervalRef = useRef<any>(null);
   const lastPhaseRef = useRef<string>('');
+
+  // Voice Chat State
+  const [isVoiceActive, setIsVoiceActive] = useState(false);
+  const [isVoiceMuted, setIsVoiceMuted] = useState(false);
+  const [speakingPeers, setSpeakingPeers] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    setIsVoiceActive(voiceEngine.isVoiceActive());
+    setIsVoiceMuted(voiceEngine.isMuted());
+    return voiceEngine.subscribe((map) => {
+      setSpeakingPeers(map);
+      const speaking = Object.values(map).some(Boolean);
+      setVoiceDucking(speaking);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (gameView) {
+      voiceEngine.updatePhaseAndRole(gameView.phase, Boolean(gameView.me?.alive ?? true));
+    }
+  }, [gameView?.phase, gameView?.me?.alive]);
 
   // 1. Initialize Audio, Identity, and Purge Expired Game Data
   useEffect(() => {
@@ -712,6 +739,16 @@ export function useRoom(
           nextState.phase = 'roleReveal';
           nextState.round = 0;
           nextState.phaseEndsAt = now + 10000; // 10s role reveal
+          nextState.chat = [];
+          nextState.log = [];
+          nextState.secretLog = [];
+          nextState.policeInbox = [];
+          nextState.doctorHistory = {};
+          nextState.shotsUsed = {};
+          nextState.votes = {};
+          nextState.readyToVote = [];
+          nextState.suspicions = {};
+          nextState.reactions = {};
           nextState.version++;
           break;
         }
@@ -830,11 +867,23 @@ export function useRoom(
           nextState.phaseEndsAt = null;
           nextState.votes = {};
           nextState.night = { subPhase: 'mafia', picks: {}, confirmed: {}, locked: {}, earlyEndAt: null };
+          nextState.chat = [];
+          nextState.log = [];
+          nextState.secretLog = [];
+          nextState.policeInbox = [];
+          nextState.doctorHistory = {};
+          nextState.shotsUsed = {};
+          nextState.readyToVote = [];
+          nextState.suspicions = {};
+          nextState.reactions = {};
           nextState.players = nextState.players.map((p) => ({
             ...p,
             alive: true,
             role: undefined,
             ready: p.isBot ? true : false,
+            diedInRound: undefined,
+            diedBy: undefined,
+            alignment: undefined,
           }));
           nextState.version++;
           break;
@@ -1090,6 +1139,17 @@ export function useRoom(
             setIsConnected(true);
           });
 
+          peer.on('call', (mediaConn: any) => {
+            const localStream = voiceEngine.getLocalStream();
+            mediaConn.answer(localStream || undefined);
+            mediaConn.on('stream', (remoteStream: MediaStream) => {
+              voiceEngine.addPeerStream(mediaConn.peer, remoteStream);
+            });
+            mediaConn.on('close', () => {
+              voiceEngine.removePeerStream(mediaConn.peer);
+            });
+          });
+
           peer.on('connection', (conn) => {
             setTimeout(() => {
               if (conn.peerConnection) {
@@ -1326,6 +1386,17 @@ export function useRoom(
           });
           peerRef.current = peer;
 
+          peer.on('call', (mediaConn: any) => {
+            const localStream = voiceEngine.getLocalStream();
+            mediaConn.answer(localStream || undefined);
+            mediaConn.on('stream', (remoteStream: MediaStream) => {
+              voiceEngine.addPeerStream(mediaConn.peer, remoteStream);
+            });
+            mediaConn.on('close', () => {
+              voiceEngine.removePeerStream(mediaConn.peer);
+            });
+          });
+
           peer.on('open', (id) => {
             const conn = peer.connect(`mafia-v1-${code}`, { reliable: true });
             clientConnRef.current = conn;
@@ -1529,6 +1600,59 @@ export function useRoom(
     sendIntent('clearBots');
   }, [sendIntent]);
 
+  const toggleVoice = useCallback(async () => {
+    if (voiceEngine.isVoiceActive()) {
+      voiceEngine.disableVoice();
+      setIsVoiceActive(false);
+      return { ok: true, active: false };
+    } else {
+      const totalPlayers = hostStateRef.current?.players.length || gameView?.players.length || 1;
+      const res = await voiceEngine.enableVoice(totalPlayers);
+      if (res.ok) {
+        setIsVoiceActive(true);
+        setIsVoiceMuted(voiceEngine.isMuted());
+        const stream = voiceEngine.getLocalStream();
+        if (stream && peerRef.current) {
+          if (isHost) {
+            Object.keys(connectionsRef.current).forEach((clientPeerId) => {
+              try {
+                const call = peerRef.current.call(clientPeerId, stream);
+                if (call) {
+                  call.on('stream', (remoteStream: MediaStream) => {
+                    voiceEngine.addPeerStream(clientPeerId, remoteStream);
+                  });
+                  call.on('close', () => {
+                    voiceEngine.removePeerStream(clientPeerId);
+                  });
+                }
+              } catch (_) {}
+            });
+          } else {
+            try {
+              const call = peerRef.current.call(`mafia-v1-${roomCode.toUpperCase()}`, stream);
+              if (call) {
+                call.on('stream', (remoteStream: MediaStream) => {
+                  voiceEngine.addPeerStream(`mafia-v1-${roomCode.toUpperCase()}`, remoteStream);
+                });
+                call.on('close', () => {
+                  voiceEngine.removePeerStream(`mafia-v1-${roomCode.toUpperCase()}`);
+                });
+              }
+            } catch (_) {}
+          }
+        }
+        return { ok: true, active: true };
+      }
+      return res;
+    }
+  }, [isHost, roomCode, gameView?.players.length]);
+
+  const toggleVoiceMute = useCallback(() => {
+    const muted = voiceEngine.toggleSelfMute();
+    setIsVoiceMuted(muted);
+    return muted;
+  }, []);
+
   return {
     gameView,
     isHost,
@@ -1553,6 +1677,11 @@ export function useRoom(
     clearSuspicion,
     sendReaction,
     leaveRoom,
+    isVoiceActive,
+    isVoiceMuted,
+    toggleVoice,
+    toggleVoiceMute,
+    speakingPeers,
   };
 }
 

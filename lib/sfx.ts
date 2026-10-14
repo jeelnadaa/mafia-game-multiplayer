@@ -73,6 +73,19 @@ class AudioManager {
     return true;
   }
 
+  private lofiTimer: any = null;
+  private lofiChordIndex: number = 0;
+  private lofiFilter: BiquadFilterNode | null = null;
+  private lofiVinylGain: GainNode | null = null;
+
+  // Soft lush lofi jazz chords: Dm9 -> G13 -> Cmaj9 -> Am9
+  private readonly lofiChords = [
+    [146.83, 174.61, 220.00, 261.63, 329.63], // Dm9: D3, F3, A3, C4, E4
+    [98.00, 174.61, 246.94, 329.63, 392.00],  // G13: G2, F3, B3, E4, G4
+    [130.81, 164.81, 196.00, 246.94, 293.66], // Cmaj9: C3, E3, G3, B3, D4
+    [110.00, 196.00, 261.63, 329.63, 493.88], // Am9: A2, G3, C4, E4, B4
+  ];
+
   public getIsMuted(): boolean {
     return this.isMuted;
   }
@@ -86,6 +99,11 @@ class AudioManager {
     }
     if (this.masterGain && this.ctx) {
       this.masterGain.gain.setValueAtTime(this.isMuted ? 0 : this.masterVol, this.ctx.currentTime);
+    }
+    if (this.isMuted) {
+      this.stopLoFi();
+    } else {
+      this.startLoFi('lobby');
     }
     return !this.isMuted;
   }
@@ -130,41 +148,109 @@ class AudioManager {
     }
   }
 
-  // Phase Ambient Drone
-  public setPhaseAmbience(phase: 'lobby' | 'night' | 'day' | 'voting' | 'gameover') {
+  public startLoFi(phase: string = 'lobby') {
     if (!this.initCtx() || !this.ctx || !this.ambienceGain || this.isMuted) return;
 
+    this.stopLoFi();
+
+    // Create a warm vintage lowpass filter with gentle resonance
+    this.lofiFilter = this.ctx.createBiquadFilter();
+    this.lofiFilter.type = 'lowpass';
+    const cutoff = phase === 'night' ? 300 : phase === 'voting' ? 340 : 420;
+    this.lofiFilter.frequency.setValueAtTime(cutoff, this.ctx.currentTime);
+    this.lofiFilter.Q.setValueAtTime(1.0, this.ctx.currentTime);
+    this.lofiFilter.connect(this.ambienceGain);
+
+    // Subtle cozy warm vinyl hiss (soft pink/brown noise)
+    try {
+      const bufferSize = this.ctx.sampleRate * 2;
+      const noiseBuffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+      const output = noiseBuffer.getChannelData(0);
+      let b0 = 0, b1 = 0, b2 = 0;
+      for (let i = 0; i < bufferSize; i++) {
+        const white = Math.random() * 2 - 1;
+        b0 = 0.99886 * b0 + white * 0.0555179;
+        b1 = 0.99332 * b1 + white * 0.0750759;
+        b2 = 0.96900 * b2 + white * 0.1538520;
+        output[i] = (b0 + b1 + b2) * 0.005; // extremely soft, warm tape warmth
+      }
+      const noiseSource = this.ctx.createBufferSource();
+      noiseSource.buffer = noiseBuffer;
+      noiseSource.loop = true;
+      const noiseFilter = this.ctx.createBiquadFilter();
+      noiseFilter.type = 'bandpass';
+      noiseFilter.frequency.setValueAtTime(800, this.ctx.currentTime);
+      noiseFilter.Q.setValueAtTime(0.8, this.ctx.currentTime);
+      this.lofiVinylGain = this.ctx.createGain();
+      this.lofiVinylGain.gain.setValueAtTime(0.012, this.ctx.currentTime);
+      noiseSource.connect(noiseFilter);
+      noiseFilter.connect(this.lofiVinylGain);
+      this.lofiVinylGain.connect(this.ambienceGain);
+      noiseSource.start();
+      this.currentAmbienceOsc = noiseSource as any;
+    } catch (_) {}
+
+    // Play initial chord and start endless loop
+    this.playNextLoFiChord();
+    this.lofiTimer = setInterval(() => {
+      this.playNextLoFiChord();
+    }, 4500);
+  }
+
+  private playNextLoFiChord() {
+    if (!this.ctx || !this.lofiFilter || this.isMuted) return;
+
+    const chord = this.lofiChords[this.lofiChordIndex % this.lofiChords.length];
+    this.lofiChordIndex++;
+
+    const now = this.ctx.currentTime;
+    const chordGain = this.ctx.createGain();
+    chordGain.gain.setValueAtTime(0.0001, now);
+    chordGain.gain.linearRampToValueAtTime(0.03, now + 1.2); // Gentle soft attack
+    chordGain.gain.exponentialRampToValueAtTime(0.0001, now + 4.4); // Smooth decay
+    chordGain.connect(this.lofiFilter);
+
+    // Subtle tape flutter LFO
+    const lfo = this.ctx.createOscillator();
+    const lfoGain = this.ctx.createGain();
+    lfo.frequency.setValueAtTime(0.2, now); // slow warm drift
+    lfoGain.gain.setValueAtTime(1.2, now);
+    lfo.connect(lfoGain);
+    lfo.start(now);
+
+    chord.forEach((freq, i) => {
+      if (!this.ctx) return;
+      const osc = this.ctx.createOscillator();
+      osc.type = i === 0 ? 'sine' : i % 2 === 0 ? 'triangle' : 'sine';
+      osc.frequency.setValueAtTime(freq, now);
+      lfoGain.connect(osc.frequency);
+      osc.connect(chordGain);
+      osc.start(now);
+      osc.stop(now + 4.5);
+    });
+  }
+
+  public stopLoFi() {
+    if (this.lofiTimer) {
+      clearInterval(this.lofiTimer);
+      this.lofiTimer = null;
+    }
     if (this.currentAmbienceOsc) {
       try {
-        this.currentAmbienceOsc.stop();
+        (this.currentAmbienceOsc as any).stop?.();
         this.currentAmbienceOsc.disconnect();
       } catch (_) {}
       this.currentAmbienceOsc = null;
     }
-
-    if (phase === 'night') {
-      // Low sinister rumble at 55 Hz
-      const osc = this.ctx.createOscillator();
-      const filter = this.ctx.createBiquadFilter();
-      filter.type = 'lowpass';
-      filter.frequency.setValueAtTime(120, this.ctx.currentTime);
-
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(55, this.ctx.currentTime);
-      osc.connect(filter);
-      filter.connect(this.ambienceGain);
-
-      osc.start();
-      this.currentAmbienceOsc = osc;
-    } else if (phase === 'voting') {
-      // Tension pulse at 82.4 Hz
-      const osc = this.ctx.createOscillator();
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(82.4, this.ctx.currentTime);
-      osc.connect(this.ambienceGain);
-      osc.start();
-      this.currentAmbienceOsc = osc;
+    if (this.lofiVinylGain) {
+      try { this.lofiVinylGain.disconnect(); } catch (_) {}
+      this.lofiVinylGain = null;
     }
+  }
+
+  public setPhaseAmbience(phase: 'lobby' | 'night' | 'day' | 'voting' | 'gameover') {
+    if (this.isMuted) return;
+    this.startLoFi(phase);
   }
 
   // Sound Effects (All zero-file procedural synthesis)

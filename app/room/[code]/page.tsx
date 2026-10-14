@@ -26,37 +26,17 @@ export default function RoomPage() {
   const code = (params?.code as string)?.toUpperCase() || '';
   const isValidCode = /^[A-HJ-NP-Z2-9]{5}$/i.test(code) || /^[A-Z0-9]{5}$/.test(code);
 
-  const [name, setName] = useState<string>(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('mafia-name') || '';
-    }
-    return '';
-  });
-  const [avatar, setAvatar] = useState<number>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('mafia-avatar');
-      return saved ? parseInt(saved, 10) : 1;
-    }
-    return 1;
-  });
-
-  // Host enters automatically because they configured their profile on the home page.
-  // Direct link visitors must enter their name and confirm joining.
-  const [hasJoined, setHasJoined] = useState<boolean>(() => {
-    if (typeof window !== 'undefined') {
-      const savedHostRaw = localStorage.getItem(`mafia-host:${code}`);
-      const isHostSaved = localStorage.getItem(`mafia-is-host:${code}`) === 'true';
-      const isHostParam = window.location.search.includes('host=true');
-      return Boolean(savedHostRaw) || isHostSaved || isHostParam;
-    }
-    return false;
-  });
+  const [mounted, setMounted] = useState(false);
+  const [name, setName] = useState<string>('');
+  const [avatar, setAvatar] = useState<number>(1);
+  const [hasJoined, setHasJoined] = useState<boolean>(false);
 
   const [helpOpen, setHelpOpen] = useState(false);
   const [helpInitialTab, setHelpInitialTab] = useState<HelpTab>('basics');
 
-  // Synchronize profile updates from localStorage on mount
+  // Synchronize profile updates and host status from localStorage on mount
   useEffect(() => {
+    setMounted(true);
     if (typeof window !== 'undefined') {
       const savedAvatar = localStorage.getItem('mafia-avatar');
       if (savedAvatar) {
@@ -65,8 +45,15 @@ export default function RoomPage() {
       }
       const savedName = localStorage.getItem('mafia-name');
       if (savedName) setName(savedName);
+
+      const savedHostRaw = localStorage.getItem(`mafia-host:${code}`);
+      const isHostSaved = localStorage.getItem(`mafia-is-host:${code}`) === 'true';
+      const isHostParam = window.location.search.includes('host=true');
+      if (Boolean(savedHostRaw) || isHostSaved || isHostParam) {
+        setHasJoined(true);
+      }
     }
-  }, []);
+  }, [code]);
 
   // Synchronize profile updates to localStorage
   const handleSaveProfile = (newName: string, newAvatar: number) => {
@@ -109,6 +96,11 @@ export default function RoomPage() {
     clearSuspicion,
     sendReaction,
     leaveRoom,
+    isVoiceActive,
+    isVoiceMuted,
+    toggleVoice,
+    toggleVoiceMute,
+    speakingPeers,
   } = useRoom(code, name.trim() || 'Player', avatar, { enabled: hasJoined });
 
   const handleLeaveRoom = useCallback(() => {
@@ -228,6 +220,25 @@ export default function RoomPage() {
             <Button variant="primary" onClick={() => router.push('/')} className="w-full justify-center">
               RETURN HOME
             </Button>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  // 0. Ensure SSR and initial client pass match 100% to prevent hydration mismatch
+  if (!mounted) {
+    return (
+      <main className="min-h-screen flex items-center justify-center p-4 bg-transparent text-center">
+        <div className="space-y-4 max-w-sm w-full bg-surface border border-border p-8">
+          <div className="w-12 h-12 border border-border bg-surface-2 flex items-center justify-center text-white mx-auto animate-pulse">
+            <Moon className="w-6 h-6 fill-current" />
+          </div>
+          <div>
+            <h2 className="text-xs font-mono font-bold uppercase tracking-widest text-text">
+              INITIALIZING ROOM {code}
+            </h2>
+            <p className="text-xs font-mono text-muted mt-1">CHECKING ROOM AVAILABILITY & PEER MESH...</p>
           </div>
         </div>
       </main>
@@ -388,6 +399,11 @@ export default function RoomPage() {
         isHost={isHost}
         onGodAction={(action) => sendIntent('godAction', { action })}
         onLeave={handleLeaveRoom}
+        onToggleLockRoom={toggleLockRoom}
+        isVoiceActive={isVoiceActive}
+        isVoiceMuted={isVoiceMuted}
+        onToggleVoice={toggleVoice}
+        onToggleVoiceMute={toggleVoiceMute}
       />
 
       {/* Main Game Screen Routing */}
@@ -421,6 +437,11 @@ export default function RoomPage() {
                 onSendChat={(channel, text) => sendChat(channel, text)}
                 onAddBots={addBots}
                 onClearBots={clearBots}
+                isVoiceActive={isVoiceActive}
+                isVoiceMuted={isVoiceMuted}
+                onToggleVoice={toggleVoice}
+                onToggleVoiceMute={toggleVoiceMute}
+                speakingPeers={speakingPeers}
               />
             )}
 

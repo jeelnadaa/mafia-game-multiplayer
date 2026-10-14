@@ -2,7 +2,8 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Volume2, VolumeX, HelpCircle, Copy, Check, ArrowLeft, LogOut, FastForward } from 'lucide-react';
+import { Volume2, VolumeX, HelpCircle, Copy, Check, ArrowLeft, LogOut, FastForward, Lock, QrCode, Mic, MicOff } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 import { ClientGameView } from '@/lib/types';
 import { ROLES } from '@/lib/content';
 import { CountdownRing, CenterTimer, Kbd, Modal, Button } from './ui';
@@ -19,6 +20,11 @@ interface TopBarProps {
   isHost?: boolean;
   onGodAction?: (action: 'next' | 'pause' | 'extend' | 'skip') => void;
   onLeave?: () => void;
+  onToggleLockRoom?: () => void;
+  isVoiceActive?: boolean;
+  isVoiceMuted?: boolean;
+  onToggleVoice?: () => void;
+  onToggleVoiceMute?: () => void;
 }
 
 export function TopBar({
@@ -29,9 +35,16 @@ export function TopBar({
   isHost = false,
   onGodAction,
   onLeave,
+  onToggleLockRoom,
+  isVoiceActive = false,
+  isVoiceMuted = false,
+  onToggleVoice,
+  onToggleVoiceMute,
 }: TopBarProps) {
   const router = useRouter();
-  const [copied, setCopied] = useState(false);
+  const [copiedCode, setCopiedCode] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [showQr, setShowQr] = useState(false);
   const [muted, setMuted] = useState(getIsMuted());
   const [leaveModalOpen, setLeaveModalOpen] = useState(false);
   const [advanceModalOpen, setAdvanceModalOpen] = useState(false);
@@ -51,12 +64,20 @@ export function TopBar({
     scope: 'screen',
   });
 
+  const handleCopyCode = () => {
+    if (typeof navigator !== 'undefined') {
+      navigator.clipboard.writeText(gameView.code);
+      setCopiedCode(true);
+      setTimeout(() => setCopiedCode(false), 2000);
+    }
+  };
+
   const handleCopyLink = () => {
     const url = getRoomShareUrl(gameView.code);
     if (typeof navigator !== 'undefined') {
       navigator.clipboard.writeText(url);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2500);
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2000);
     }
   };
 
@@ -78,12 +99,6 @@ export function TopBar({
   const role = gameView.me?.role;
   const roleDef = role ? ROLES[role] : null;
 
-  // Remaining phase duration calculation
-  const remainingSeconds =
-    gameView.phaseEndsAt && gameView.serverNow
-      ? Math.max(0, (gameView.phaseEndsAt - gameView.serverNow) / 1000)
-      : 0;
-
   const getPhaseDisplay = (phase: string) => {
     switch (phase) {
       case 'lobby': return 'Lobby';
@@ -100,42 +115,102 @@ export function TopBar({
 
   return (
     <>
-      <header className="sticky top-0 z-30 w-full bg-surface/90 backdrop-blur-md border-b border-border px-4 md:px-8 lg:px-12 py-3">
-        <div className="w-full max-w-[1650px] 2xl:max-w-[1850px] mx-auto flex items-center justify-between gap-4">
-          {/* Left: Back Button & Room Code / Share Link */}
-          <div className="flex items-center gap-3">
+      <header className="sticky top-0 z-30 w-full bg-surface/90 backdrop-blur-md border-b border-border px-4 md:px-8 lg:px-12 py-2.5">
+        <div className="w-full max-w-[1650px] 2xl:max-w-[1850px] mx-auto flex items-center justify-between gap-3">
+          {/* Left: Back Button & Room Code / Action Buttons */}
+          <div className="flex items-center gap-2">
             {/* Back Button */}
             <Button
               variant="secondary"
               size="sm"
               onClick={() => setLeaveModalOpen(true)}
               title="Leave Room & Return Home"
-              className="flex items-center gap-1.5 font-medium px-3.5"
+              className="flex items-center gap-1 font-medium px-2.5 h-8 text-xs"
             >
-              <ArrowLeft className="w-4 h-4" />
-              <span>Back</span>
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Back</span>
             </Button>
 
-            {/* Room Code & Copy Link */}
+            {/* Room Code Button (Copies ONLY the Room Code) */}
             <button
               type="button"
-              onClick={handleCopyLink}
-              title="Click to copy full invite link"
-              className="flex items-center gap-2 px-3.5 py-1.5 rounded-none bg-surface-2 hover:bg-zinc-800 border border-border text-xs md:text-sm font-medium text-text transition-colors"
+              onClick={handleCopyCode}
+              title="Click to copy Room Code"
+              className="flex items-center gap-1.5 px-3 py-1 rounded-none bg-surface-2 hover:bg-zinc-800 border border-border text-xs md:text-sm font-medium text-text transition-colors h-8"
             >
-              <span className="text-muted">Room:</span>
+              <span className="text-muted text-xs">Room:</span>
               <span className="font-mono font-bold tracking-wide">{gameView.code}</span>
-              {copied ? (
+              {copiedCode ? (
                 <span className="flex items-center gap-1 text-emerald-400 font-semibold text-xs ml-1">
-                  <Check className="w-3.5 h-3.5" /> Copied!
+                  <Check className="w-3.5 h-3.5" /> Code Copied!
                 </span>
               ) : (
                 <Copy className="w-3.5 h-3.5 text-muted ml-0.5" />
               )}
             </button>
 
+            {/* Buttons from Picture 1 moved to Top Bar */}
+            {isHost && onToggleLockRoom && (
+              <Button
+                variant={gameView.isLocked ? 'primary' : 'secondary'}
+                size="sm"
+                onClick={onToggleLockRoom}
+                title={gameView.isLocked ? 'Unlock room for new players' : 'Lock room against new players'}
+                className="hidden md:flex items-center gap-1.5 font-medium px-2.5 h-8 text-xs"
+              >
+                <Lock className="w-3.5 h-3.5" />
+                <span>{gameView.isLocked ? 'Locked' : 'Lock Room'}</span>
+              </Button>
+            )}
+
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleCopyLink}
+              title="Copy direct invitation URL"
+              className="hidden md:flex items-center gap-1.5 font-medium px-2.5 h-8 text-xs"
+            >
+              {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+              <span>{copiedLink ? 'Link Copied!' : 'Copy Link'}</span>
+            </Button>
+
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setShowQr(true)}
+              title="Display Room QR Code"
+              className="hidden md:flex items-center gap-1.5 font-medium px-2.5 h-8 text-xs"
+            >
+              <QrCode className="w-3.5 h-3.5" />
+              <span>QR</span>
+            </Button>
+
+            {/* Voice Chat Button */}
+            {onToggleVoice && (
+              <Button
+                variant={isVoiceActive ? (isVoiceMuted ? 'secondary' : 'primary') : 'secondary'}
+                size="sm"
+                onClick={isVoiceActive ? onToggleVoiceMute : onToggleVoice}
+                title={isVoiceActive ? (isVoiceMuted ? 'Unmute microphone' : 'Mute microphone') : 'Join voice chat mesh'}
+                className="flex items-center gap-1.5 font-medium px-2.5 h-8 text-xs"
+              >
+                {isVoiceActive ? (
+                  isVoiceMuted ? (
+                    <MicOff className="w-3.5 h-3.5 text-amber-400" />
+                  ) : (
+                    <Mic className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
+                  )
+                ) : (
+                  <MicOff className="w-3.5 h-3.5 text-muted" />
+                )}
+                <span className="hidden sm:inline">
+                  {isVoiceActive ? (isVoiceMuted ? 'Muted' : 'Voice Live') : 'Voice Chat'}
+                </span>
+              </Button>
+            )}
+
             {/* Connection Status Chip */}
-            <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-none bg-surface-2/60 border border-border text-xs text-muted">
+            <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-none bg-surface-2/60 border border-border text-xs text-muted h-8">
               <span
                 className={`w-2 h-2 rounded-none ${
                   isReconnecting ? 'bg-zinc-400 animate-ping' : 'bg-emerald-400'
@@ -145,15 +220,15 @@ export function TopBar({
             </div>
           </div>
 
-          {/* Center: Phase & Round / Prominent Center Timer */}
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2.5 px-3 md:px-4 py-1.5 bg-surface-2 border border-border">
-              <span className="text-xs md:text-sm font-semibold text-text">
+          {/* Center: Phase & Round / Compact Center Timer & Fast-Forward */}
+          <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1 px-2 py-0.5 bg-surface-2 border border-border h-6">
+              <span className="text-[11px] font-semibold text-text">
                 {getPhaseDisplay(gameView.phase)}
               </span>
               {gameView.round > 0 && (
-                <span className="px-1.5 py-0.5 rounded-none text-xs font-mono font-bold bg-white text-black">
-                  Round {gameView.round}
+                <span className="px-1 py-0 rounded-none text-[9px] font-mono font-bold bg-white text-black">
+                  R{gameView.round}
                 </span>
               )}
             </div>
@@ -161,11 +236,11 @@ export function TopBar({
             <CenterTimer
               phaseEndsAt={gameView.phaseEndsAt}
               serverNow={gameView.serverNow}
-              label="Phase Timer"
+              label="Timer"
               size="sm"
             />
 
-            {/* Host-only Fast-Forward button */}
+            {/* Host-only Fast-Forward button (Compact) */}
             {isHost && isPlayingActivePhase && (
               <Button
                 variant="secondary"
@@ -173,9 +248,9 @@ export function TopBar({
                 onClick={() => setAdvanceModalOpen(true)}
                 title="Host shortcut: Fast-forward phase immediately"
                 kbd="Shift+N"
-                className="hidden sm:flex items-center gap-1.5 text-xs py-1.5 px-3 border-zinc-500 hover:border-white"
+                className="hidden sm:flex items-center gap-1 text-[10px] py-0 px-2 h-6 border-zinc-600 hover:border-white font-medium"
               >
-                <FastForward className="w-3.5 h-3.5" />
+                <FastForward className="w-2.5 h-2.5" />
                 <span>Fast-Forward</span>
               </Button>
             )}
@@ -284,6 +359,19 @@ export function TopBar({
             >
               Confirm Fast-Forward
             </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* QR Code Modal */}
+      <Modal isOpen={showQr} onClose={() => setShowQr(false)} title="Join via QR Code">
+        <div className="flex flex-col items-center justify-center p-4 space-y-4">
+          <div className="p-4 bg-white rounded-none border border-border">
+            <QRCodeSVG value={getRoomShareUrl(gameView.code)} size={220} />
+          </div>
+          <div className="text-center space-y-1">
+            <div className="font-mono text-2xl font-bold tracking-widest text-text">{gameView.code}</div>
+            <div className="text-xs text-muted">Scan to join on any phone or browser</div>
           </div>
         </div>
       </Modal>

@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { Crown, Shield, Users, Play, Copy, Check, QrCode, UserMinus, AlertTriangle, MessageSquare, Send, Activity, Lock, Ban, Bot } from 'lucide-react';
+import { Crown, Shield, Users, Play, Copy, Check, QrCode, UserMinus, AlertTriangle, MessageSquare, Send, Activity, Lock, Ban, Bot, Mic, MicOff } from 'lucide-react';
 import { ClientGameView, Settings, PlayerView } from '@/lib/types';
 import { SETTINGS_SCHEMA, ROLE_PRESETS, RULE_PRESETS } from '@/lib/settings';
 import { validateSettings } from '@/lib/engine/rules';
@@ -24,6 +24,11 @@ interface LobbyProps {
   onSendChat?: (channel: 'public', text: string) => void;
   onAddBots?: () => void;
   onClearBots?: () => void;
+  isVoiceActive?: boolean;
+  isVoiceMuted?: boolean;
+  onToggleVoice?: () => void;
+  onToggleVoiceMute?: () => void;
+  speakingPeers?: Record<string, boolean>;
 }
 
 export function Lobby({
@@ -40,9 +45,15 @@ export function Lobby({
   onSendChat,
   onAddBots,
   onClearBots,
+  isVoiceActive = false,
+  isVoiceMuted = false,
+  onToggleVoice,
+  onToggleVoiceMute,
+  speakingPeers = {},
 }: LobbyProps) {
   const [showQr, setShowQr] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [copiedCode, setCopiedCode] = useState(false);
   const [activeTab, setActiveTab] = useState<'roles' | 'settings' | 'comms'>('roles');
   const [lobbyChatInput, setLobbyChatInput] = useState('');
 
@@ -90,7 +101,30 @@ export function Lobby({
   const displayTotal = Math.max(playingCount, minPlayersNeeded);
   const civTotal = Math.max(0, displayTotal - specialTotal);
 
+  const maxRoomCapacity = settings.maxPlayers || 12;
+  const godfatherCount = settings.roles.godfather?.enabled ? (settings.roles.godfather.count || 1) : 0;
+  const vigCount = settings.roles.vigilante?.enabled ? (settings.roles.vigilante.count || 1) : 0;
+  const jesterCount = settings.roles.jester?.enabled ? (settings.roles.jester.count || 1) : 0;
+
+  // Compute maximum allowed limits per role so combined special roles strictly never exceed maxPlayers
+  const otherRolesForMafia = godfatherCount + docTotal + copTotal + vigCount + jesterCount;
+  const maxAllowedMafia = Math.max(1, maxRoomCapacity - otherRolesForMafia);
+
+  const otherRolesForDoctor = mafiaTotal + copTotal + vigCount + jesterCount;
+  const maxAllowedDoctor = Math.max(1, maxRoomCapacity - otherRolesForDoctor);
+
+  const otherRolesForPolice = mafiaTotal + docTotal + vigCount + jesterCount;
+  const maxAllowedPolice = Math.max(1, maxRoomCapacity - otherRolesForPolice);
+
   const shareUrl = getRoomShareUrl(gameView.code);
+
+  const handleCopyRoomCode = () => {
+    if (typeof navigator !== 'undefined') {
+      navigator.clipboard.writeText(gameView.code);
+      setCopiedCode(true);
+      setTimeout(() => setCopiedCode(false), 2000);
+    }
+  };
 
   const handleCopyLink = () => {
     if (typeof navigator !== 'undefined') {
@@ -156,39 +190,66 @@ export function Lobby({
               <span className="text-xs text-muted">Direct P2P Mesh</span>
             </div>
 
-            <div className="flex items-center justify-between gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
-                <div className="text-4xl md:text-5xl font-mono font-bold tracking-wider text-text">
-                  {gameView.code}
-                </div>
-                <div className="text-sm text-muted mt-1 truncate max-w-xs md:max-w-md">
-                  {shareUrl}
-                </div>
+                <button
+                  type="button"
+                  onClick={handleCopyRoomCode}
+                  title="Click to copy Room Code only"
+                  className="group text-left"
+                >
+                  <div className="text-4xl md:text-5xl font-mono font-bold tracking-wider text-text group-hover:text-white transition-colors flex items-center gap-3">
+                    <span>{gameView.code}</span>
+                    {copiedCode ? (
+                      <Check className="w-5 h-5 text-emerald-400 shrink-0" />
+                    ) : (
+                      <Copy className="w-5 h-5 text-muted group-hover:text-white transition-colors shrink-0" />
+                    )}
+                  </div>
+                  <div className="text-xs text-muted mt-1">
+                    {copiedCode ? (
+                      <span className="text-emerald-400 font-semibold flex items-center gap-1">
+                        <Check className="w-3.5 h-3.5" /> Room Code Copied!
+                      </span>
+                    ) : (
+                      'Click to copy 5-character Room Code'
+                    )}
+                  </div>
+                </button>
               </div>
 
-              <div className="flex items-center gap-2 shrink-0">
-                {isHost && onToggleLockRoom && (
+              {/* Lobby Voice Chat Card */}
+              {onToggleVoice && (
+                <div className="flex items-center gap-3 p-3 bg-surface-2 border border-border">
+                  <div className="min-w-0">
+                    <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                      {isVoiceActive ? (
+                        isVoiceMuted ? (
+                          <MicOff className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                        ) : (
+                          <Mic className="w-3.5 h-3.5 text-emerald-400 animate-pulse shrink-0" />
+                        )
+                      ) : (
+                        <MicOff className="w-3.5 h-3.5 text-muted shrink-0" />
+                      )}
+                      <span>Voice Chat</span>
+                    </div>
+                    <div className="text-[11px] text-muted">
+                      {isVoiceActive
+                        ? (isVoiceMuted ? 'Mic Muted' : 'Speaking Live in Lobby')
+                        : 'WebRTC Audio Available'}
+                    </div>
+                  </div>
                   <Button
-                    variant={gameView.isLocked ? 'primary' : 'secondary'}
-                    size="md"
-                    onClick={onToggleLockRoom}
-                    title={gameView.isLocked ? 'Unlock room for new players' : 'Lock room against new players'}
-                    className="font-medium"
+                    variant={isVoiceActive ? (isVoiceMuted ? 'secondary' : 'primary') : 'secondary'}
+                    size="sm"
+                    onClick={isVoiceActive ? onToggleVoiceMute : onToggleVoice}
+                    className="shrink-0 text-xs font-semibold"
                   >
-                    <Lock className="w-4 h-4 mr-1.5" />
-                    <span>{gameView.isLocked ? 'Locked' : 'Lock Room'}</span>
+                    {isVoiceActive ? (isVoiceMuted ? 'Unmute' : 'Mute') : 'Join Voice'}
                   </Button>
-                )}
-                <Button variant="secondary" size="md" onClick={handleCopyLink} className="font-medium">
-                  {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-                  <span>{copied ? 'Link Copied!' : 'Copy Link'}</span>
-                </Button>
-                <Button variant="secondary" size="md" onClick={() => setShowQr(true)}>
-                  <QrCode className="w-4 h-4" />
-                  <span>QR</span>
-                </Button>
-              </div>
-
+                </div>
+              )}
             </div>
           </div>
 
@@ -512,11 +573,11 @@ export function Lobby({
                     </div>
                     {isHost && (
                       <Stepper
-                        value={settings.roles.mafia.count}
+                        value={Math.min(settings.roles.mafia.count, maxAllowedMafia)}
                         min={1}
-                        max={settings.maxPlayers || 12}
+                        max={maxAllowedMafia}
                         onChange={(val) =>
-                          onUpdateSettings({ roles: { ...settings.roles, mafia: { count: val } } })
+                          onUpdateSettings({ roles: { ...settings.roles, mafia: { count: Math.min(val, maxAllowedMafia) } } })
                         }
                       />
                     )}
@@ -535,14 +596,15 @@ export function Lobby({
                       <div className="flex items-center gap-2">
                         <Switch
                           checked={Boolean(settings.roles.godfather?.enabled)}
-                          onChange={(val) =>
+                          onChange={(val) => {
+                            if (val && specialTotal + 1 > maxRoomCapacity) return;
                             onUpdateSettings({
                               roles: {
                                 ...settings.roles,
                                 godfather: { enabled: val, count: val ? 1 : 0 },
                               },
-                            })
-                          }
+                            });
+                          }}
                         />
                       </div>
                     )}
@@ -561,22 +623,33 @@ export function Lobby({
                       <div className="flex items-center gap-2">
                         <Switch
                           checked={settings.roles.doctor.enabled}
-                          onChange={(val) =>
-                            onUpdateSettings({
-                              roles: {
-                                ...settings.roles,
-                                doctor: { enabled: val, count: val ? Math.max(1, settings.roles.doctor.count) : 0 },
-                              },
-                            })
-                          }
+                          onChange={(val) => {
+                            if (val) {
+                              if (otherRolesForDoctor >= maxRoomCapacity) return;
+                              const count = Math.min(Math.max(1, settings.roles.doctor.count || 1), maxAllowedDoctor);
+                              onUpdateSettings({
+                                roles: {
+                                  ...settings.roles,
+                                  doctor: { enabled: true, count },
+                                },
+                              });
+                            } else {
+                              onUpdateSettings({
+                                roles: {
+                                  ...settings.roles,
+                                  doctor: { enabled: false, count: 0 },
+                                },
+                              });
+                            }
+                          }}
                         />
                         {settings.roles.doctor.enabled && (
                           <Stepper
-                            value={settings.roles.doctor.count}
+                            value={Math.min(settings.roles.doctor.count, maxAllowedDoctor)}
                             min={1}
-                            max={settings.maxPlayers || 12}
+                            max={maxAllowedDoctor}
                             onChange={(val) =>
-                              onUpdateSettings({ roles: { ...settings.roles, doctor: { enabled: true, count: val } } })
+                              onUpdateSettings({ roles: { ...settings.roles, doctor: { enabled: true, count: Math.min(val, maxAllowedDoctor) } } })
                             }
                           />
                         )}
@@ -597,22 +670,33 @@ export function Lobby({
                       <div className="flex items-center gap-2">
                         <Switch
                           checked={settings.roles.police.enabled}
-                          onChange={(val) =>
-                            onUpdateSettings({
-                              roles: {
-                                ...settings.roles,
-                                police: { enabled: val, count: val ? Math.max(1, settings.roles.police.count) : 0 },
-                              },
-                            })
-                          }
+                          onChange={(val) => {
+                            if (val) {
+                              if (otherRolesForPolice >= maxRoomCapacity) return;
+                              const count = Math.min(Math.max(1, settings.roles.police.count || 1), maxAllowedPolice);
+                              onUpdateSettings({
+                                roles: {
+                                  ...settings.roles,
+                                  police: { enabled: true, count },
+                                },
+                              });
+                            } else {
+                              onUpdateSettings({
+                                roles: {
+                                  ...settings.roles,
+                                  police: { enabled: false, count: 0 },
+                                },
+                              });
+                            }
+                          }}
                         />
                         {settings.roles.police.enabled && (
                           <Stepper
-                            value={settings.roles.police.count}
+                            value={Math.min(settings.roles.police.count, maxAllowedPolice)}
                             min={1}
-                            max={settings.maxPlayers || 12}
+                            max={maxAllowedPolice}
                             onChange={(val) =>
-                              onUpdateSettings({ roles: { ...settings.roles, police: { enabled: true, count: val } } })
+                              onUpdateSettings({ roles: { ...settings.roles, police: { enabled: true, count: Math.min(val, maxAllowedPolice) } } })
                             }
                           />
                         )}
@@ -632,11 +716,12 @@ export function Lobby({
                     {isHost && (
                       <Switch
                         checked={settings.roles.vigilante.enabled}
-                        onChange={(val) =>
+                        onChange={(val) => {
+                          if (val && specialTotal + 1 > maxRoomCapacity) return;
                           onUpdateSettings({
                             roles: { ...settings.roles, vigilante: { enabled: val, count: val ? 1 : 0 } },
-                          })
-                        }
+                          });
+                        }}
                       />
                     )}
                   </div>
@@ -653,11 +738,12 @@ export function Lobby({
                     {isHost && (
                       <Switch
                         checked={settings.roles.jester.enabled}
-                        onChange={(val) =>
+                        onChange={(val) => {
+                          if (val && specialTotal + 1 > maxRoomCapacity) return;
                           onUpdateSettings({
                             roles: { ...settings.roles, jester: { enabled: val, count: val ? 1 : 0 } },
-                          })
-                        }
+                          });
+                        }}
                       />
                     )}
                   </div>
