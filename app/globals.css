@@ -5,23 +5,41 @@
 @tailwind utilities;
 
 :root {
-  --bg: #09090b;
-  --surface: #111113;
-  --surface-2: #18181b;
-  --surface-3: #27272a;
-  --border: #27272a;
+  --ink-950: #0A0B0E;
+  --ink-900: #101216;
+  --ink-800: #171A20;
+  --line: #262A33;
+  --bone: #ECE6D8;
+  --bone-dim: #A39D90;
+  --lamp: #D9A441;
+  --lamp-soft: #F0D79A;
+  --blood: #B3363B;
+  --blood-deep: #7E2327;
+  --night: #3E5A78;
+  --night-deep: #16222F;
+  --verdigris: #5E8C7B;
+  --plum: #7A5C86;
+
+  /* Aliases for backwards compatibility */
+  --bg: var(--ink-950);
+  --surface: var(--ink-900);
+  --surface-2: var(--ink-800);
+  --surface-3: #262A33;
+  --border: var(--line);
   --border-light: #3f3f46;
-  --text: #fafafa;
-  --muted: #a1a1aa;
-  --mafia: #ffffff;
-  --mafia-deep: #27272a;
-  --doctor: #e4e4e7;
-  --police: #d4d4d8;
-  --police-surface: #18181b;
-  --vigilante: #a1a1aa;
-  --jester: #e4e4e7;
-  --civilian: #71717a;
-  --god: #ffffff;
+  --text: var(--bone);
+  --muted: var(--bone-dim);
+  --mafia: var(--blood);
+  --mafia-deep: var(--blood-deep);
+  --doctor: var(--verdigris);
+  --police: var(--night);
+  --police-surface: var(--ink-900);
+  --vigilante: var(--bone-dim);
+  --jester: var(--plum);
+  --civilian: var(--bone-dim);
+  --god: var(--bone);
+  --accent-day: var(--lamp);
+
   /* Safe-area insets for notched mobile displays */
   --sat: env(safe-area-inset-top, 0px);
   --sar: env(safe-area-inset-right, 0px);
@@ -32,52 +50,137 @@
 /* Phase-Driven Dynamic Atmosphere */
 html {
   transition: background-color 800ms cubic-bezier(0.16, 1, 0.3, 1), color 800ms cubic-bezier(0.16, 1, 0.3, 1);
+  background-color: var(--ink-950);
+  color: var(--bone);
+}
+
+html[data-phase="lobby"] {
+  --bg: #0A0B0E;
+  --surface: #101216;
+  --surface-2: #171A20;
+  --border: #262A33;
+  --border-light: #363b47;
+  --text: #ECE6D8;
+  --muted: #A39D90;
+  --accent-phase: #D9A441;
 }
 
 html[data-phase="night"] {
-  --bg: #07090e;
-  --surface: #0c0f17;
+  --bg: #07090E;
+  --surface: #0C0F17;
   --surface-2: #121824;
-  --border: #1e293b;
-  --border-light: #334155;
-  --text: #f1f5f9;
-  --muted: #94a3b8;
-  --accent-phase: #38bdf8;
+  --border: #1E293B;
+  --border-light: #2c3a50;
+  --text: #F1F5F9;
+  --muted: #94A3B8;
+  --accent-phase: #38BDF8;
 }
 
 html[data-phase="day"],
 html[data-phase="discussion"],
 html[data-phase="morning"] {
-  --bg: #0c0a09;
+  --bg: #0C0A09;
   --surface: #141210;
-  --surface-2: #1c1917;
+  --surface-2: #1C1917;
   --border: #292524;
-  --border-light: #44403c;
-  --text: #fafaf9;
-  --muted: #a8a29e;
-  --accent-phase: #f59e0b;
+  --border-light: #3d3734;
+  --text: #FAF8F5;
+  --muted: #A8A29E;
+  --accent-phase: #D9A441;
 }
 
 html[data-phase="voting"] {
-  --bg: #0d0707;
-  --surface: #170d0d;
+  --bg: #0D0707;
+  --surface: #170D0D;
   --surface-2: #241414;
-  --border: #3d1c1c;
+  --border: #3D1C1C;
   --border-light: #572222;
-  --text: #fef2f2;
-  --muted: #b99393;
-  --accent-phase: #ef4444;
+  --text: #FEF2F2;
+  --muted: #B99393;
+  --accent-phase: #EF4444;
 }
 
 html[data-phase="gameover"] {
-  --bg: #09090b;
-  --surface: #111113;
-  --surface-2: #18181b;
-  --border: #27272a;
-  --border-light: #3f3f46;
-  --text: #fafafa;
-  --muted: #a1a1aa;
-  --accent-phase: #fafafa;
+  --bg: #0A0B0E;
+  --surface: #101216;
+  --surface-2: #171A20;
+  --border: #262A33;
+  --border-light: #363b47;
+  --text: #ECE6D8;
+  --muted: #A39D90;
+  --accent-phase: #D9A441;
+}
+
+/* Rubber Stamp Styling */
+.rubber-stamp {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  padding: 0.25rem 0.65rem;
+  border-width: 2px;
+  border-style: solid;
+  border-radius: 2px;
+  transform: rotate(-5deg);
+  user-select: none;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4);
+}
+
+.rubber-stamp-eliminated {
+  color: #B3363B;
+  border-color: #B3363B;
+  background: rgba(179, 54, 59, 0.08);
+}
+
+.rubber-stamp-survived {
+  color: #5E8C7B;
+  border-color: #5E8C7B;
+  background: rgba(94, 140, 123, 0.08);
+}
+
+.rubber-stamp-saved {
+  color: #D9A441;
+  border-color: #D9A441;
+  background: rgba(217, 164, 65, 0.08);
+}
+
+/* Classified Redaction Ink Bar */
+.redacted-ink {
+  background-color: #0A0B0E;
+  color: transparent !important;
+  user-select: none;
+  position: relative;
+  border-radius: 1px;
+  transition: all 200ms ease;
+}
+
+.redacted-ink::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    45deg,
+    #0A0B0E,
+    #0A0B0E 4px,
+    #171A20 4px,
+    #171A20 8px
+  );
+  opacity: 1;
+  transition: opacity 200ms ease;
+}
+
+.revealed-ink {
+  background-color: transparent !important;
+  color: inherit !important;
+  user-select: text;
+}
+
+.revealed-ink::after {
+  opacity: 0;
+  pointer-events: none;
 }
 
 /* Atmospheric subtle lighting overlay */

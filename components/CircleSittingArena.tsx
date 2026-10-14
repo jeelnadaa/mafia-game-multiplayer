@@ -15,18 +15,17 @@ import {
   Clock,
   Ghost,
   Lock,
-  Eye,
   Radio,
   Flame,
   Sun,
   Gavel,
   Search,
-  FileText,
   Trophy,
+  Layers,
 } from 'lucide-react';
-import { ClientGameView, PlayerView, ChatChannel, ChatMessage, QuickReaction } from '@/lib/types';
+import { ClientGameView, PlayerView, ChatChannel, QuickReaction } from '@/lib/types';
 import { ROLES } from '@/lib/content';
-import { Avatar, Button, Modal, CenterTimer, Kbd, Badge } from './ui';
+import { Avatar, Button, Modal, CenterTimer, Kbd, RubberStamp } from './ui';
 import { useShortcut } from '@/lib/shortcuts';
 import { getSeatPositions } from '@/lib/layout';
 import { voiceEngine } from '@/lib/voice';
@@ -72,6 +71,7 @@ export function CircleSittingArena({
   const chatList = gameView.chat || [];
 
   const [speakingPeers, setSpeakingPeers] = useState<Record<string, boolean>>({});
+  const [is3DView, setIs3DView] = useState(true);
 
   useEffect(() => {
     return voiceEngine.subscribe((map) => setSpeakingPeers(map));
@@ -81,7 +81,6 @@ export function CircleSittingArena({
   const seatPositions = useMemo(() => {
     return getSeatPositions(players.length, 100, 100, myIndex, 8);
   }, [players.length, myIndex]);
-
 
   // Active Chat Channel Tab
   const [activeChannel, setActiveChannel] = useState<ChatChannel>('public');
@@ -202,25 +201,25 @@ export function CircleSittingArena({
   const livingPlayers = players.filter((p) => p.alive && !p.isGod);
 
   return (
-    <div className="w-full flex-1 flex flex-col min-h-0 bg-transparent">
+    <div className="w-full flex-1 flex flex-col min-h-0 bg-transparent text-bone">
       {/* 3-Column Round Table Layout on Desktop, Stacks on Mobile */}
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 p-3 md:p-6 lg:p-8 max-w-[1920px] mx-auto w-full items-stretch">
         
         {/* ========================================================= */}
         {/* LEFT COLUMN: MULTI-CHANNEL CHAT WIRE (3 cols)           */}
         {/* ========================================================= */}
-        <div className="lg:col-span-3 bg-surface border border-border flex flex-col h-[680px] lg:h-[820px] order-2 lg:order-1">
+        <div className="lg:col-span-3 bg-ink-900 border border-line flex flex-col h-[680px] lg:h-[820px] order-2 lg:order-1 shadow-md">
           {/* Channel Tabs */}
-          <div className="flex items-center border-b border-border bg-surface-2 p-1.5 gap-1 text-xs">
+          <div className="flex items-center border-b border-line bg-ink-950 p-1.5 gap-1 text-xs font-mono">
             {/* Town Assembly Channel */}
             <button
               type="button"
               onClick={() => setActiveChannel('public')}
               disabled={isDead && !isGod}
-              className={`flex-1 py-1.5 px-2 text-center font-semibold rounded-none transition-colors flex items-center justify-center gap-1.5 ${
+              className={`flex-1 py-1.5 px-2 text-center font-semibold rounded-none transition-colors flex items-center justify-center gap-1.5 uppercase ${
                 activeChannel === 'public'
-                  ? 'bg-white text-black'
-                  : 'text-muted hover:text-text disabled:opacity-30'
+                  ? 'bg-bone text-ink-950 font-bold'
+                  : 'text-bone-dim hover:text-bone disabled:opacity-30'
               }`}
             >
               <MessageSquare className="w-3.5 h-3.5" />
@@ -232,10 +231,10 @@ export function CircleSittingArena({
               <button
                 type="button"
                 onClick={() => setActiveChannel('dead')}
-                className={`flex-1 py-1.5 px-2 text-center font-semibold rounded-none transition-colors flex items-center justify-center gap-1.5 ${
+                className={`flex-1 py-1.5 px-2 text-center font-semibold rounded-none transition-colors flex items-center justify-center gap-1.5 uppercase ${
                   activeChannel === 'dead'
-                    ? 'bg-purple-600 text-white'
-                    : 'text-muted hover:text-text'
+                    ? 'bg-plum text-white font-bold'
+                    : 'text-bone-dim hover:text-bone'
                 }`}
               >
                 <Ghost className="w-3.5 h-3.5 text-purple-300" />
@@ -248,10 +247,10 @@ export function CircleSittingArena({
               <button
                 type="button"
                 onClick={() => setActiveChannel('mafia')}
-                className={`flex-1 py-1.5 px-2 text-center font-semibold rounded-none transition-colors flex items-center justify-center gap-1.5 ${
+                className={`flex-1 py-1.5 px-2 text-center font-semibold rounded-none transition-colors flex items-center justify-center gap-1.5 uppercase ${
                   activeChannel === 'mafia'
-                    ? 'bg-red-600 text-white'
-                    : 'text-muted hover:text-text'
+                    ? 'bg-blood text-white font-bold'
+                    : 'text-bone-dim hover:text-bone'
                 }`}
               >
                 <Radio className="w-3.5 h-3.5 text-red-200" />
@@ -261,20 +260,20 @@ export function CircleSittingArena({
           </div>
 
           {/* Active Channel Header Info */}
-          <div className="px-4 py-2 border-b border-border bg-black/40 flex items-center justify-between text-xs text-muted">
+          <div className="px-4 py-2 border-b border-line bg-ink-950/80 flex items-center justify-between text-xs text-bone-dim font-mono">
             <span className="flex items-center gap-1.5 font-medium">
-              {activeChannel === 'public' && 'Public Town Square'}
-              {activeChannel === 'dead' && 'Underworld Ghost Convo'}
+              {activeChannel === 'public' && 'Public Town Wire'}
+              {activeChannel === 'dead' && 'Underworld Ghost Wire'}
               {activeChannel === 'mafia' && 'Encrypted Syndicate Wire'}
             </span>
-            <span className="font-mono text-[11px]">{tabMessages.length} msgs</span>
+            <span className="text-[10px]">{tabMessages.length} msgs</span>
           </div>
 
           {/* Messages Feed */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-3 text-xs md:text-sm">
+          <div className="flex-1 overflow-y-auto p-3 space-y-2.5 text-xs">
             {tabMessages.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-center text-muted p-4 space-y-2">
-                <MessageSquare className="w-8 h-8 opacity-20" />
+              <div className="h-full flex flex-col items-center justify-center text-center text-bone-dim/60 p-4 space-y-2 font-mono">
+                <MessageSquare className="w-7 h-7 opacity-20" />
                 <p className="text-xs">
                   {activeChannel === 'public' && 'No public messages yet. Deliberate with the town.'}
                   {activeChannel === 'dead' && 'Silence in the graveyard. The spirits have not spoken.'}
@@ -291,17 +290,17 @@ export function CircleSittingArena({
                   return (
                     <div
                       key={msg.id}
-                      className="p-2.5 bg-zinc-950 border border-zinc-700 text-xs text-amber-300 font-mono flex items-start gap-2 shadow-sm rounded-none"
+                      className="p-2 bg-ink-950 border border-line text-xs text-lamp font-mono flex items-start gap-2 shadow-sm"
                     >
-                      <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                      <AlertCircle className="w-3.5 h-3.5 text-lamp shrink-0 mt-0.5" />
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between text-[10px] text-zinc-400 font-bold uppercase tracking-wider mb-0.5">
+                        <div className="flex items-center justify-between text-[9px] text-bone-dim font-bold uppercase tracking-wider mb-0.5">
                           <span>SYSTEM TRANSMISSION</span>
                           <span>
                             {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </span>
                         </div>
-                        <p className="leading-relaxed break-words text-white font-medium">{msg.text}</p>
+                        <p className="leading-relaxed break-words text-bone font-medium">{msg.text}</p>
                       </div>
                     </div>
                   );
@@ -310,26 +309,26 @@ export function CircleSittingArena({
                 return (
                   <div
                     key={msg.id}
-                    className={`p-2.5 border rounded-none ${
+                    className={`p-2 border ${
                       isMe
-                        ? 'bg-white/5 border-white/30 ml-4'
+                        ? 'bg-lamp/10 border-lamp/40 ml-3'
                         : msg.channel === 'mafia'
-                        ? 'bg-red-950/30 border-red-900/50 mr-4'
+                        ? 'bg-blood/10 border-blood/30 mr-3'
                         : msg.channel === 'dead'
-                        ? 'bg-purple-950/20 border-purple-900/40 mr-4'
-                        : 'bg-surface-2 border-border mr-4'
+                        ? 'bg-plum/15 border-plum/30 mr-3'
+                        : 'bg-ink-950 border-line mr-3'
                     }`}
                   >
                     <div className="flex items-center justify-between gap-2 mb-1">
-                      <div className="flex items-center gap-2">
-                        <Avatar avatarId={senderPlayer?.avatar || 1} size={18} className="rounded-none" />
-                        <span className="font-bold text-white text-xs">{msg.senderName}</span>
+                      <div className="flex items-center gap-1.5">
+                        <Avatar avatarId={senderPlayer?.avatar || 1} size={16} />
+                        <span className="font-bold text-bone text-xs">{msg.senderName}</span>
                       </div>
-                      <span className="text-[10px] text-muted font-mono">
-                        {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                      <span className="text-[9px] text-bone-dim font-mono">
+                        {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
                     </div>
-                    <p className="text-text leading-relaxed break-words">{msg.text}</p>
+                    <p className="text-bone-dim leading-relaxed break-words">{msg.text}</p>
                   </div>
                 );
               })
@@ -341,7 +340,7 @@ export function CircleSittingArena({
             (activeChannel === 'mafia' && gameView.settings.mafiaNightChat) ||
             (activeChannel === 'dead' && gameView.settings.deadChat) ||
             isGod) ? (
-            <form onSubmit={handleSendChat} className="p-3 border-t border-border bg-surface-2 flex items-center gap-2">
+            <form onSubmit={handleSendChat} className="p-2.5 border-t border-line bg-ink-950 flex items-center gap-2">
               <input
                 type="text"
                 value={chatInput}
@@ -354,14 +353,17 @@ export function CircleSittingArena({
                     : 'Type public assembly message...'
                 }
                 maxLength={300}
-                className="flex-1 bg-black border border-border px-3 py-2 text-xs md:text-sm text-text placeholder-muted/60 focus:outline-none focus:border-white rounded-none"
+                className="flex-1 bg-ink-900 border border-line px-3 py-1.5 text-xs text-bone placeholder:text-bone-dim/50 focus:outline-none focus:border-lamp font-mono"
               />
-              <Button type="submit" variant="primary" size="sm" className="px-3 shrink-0">
+              <button
+                type="submit"
+                className="px-3 py-1.5 bg-lamp text-ink-950 hover:bg-lamp-soft font-bold text-xs uppercase"
+              >
                 <Send className="w-3.5 h-3.5" />
-              </Button>
+              </button>
             </form>
           ) : (
-            <div className="p-3 border-t border-border bg-surface-2 text-center text-xs text-muted">
+            <div className="p-2.5 border-t border-line bg-ink-950 text-center text-xs text-bone-dim font-mono">
               {activeChannel === 'public'
                 ? 'Town public chat is disabled by room rules.'
                 : activeChannel === 'mafia'
@@ -372,22 +374,33 @@ export function CircleSittingArena({
         </div>
 
         {/* ========================================================= */}
-        {/* CENTER COLUMN: 3D ROUND TABLE CIRCLE SITTING ARENA (6 cols)*/}
+        {/* CENTER COLUMN: LIVING ROUND TABLE ARENA (6 cols)          */}
         {/* ========================================================= */}
-        <div className="lg:col-span-6 bg-surface border border-border p-4 md:p-6 flex flex-col justify-between items-center h-[680px] lg:h-[820px] relative overflow-hidden order-1 lg:order-2">
+        <div className="lg:col-span-6 bg-ink-900 border border-line p-4 md:p-6 flex flex-col justify-between items-center h-[680px] lg:h-[820px] relative overflow-hidden order-1 lg:order-2 shadow-xl">
           
+          {/* Subtle Chiaroscuro Overhead Lamp Glow */}
+          <div
+            className="pointer-events-none absolute inset-0 z-0 opacity-50"
+            style={{
+              background: phase === 'night'
+                ? 'radial-gradient(circle 420px at 50% 50%, rgba(62, 90, 120, 0.18), transparent 75%)'
+                : 'radial-gradient(circle 450px at 50% 50%, rgba(217, 164, 65, 0.16), transparent 75%)',
+            }}
+            aria-hidden="true"
+          />
+
           {/* Arena Top Status Bar with Prominent Centered Timer */}
-          <div className="w-full flex items-center justify-between border-b border-border pb-3 z-10 bg-surface/90 backdrop-blur-sm gap-2">
+          <div className="w-full flex items-center justify-between border-b border-line pb-2.5 z-10 bg-ink-900/90 backdrop-blur-sm gap-2">
             {/* Left HUD Module: Round & Phase */}
-            <div className="flex items-center gap-2 px-2.5 sm:px-3 py-1 bg-surface-2 border border-border h-9 min-h-[36px] shadow-sm select-none">
-              <span className="px-1.5 py-0.5 bg-white text-black text-xs font-mono font-bold tracking-tight">
+            <div className="flex items-center gap-2 px-2.5 py-1 bg-ink-950 border border-line select-none font-mono">
+              <span className="px-1.5 py-0.5 bg-bone text-ink-950 text-xs font-bold tracking-tight">
                 R{round}
               </span>
-              <span className="w-px h-3.5 bg-border" />
-              <span className="text-xs md:text-sm font-bold text-text uppercase tracking-wider flex items-center gap-1.5">
-                {phase === 'discussion' && <MessageSquare className="w-3.5 h-3.5 text-zinc-400" />}
-                {phase === 'voting' && <Gavel className="w-3.5 h-3.5 text-zinc-400" />}
-                {phase === 'night' && <Clock className="w-3.5 h-3.5 text-zinc-400" />}
+              <span className="w-px h-3.5 bg-line" />
+              <span className="text-xs font-bold text-bone uppercase tracking-wider flex items-center gap-1.5">
+                {phase === 'discussion' && <MessageSquare className="w-3.5 h-3.5 text-bone-dim" />}
+                {phase === 'voting' && <Gavel className="w-3.5 h-3.5 text-lamp" />}
+                {phase === 'night' && <Clock className="w-3.5 h-3.5 text-blue-300" />}
                 <span>{phase === 'night' ? `Night · ${nightSubPhase || 'Action'}` : phase}</span>
               </span>
             </div>
@@ -400,18 +413,27 @@ export function CircleSittingArena({
               size="sm"
             />
 
-            {/* Right HUD Module: Table Seating Roster */}
-            <div className="flex items-center gap-2 px-2.5 sm:px-3 py-1 bg-surface-2 border border-border h-9 min-h-[36px] shadow-sm select-none">
-              <Users className="w-3.5 h-3.5 text-muted" />
-              <div className="flex items-center gap-1.5 text-xs">
-                <span className="font-bold text-white tracking-wide">{livingPlayers.length} Seated</span>
-                <span className="hidden sm:inline text-muted text-[11px] font-mono">({players.length} Total)</span>
+            {/* Right HUD Module: Table Seating Roster & Perspective Toggle */}
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setIs3DView((prev) => !prev)}
+                className="px-2 py-1 bg-ink-950 border border-line text-[10px] font-mono text-bone-dim hover:text-bone hover:border-bone-dim flex items-center gap-1"
+                title="Toggle 2.5D tilt perspective"
+              >
+                <Layers className="w-3 h-3" />
+                <span>{is3DView ? '3D Table' : '2D View'}</span>
+              </button>
+
+              <div className="flex items-center gap-2 px-2.5 py-1 bg-ink-950 border border-line select-none font-mono text-xs">
+                <Users className="w-3.5 h-3.5 text-lamp" />
+                <span className="font-bold text-bone">{livingPlayers.length} Seated</span>
               </div>
             </div>
           </div>
 
           {/* Interactive Phase Guidance Banner */}
-          <div className="w-full text-center py-1.5 px-3 bg-surface-2 border-y border-border text-xs z-10 my-1">
+          <div className="w-full text-center py-1.5 px-3 bg-ink-950 border-y border-line text-xs font-mono z-10 my-1">
             {phase === 'night' && canActAtNight && (
               <span className="text-red-300 font-semibold flex items-center justify-center gap-2">
                 <Crosshair className="w-4 h-4 animate-pulse text-red-400" />
@@ -423,42 +445,42 @@ export function CircleSittingArena({
               </span>
             )}
             {phase === 'night' && !canActAtNight && (
-              <span className="text-muted flex items-center justify-center gap-2">
+              <span className="text-bone-dim flex items-center justify-center gap-2">
                 <Lock className="w-3.5 h-3.5" />
                 Night shadows envelop the room. Awaiting syndicate and specialist actions...
               </span>
             )}
             {phase === 'discussion' && (
-              <span className="text-zinc-300 flex items-center justify-center gap-2">
-                Deliberate with fellow town members. Press [V] or button below when ready to vote.
+              <span className="text-bone-dim flex items-center justify-center gap-2">
+                Deliberate with fellow operatives. Press [V] or button below when ready to vote.
               </span>
             )}
             {phase === 'voting' && canVoteAtDay && (
-              <span className="text-amber-300 font-semibold flex items-center justify-center gap-2">
-                <Flame className="w-4 h-4 text-amber-400" />
-                Tap a seated player to cast your elimination ballot today.
+              <span className="text-lamp font-semibold flex items-center justify-center gap-2">
+                <Gavel className="w-4 h-4 text-lamp" />
+                Tap a seated operative to cast your elimination ballot today.
               </span>
             )}
             {phase === 'voting' && !canVoteAtDay && (
-              <span className="text-muted">Town voting in progress...</span>
+              <span className="text-bone-dim">Town voting in progress...</span>
             )}
           </div>
 
           {/* Detective Intel Banner: Display latest investigation report for Police */}
           {role === 'police' && me?.policeInbox && me.policeInbox.length > 0 && (
-            <div className="w-full text-center py-1.5 px-3 bg-blue-950/40 border-b border-blue-900/60 text-xs text-blue-200 flex items-center justify-center gap-2 z-10">
+            <div className="w-full text-center py-1.5 px-3 bg-night/20 border-b border-night/40 text-xs text-blue-200 flex items-center justify-center gap-2 z-10 font-mono">
               <Search className="w-3.5 h-3.5 text-blue-400 shrink-0" />
               <span>
                 Detective Intelligence: Latest investigation on{' '}
-                <strong className="text-white">
+                <strong className="text-bone">
                   {players.find((p) => p.id === me.policeInbox![me.policeInbox!.length - 1].targetId)?.name || 'Subject'}
                 </strong>{' '}
                 revealed:{' '}
                 <span
                   className={`font-mono font-bold px-1.5 py-0.2 border ml-1 ${
                     me.policeInbox[me.policeInbox.length - 1].result === 'Mafia'
-                      ? 'bg-red-950 text-red-300 border-red-500'
-                      : 'bg-emerald-950 text-emerald-300 border-emerald-500'
+                      ? 'bg-blood/20 text-red-300 border-blood/60'
+                      : 'bg-verdigris/20 text-emerald-300 border-verdigris/60'
                   }`}
                 >
                   {me.policeInbox[me.policeInbox.length - 1].result}
@@ -468,28 +490,34 @@ export function CircleSittingArena({
           )}
 
           {/* ========================================================= */}
-          {/* ROUND TABLE & CIRCULAR SEATING ARENA CONTAINER          */}
+          {/* THE LIVING ROUND TABLE & SEATING ARENA                    */}
           {/* ========================================================= */}
-          <div className="flex-1 w-full relative flex items-center justify-center my-auto min-h-0">
-            
-            {/* The Stylized 3D Mahogany Round Table at Center */}
-            <div className="w-[280px] h-[280px] sm:w-[360px] sm:h-[360px] lg:w-[420px] lg:h-[420px] rounded-full border-4 border-zinc-700 bg-gradient-to-b from-[#181a20] via-[#101217] to-[#0a0b0e] shadow-[0_20px_50px_rgba(0,0,0,0.9),inset_0_0_80px_rgba(0,0,0,0.8)] flex flex-col items-center justify-center relative select-none">
-              
+          <div
+            className={`flex-1 w-full relative flex items-center justify-center my-auto min-h-0 transition-transform duration-500 ${
+              is3DView ? '[perspective:1000px]' : ''
+            }`}
+          >
+            {/* The Stylized Felt Round Table at Center */}
+            <div
+              className={`w-[290px] h-[290px] sm:w-[370px] sm:h-[370px] lg:w-[430px] lg:h-[430px] rounded-full border-4 border-[#2b2118] bg-gradient-to-b from-[#141b16] via-[#0e1410] to-[#070b08] shadow-[0_20px_50px_rgba(0,0,0,0.9),inset_0_0_80px_rgba(0,0,0,0.8)] flex flex-col items-center justify-center relative select-none transition-transform duration-500 ${
+                is3DView ? '[transform:rotateX(22deg)]' : ''
+              }`}
+            >
               {/* Inner Inlaid Wood Compass Ring */}
-              <div className="w-[180px] h-[180px] sm:w-[240px] sm:h-[240px] lg:w-[270px] lg:h-[270px] rounded-full border border-zinc-800/80 bg-zinc-950/60 flex flex-col items-center justify-center shadow-inner relative">
+              <div className="w-[190px] h-[190px] sm:w-[250px] sm:h-[250px] lg:w-[280px] lg:h-[280px] rounded-full border border-line/60 bg-ink-950/70 flex flex-col items-center justify-center shadow-inner relative">
                 
-                {/* Center Mafia Seal / Phase Announcements */}
+                {/* Center Phase Announcements & Case Verdict */}
                 {gameView.winner ? (
-                  <div className="text-center p-3 space-y-1 z-10 animate-in fade-in zoom-in duration-300">
-                    <Trophy className="w-7 h-7 text-amber-400 mx-auto animate-bounce" />
-                    <div className="text-[10px] font-mono tracking-widest text-amber-400 uppercase font-bold">
+                  <div className="text-center p-3 space-y-1 z-10 animate-in fade-in zoom-in duration-300 font-mono">
+                    <Trophy className="w-7 h-7 text-lamp mx-auto animate-bounce" />
+                    <div className="text-[10px] tracking-widest text-lamp uppercase font-bold">
                       {gameView.winner === 'mafia'
                         ? 'MAFIA SYNDICATE WINS'
                         : gameView.winner === 'town'
                         ? 'TOWN PREVAILS'
                         : 'JESTER WINS'}
                     </div>
-                    <div className="text-xs font-bold text-white max-w-[210px]">
+                    <div className="text-xs font-bold text-bone max-w-[210px]">
                       {gameView.winner === 'mafia'
                         ? 'Syndicate achieved parity over the town!'
                         : gameView.winner === 'town'
@@ -498,50 +526,50 @@ export function CircleSittingArena({
                     </div>
                   </div>
                 ) : phase === 'morning' ? (
-                  <div className="text-center p-3 space-y-1 z-10 animate-in fade-in zoom-in duration-300">
-                    <Sun className="w-6 h-6 text-amber-400 mx-auto animate-pulse" />
-                    <div className="text-[10px] font-mono tracking-widest text-amber-400 uppercase font-bold">
+                  <div className="text-center p-3 space-y-1 z-10 animate-in fade-in zoom-in duration-300 font-mono">
+                    <Sun className="w-6 h-6 text-lamp mx-auto animate-pulse" />
+                    <div className="text-[10px] tracking-widest text-lamp uppercase font-bold">
                       DAWN IN THE CITY
                     </div>
-                    <div className="text-xs font-semibold text-white line-clamp-3 max-w-[200px]">
+                    <div className="text-xs font-semibold text-bone line-clamp-3 max-w-[200px]">
                       {gameView.log.filter((l) => l.round === round && l.phase === 'morning').length > 0
                         ? gameView.log.filter((l) => l.round === round && l.phase === 'morning').slice(-1)[0].text
                         : 'Nobody was harmed tonight.'}
                     </div>
                   </div>
                 ) : phase === 'voteResult' ? (
-                  <div className="text-center p-3 space-y-1 z-10 animate-in fade-in zoom-in duration-300">
-                    <Gavel className="w-6 h-6 text-red-500 mx-auto" />
-                    <div className="text-[10px] font-mono tracking-widest text-red-400 uppercase font-bold">
+                  <div className="text-center p-3 space-y-1 z-10 animate-in fade-in zoom-in duration-300 font-mono">
+                    <Gavel className="w-6 h-6 text-blood mx-auto" />
+                    <div className="text-[10px] tracking-widest text-red-400 uppercase font-bold">
                       TOWN VERDICT
                     </div>
-                    <div className="text-xs font-semibold text-white line-clamp-3 max-w-[200px]">
+                    <div className="text-xs font-semibold text-bone line-clamp-3 max-w-[200px]">
                       {gameView.log.filter((l) => l.round === round && l.phase === 'voting').length > 0
                         ? gameView.log.filter((l) => l.round === round && l.phase === 'voting').slice(-1)[0].text
                         : 'The town votes have concluded.'}
                     </div>
                   </div>
                 ) : (
-                  <div className="text-center p-3 space-y-1">
-                    <div className="text-[11px] font-mono tracking-widest text-zinc-500 uppercase">
-                      SEATED ARENA
+                  <div className="text-center p-3 space-y-1 font-mono">
+                    <div className="text-[11px] tracking-widest text-bone-dim uppercase">
+                      BRIEFING TABLE
                     </div>
-                    <div className="text-sm sm:text-base font-black tracking-wider text-white">
+                    <div className="text-sm sm:text-base font-black tracking-wider text-bone">
                       ROUND {round}
                     </div>
-                    <div className="text-[10px] text-zinc-400">
+                    <div className="text-[10px] text-bone-dim/80">
                       {livingPlayers.length} OF {players.length} SURVIVING
                     </div>
                   </div>
                 )}
 
-                {/* Subtle Ambient Light Glow on Table */}
-                <div className="absolute inset-0 rounded-full bg-radial from-white/5 to-transparent pointer-events-none" />
+                {/* Subtle Ambient Overhead Light Pool on Felt */}
+                <div className="absolute inset-0 rounded-full bg-radial from-lamp/10 to-transparent pointer-events-none" />
               </div>
             </div>
 
             {/* ========================================================= */}
-            {/* PLAYERS SITTING IN THE CIRCLE IN DETERMINISTIC ELLIPSE     */}
+            {/* SEATED OPERATIVES AROUND TABLE PERIMETER                  */}
             {/* ========================================================= */}
             {players.map((player, idx) => {
               const seatPos = seatPositions[idx] || { x: 50, y: 50, leftPercent: 50, topPercent: 50 };
@@ -592,8 +620,8 @@ export function CircleSittingArena({
                         <div
                           className={`px-1.5 py-0.5 font-mono text-[9px] font-bold border flex items-center gap-1 shadow-md ${
                             isMafia
-                              ? 'bg-red-950 text-red-300 border-red-500 animate-pulse'
-                              : 'bg-emerald-950 text-emerald-300 border-emerald-500'
+                              ? 'bg-blood/20 text-red-300 border-blood animate-pulse'
+                              : 'bg-verdigris/20 text-emerald-300 border-verdigris'
                           }`}
                         >
                           <Search className="w-2.5 h-2.5" />
@@ -604,7 +632,7 @@ export function CircleSittingArena({
 
                     {/* Targeted by Mafia Teammate Reticle Badge */}
                     {isObserverMafia && teammatePlayer && (
-                      <div className="px-1.5 py-0.5 bg-red-600 text-white font-mono text-[9px] font-bold border border-red-400 flex items-center gap-1 shadow-md animate-bounce">
+                      <div className="px-1.5 py-0.5 bg-blood text-white font-mono text-[9px] font-bold border border-blood flex items-center gap-1 shadow-md animate-bounce">
                         <Crosshair className="w-3 h-3 text-white" />
                         <span>{teammatePlayer.name}&apos;s Pick</span>
                       </div>
@@ -612,91 +640,91 @@ export function CircleSittingArena({
 
                     {/* Selected by Observer Highlight Badge */}
                     {isSelectedByMe && (
-                      <div className="px-1.5 py-0.5 bg-white text-black font-mono text-[9px] font-bold border border-zinc-300 shadow-md">
+                      <div className="px-1.5 py-0.5 bg-lamp text-ink-950 font-mono text-[9px] font-bold shadow-md">
                         Your Target
                       </div>
                     )}
 
                     {/* Speaking Indicator Badge */}
                     {isSpeaking && (
-                      <div className="px-1.5 py-0.2 bg-emerald-950 text-emerald-300 border border-emerald-400 font-mono text-[9px] font-bold flex items-center gap-1 shadow-sm animate-pulse">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block animate-ping" />
+                      <div className="px-1.5 py-0.2 bg-lamp/15 text-lamp border border-lamp font-mono text-[9px] font-bold flex items-center gap-1 shadow-sm animate-pulse">
+                        <span className="w-1.5 h-1.5 rounded-full bg-lamp inline-block animate-ping" />
                         <span>Speaking</span>
                       </div>
                     )}
 
                     {/* Quick Reaction Emote Floating Badge */}
                     {playerReaction && (
-                      <div className="px-2 py-0.5 bg-zinc-950 text-amber-300 border border-amber-400 font-mono text-[10px] font-bold shadow-xl animate-bounce">
+                      <div className="px-2 py-0.5 bg-ink-950 text-lamp border border-lamp font-mono text-[10px] font-bold shadow-xl animate-bounce">
                         {REACTION_GLYPHS[playerReaction.reaction as QuickReaction] || playerReaction.reaction}
                       </div>
                     )}
 
                     {/* Suspicion Markers */}
                     {playerSuspicionCount > 0 && (
-                      <div className="px-1.5 py-0.2 bg-amber-950/90 text-amber-300 font-mono text-[9px] font-bold border border-amber-600 shadow-md">
+                      <div className="px-1.5 py-0.2 bg-lamp/10 text-lamp font-mono text-[9px] font-bold border border-lamp/40 shadow-md">
                         ⚠️ {playerSuspicionCount} Suspect
                       </div>
                     )}
                     {isSuspectedByMe && (
-                      <div className="px-1.5 py-0.2 bg-amber-500 text-black font-mono text-[9px] font-bold shadow-md">
+                      <div className="px-1.5 py-0.2 bg-lamp text-ink-950 font-mono text-[9px] font-bold shadow-md">
                         You Suspect
                       </div>
                     )}
 
                     {/* Voting Ballot Count Badge */}
                     {phase === 'voting' && playerVoteCount > 0 && (
-                      <div className="px-1.5 py-0.5 bg-amber-500 text-black font-bold text-[10px] shadow-md">
+                      <div className="px-1.5 py-0.5 bg-lamp text-ink-950 font-bold font-mono text-[10px] shadow-md">
                         {playerVoteCount} {playerVoteCount === 1 ? 'vote' : 'votes'}
                       </div>
                     )}
 
                     {/* Discussion Ready Badge */}
                     {phase === 'discussion' && isReady && (
-                      <div className="px-1.5 py-0.2 bg-emerald-500 text-black font-bold text-[9px] shadow-sm">
+                      <div className="px-1.5 py-0.2 bg-bone text-ink-950 font-bold font-mono text-[9px] shadow-sm">
                         Ready ✓
                       </div>
                     )}
 
                     {/* Disconnected / Away Status Badge */}
                     {!player.connected && (
-                      <div className="px-1 py-0.2 bg-zinc-900 text-zinc-400 font-mono text-[8px] font-bold border border-zinc-700">
+                      <div className="px-1 py-0.2 bg-ink-950 text-bone-dim font-mono text-[8px] font-bold border border-line">
                         Away
                       </div>
                     )}
                   </div>
 
-                  {/* 3D / Semi-3D Seated Character Visual */}
+                  {/* Seated Operative Dossier Chair Visual */}
                   <div className="relative flex flex-col items-center">
                     
                     {/* Selection Ring Glow on Floor */}
                     {isSelectedByMe && (
-                      <div className="absolute -inset-3 rounded-full bg-white/20 border-2 border-white animate-pulse -z-10" />
+                      <div className="absolute -inset-3 rounded-full bg-lamp/20 border-2 border-lamp animate-pulse -z-10" />
                     )}
 
-                    {/* Chair Backing (Semi-3D Noir Chair with Player Color Header) */}
+                    {/* Chair Backing (Dossier Matte Finish with Player Color Border) */}
                     <div
                       className={`relative w-14 h-16 sm:w-16 sm:h-18 border-2 flex flex-col items-center justify-between p-1.5 shadow-2xl transition-all ${
                         !player.alive
-                          ? 'bg-zinc-950/80 border-zinc-800 opacity-60 rotate-6'
+                          ? 'bg-ink-950/90 border-line/60 opacity-60 rotate-6'
                           : isSelectedByMe
-                          ? 'bg-surface border-white shadow-[0_0_20px_rgba(255,255,255,0.4)]'
+                          ? 'bg-ink-900 border-lamp shadow-[0_0_20px_rgba(217,164,65,0.4)]'
                           : isMe
-                          ? 'bg-surface border-zinc-300'
-                          : 'bg-surface-2 border-border hover:border-zinc-500'
+                          ? 'bg-ink-900 border-bone'
+                          : 'bg-ink-950 border-line hover:border-bone-dim'
                       }`}
                       style={{
                         borderTopColor: player.color || undefined,
                         borderTopWidth: player.color ? '3px' : undefined,
                       }}
                     >
-                      {/* Chair Top Studs / Rail */}
+                      {/* Chair Top Studs / Seat Number */}
                       <div className="w-full flex items-center justify-between px-1">
-                        <span className="w-1 h-1 bg-zinc-600 inline-block" />
-                        <span className="text-[9px] font-mono font-bold text-muted">
+                        <span className="w-1 h-1 bg-bone-dim/40 inline-block" />
+                        <span className="text-[9px] font-mono font-bold text-bone-dim">
                           #{idx + 1}
                         </span>
-                        <span className="w-1 h-1 bg-zinc-600 inline-block" />
+                        <span className="w-1 h-1 bg-bone-dim/40 inline-block" />
                       </div>
 
                       {/* Seated Head (Selected Avatar with Full Colors & Voice Indicator) */}
@@ -705,44 +733,44 @@ export function CircleSittingArena({
                           avatarId={player.avatar}
                           size={44}
                           className={`rounded-none ${
-                            !player.alive ? 'grayscale opacity-40' : ''
+                            !player.alive ? 'grayscale opacity-30' : ''
                           }`}
                         />
                         
                         {/* Speaking Glow Ring on Avatar */}
                         {isSpeaking && (
-                          <div className="absolute -inset-1 rounded-full border-2 border-emerald-400 animate-pulse pointer-events-none" />
+                          <div className="absolute -inset-1 rounded-full border-2 border-lamp animate-pulse pointer-events-none" />
                         )}
 
-                        {/* Dead Skull Overlay */}
+                        {/* Eliminated Stamp Overlay */}
                         {!player.alive && (
-                          <div className="absolute inset-0 bg-black/70 flex items-center justify-center">
-                            <Skull className="w-5 h-5 text-red-500" />
+                          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                            <RubberStamp status="eliminated" className="text-[8px] px-1 py-0.5 rotate-[-12deg]" />
                           </div>
                         )}
                       </div>
 
                       {/* Seated Torso / Shadow Depth */}
-                      <div className="w-full h-2.5 bg-black/60 border-t border-zinc-800 flex items-center justify-center">
-                        <span className="w-8 h-1 bg-zinc-800 rounded-none inline-block" />
+                      <div className="w-full h-2 bg-ink-950 border-t border-line flex items-center justify-center">
+                        <span className="w-8 h-0.5 bg-line inline-block" />
                       </div>
                     </div>
                   </div>
 
                   {/* Player Name Plaque with Unique Color Pip */}
                   <div
-                    className={`mt-1 px-1.5 py-0.5 max-w-[85px] sm:max-w-[105px] text-center border truncate text-[11px] font-semibold transition-colors flex items-center justify-center ${
+                    className={`mt-1 px-1.5 py-0.5 max-w-[85px] sm:max-w-[105px] text-center border truncate text-[11px] font-mono transition-colors flex items-center justify-center ${
                       !player.alive
-                        ? 'bg-black text-zinc-500 border-zinc-900 line-through'
+                        ? 'bg-ink-950 text-bone-dim/50 border-line/40 line-through'
                         : isMe
-                        ? 'bg-white text-black border-white font-bold'
-                        : 'bg-black/90 text-text border-border'
+                        ? 'bg-bone text-ink-950 border-bone font-bold'
+                        : 'bg-ink-950 text-bone border-line'
                     }`}
                     title={player.name}
                   >
                     <span
                       className="w-1.5 h-1.5 rounded-full inline-block shrink-0 mr-1"
-                      style={{ backgroundColor: player.color || '#a1a1aa' }}
+                      style={{ backgroundColor: player.color || '#D9A441' }}
                     />
                     <span className="truncate block">
                       {isMe ? `${player.name} (You)` : player.name}
@@ -751,7 +779,7 @@ export function CircleSittingArena({
 
                   {/* Host Crown Indicator */}
                   {player.isHost && (
-                    <Crown className="w-3 h-3 text-amber-400 mt-0.5" />
+                    <Crown className="w-3 h-3 text-lamp mt-0.5" />
                   )}
                 </div>
               );
@@ -759,43 +787,55 @@ export function CircleSittingArena({
           </div>
 
           {/* Arena Bottom Auxiliary Control Toolbar */}
-          <div className="w-full flex flex-col sm:flex-row items-center justify-between border-t border-border pt-3 z-10 gap-2 bg-surface/90">
+          <div className="w-full flex flex-col sm:flex-row items-center justify-between border-t border-line pt-3 z-10 gap-2 bg-ink-900/90 font-mono">
             {/* Left: Quick Special Actions & Reactions */}
             <div className="flex flex-wrap items-center gap-2">
               {phase === 'voting' && me?.alive && !isGod && gameView.settings.allowSkipVote && (
-                <Button
-                  variant={currentSelectionId === 'skip' ? 'primary' : 'secondary'}
-                  size="sm"
+                <button
+                  type="button"
                   onClick={() => setPendingSpecialAction('skip')}
-                  kbd="S"
+                  className={`px-3 py-1 text-xs uppercase tracking-wider font-semibold border flex items-center gap-1.5 transition-colors ${
+                    currentSelectionId === 'skip'
+                      ? 'bg-lamp text-ink-950 border-lamp font-bold'
+                      : 'bg-ink-950 text-bone border-line hover:border-bone-dim'
+                  }`}
                 >
-                  <Ban className="w-3.5 h-3.5 mr-1" />
+                  <Ban className="w-3 h-3" />
                   <span>Skip Vote</span>
-                </Button>
+                  <Kbd className="border-line/60 bg-ink-900 text-bone-dim">S</Kbd>
+                </button>
               )}
 
               {phase === 'night' && me?.role === 'vigilante' && canActAtNight && (
-                <Button
-                  variant={currentSelectionId === 'hold' ? 'primary' : 'secondary'}
-                  size="sm"
+                <button
+                  type="button"
                   onClick={() => setPendingSpecialAction('hold')}
-                  kbd="X"
+                  className={`px-3 py-1 text-xs uppercase tracking-wider font-semibold border flex items-center gap-1.5 transition-colors ${
+                    currentSelectionId === 'hold'
+                      ? 'bg-lamp text-ink-950 border-lamp font-bold'
+                      : 'bg-ink-950 text-bone border-line hover:border-bone-dim'
+                  }`}
                 >
-                  <Shield className="w-3.5 h-3.5 mr-1" />
+                  <Shield className="w-3 h-3" />
                   <span>Hold Fire</span>
-                </Button>
+                  <Kbd className="border-line/60 bg-ink-900 text-bone-dim">X</Kbd>
+                </button>
               )}
 
               {phase === 'discussion' && me?.alive && !isGod && (
-                <Button
-                  variant={readyToVoteList.includes(me?.id || '') ? 'primary' : 'secondary'}
-                  size="sm"
+                <button
+                  type="button"
                   onClick={onReadyToVote}
-                  kbd="V"
+                  className={`px-3 py-1 text-xs uppercase tracking-wider font-semibold border flex items-center gap-1.5 transition-colors ${
+                    readyToVoteList.includes(me?.id || '')
+                      ? 'bg-bone text-ink-950 border-bone font-bold'
+                      : 'bg-ink-950 text-bone border-line hover:border-bone-dim'
+                  }`}
                 >
-                  <Check className="w-3.5 h-3.5 mr-1" />
+                  <Check className="w-3 h-3" />
                   <span>{readyToVoteList.includes(me?.id || '') ? 'Ready ✓' : 'Ready to Vote'}</span>
-                </Button>
+                  <Kbd className="border-line/60 bg-ink-900 text-bone-dim">V</Kbd>
+                </button>
               )}
 
               {/* Quick Reactions Bar for Living Players */}
@@ -806,7 +846,7 @@ export function CircleSittingArena({
                       key={r}
                       type="button"
                       onClick={() => onSendReaction?.(r)}
-                      className="px-2 py-1 bg-surface-2 border border-border text-[11px] font-mono text-muted hover:text-white hover:border-zinc-400 transition-colors shrink-0"
+                      className="px-2 py-1 bg-ink-950 border border-line text-[11px] font-mono text-bone-dim hover:text-bone hover:border-lamp transition-colors shrink-0"
                     >
                       {REACTION_GLYPHS[r]}
                     </button>
@@ -815,7 +855,7 @@ export function CircleSittingArena({
                     <button
                       type="button"
                       onClick={onClearSuspicion}
-                      className="px-2 py-1 bg-amber-950/70 border border-amber-600 text-[11px] font-mono text-amber-300 hover:bg-amber-900 transition-colors shrink-0"
+                      className="px-2 py-1 bg-blood/20 border border-blood text-[11px] font-mono text-red-300 hover:bg-blood hover:text-white transition-colors shrink-0"
                     >
                       Clear Suspect
                     </button>
@@ -828,11 +868,11 @@ export function CircleSittingArena({
             <button
               type="button"
               onClick={() => onOpenHelp('my-role')}
-              className="flex items-center gap-2 px-2.5 py-1 bg-surface-2 border border-border text-xs text-muted hover:text-white transition-colors"
+              className="flex items-center gap-2 px-2.5 py-1 bg-ink-950 border border-line text-xs text-bone-dim hover:text-bone transition-colors font-mono"
             >
               <span>Role:</span>
-              <strong className="text-white">{roleDef?.name || 'Observer'}</strong>
-              <Kbd>I</Kbd>
+              <strong className="text-bone">{roleDef?.name || 'Observer'}</strong>
+              <Kbd className="border-line/60 bg-ink-900 text-bone-dim">I</Kbd>
             </button>
           </div>
         </div>
@@ -840,25 +880,25 @@ export function CircleSittingArena({
         {/* ========================================================= */}
         {/* RIGHT COLUMN: INTELLIGENCE, ROLE & EVENT LOG (3 cols)    */}
         {/* ========================================================= */}
-        <div className="lg:col-span-3 bg-surface border border-border p-4 md:p-6 flex flex-col justify-between h-[680px] lg:h-[820px] space-y-4 order-3">
+        <div className="lg:col-span-3 bg-ink-900 border border-line p-4 md:p-6 flex flex-col justify-between h-[680px] lg:h-[820px] space-y-4 order-3 shadow-md font-mono">
           
           {/* Top: Your Identity Card */}
           <div className="space-y-3">
-            <div className="flex items-center justify-between pb-2 border-b border-border">
-              <span className="text-xs font-bold text-muted uppercase tracking-wider">
+            <div className="flex items-center justify-between pb-2 border-b border-line text-xs">
+              <span className="font-bold text-bone-dim uppercase tracking-wider">
                 Your Secret Dossier
               </span>
-              <span className="px-2 py-0.5 border border-border text-[11px] font-mono font-bold bg-surface-2 text-white uppercase">
+              <span className="px-2 py-0.5 border border-line text-[10px] font-bold bg-ink-950 text-lamp uppercase">
                 {roleDef?.team || 'CIVILIAN'}
               </span>
             </div>
 
-            <div className="p-3 bg-surface-2 border border-border flex items-start gap-3">
-              <Avatar avatarId={me?.avatar || 1} size={48} className="rounded-none shrink-0" />
+            <div className="p-3 bg-ink-950 border border-line flex items-start gap-3">
+              <Avatar avatarId={me?.avatar || 1} size={46} className="shrink-0 border border-line" />
               <div className="min-w-0 flex-1">
-                <div className="text-sm font-bold text-white truncate">{me?.name}</div>
-                <div className="text-xs font-semibold text-text mt-0.5">{roleDef?.name || 'Spectator'}</div>
-                <div className="text-[11px] text-muted mt-1 leading-snug">
+                <div className="text-sm font-bold text-bone truncate">{me?.name}</div>
+                <div className="text-xs font-semibold text-lamp mt-0.5">{roleDef?.name || 'Spectator'}</div>
+                <div className="text-[11px] text-bone-dim mt-1 leading-snug">
                   {roleDef?.summary || 'Observe the town proceedings and assist justice.'}
                 </div>
               </div>
@@ -866,7 +906,7 @@ export function CircleSittingArena({
 
             {/* Mafia Teammates Display */}
             {isObserverMafia && me?.teammates && me.teammates.length > 0 && (
-              <div className="p-2.5 bg-red-950/30 border border-red-900/60 text-xs space-y-1">
+              <div className="p-2.5 bg-blood/10 border border-blood/40 text-xs space-y-1">
                 <div className="text-red-300 font-bold flex items-center gap-1.5">
                   <Flame className="w-3.5 h-3.5 text-red-400" />
                   <span>Syndicate Partners:</span>
@@ -876,8 +916,8 @@ export function CircleSittingArena({
                   const pickId = teammatePicks[tId];
                   const targetPlayer = pickId ? players.find((p) => p.id === pickId) : null;
                   return (
-                    <div key={tId} className="flex items-center justify-between text-muted pt-0.5">
-                      <span className="text-text font-medium">{teammate?.name}</span>
+                    <div key={tId} className="flex items-center justify-between text-bone-dim pt-0.5 text-[11px]">
+                      <span className="text-bone font-medium">{teammate?.name}</span>
                       <span className="text-[10px] text-red-400 font-mono">
                         {targetPlayer ? `Targeting: ${targetPlayer.name}` : 'Deciding...'}
                       </span>
@@ -889,13 +929,13 @@ export function CircleSittingArena({
 
             {/* Detective Confidential Dossier */}
             {role === 'police' && (
-              <div className="p-2.5 bg-blue-950/25 border border-blue-900/60 text-xs space-y-2">
+              <div className="p-2.5 bg-night/20 border border-night/40 text-xs space-y-2">
                 <div className="text-blue-300 font-bold flex items-center justify-between">
                   <div className="flex items-center gap-1.5">
                     <Search className="w-3.5 h-3.5 text-blue-400" />
                     <span>Detective Dossier</span>
                   </div>
-                  <span className="font-mono text-[10px] text-blue-400 bg-blue-950/60 px-1.5 py-0.2 border border-blue-800">
+                  <span className="font-mono text-[10px] text-blue-300 bg-ink-950 px-1.5 py-0.2 border border-night">
                     {me?.policeInbox?.length || 0} Records
                   </span>
                 </div>
@@ -908,17 +948,17 @@ export function CircleSittingArena({
                       return (
                         <div
                           key={idx}
-                          className="flex items-center justify-between p-2 bg-surface-2/90 border border-border text-xs"
+                          className="flex items-center justify-between p-2 bg-ink-950 border border-line text-xs"
                         >
                           <div className="min-w-0 pr-2">
-                            <div className="font-bold text-white truncate">{target?.name || 'Subject'}</div>
-                            <div className="text-[10px] text-muted">Round {entry.round} Investigation</div>
+                            <div className="font-bold text-bone truncate">{target?.name || 'Subject'}</div>
+                            <div className="text-[10px] text-bone-dim">Round {entry.round} Investigation</div>
                           </div>
                           <span
                             className={`px-2 py-0.5 font-bold font-mono text-[10px] border shrink-0 ${
                               isSuspect
-                                ? 'bg-red-950/80 border-red-500 text-red-300'
-                                : 'bg-emerald-950/80 border-emerald-500 text-emerald-300'
+                                ? 'bg-blood/20 border-blood text-red-300'
+                                : 'bg-verdigris/20 border-verdigris text-emerald-300'
                             }`}
                           >
                             {entry.result}
@@ -928,7 +968,7 @@ export function CircleSittingArena({
                     })}
                   </div>
                 ) : (
-                  <div className="p-2 bg-surface-2/40 border border-border/60 text-[11px] text-muted text-center">
+                  <div className="p-2 bg-ink-950 border border-line text-[11px] text-bone-dim text-center">
                     No suspects investigated yet. During your night turn, tap any seated player to uncover their allegiance.
                   </div>
                 )}
@@ -936,46 +976,46 @@ export function CircleSittingArena({
             )}
           </div>
 
-          {/* Middle: Game Event Log Feed */}
+          {/* Middle: Game Event Wire Feed */}
           <div className="flex-1 min-h-0 flex flex-col space-y-2">
-            <div className="flex items-center justify-between pb-1 border-b border-border">
-              <span className="text-xs font-bold text-muted uppercase tracking-wider">
+            <div className="flex items-center justify-between pb-1 border-b border-line text-xs">
+              <span className="font-bold text-bone-dim uppercase tracking-wider">
                 Event Wire
               </span>
-              <span className="text-[11px] text-muted">{logList.length} records</span>
+              <span className="text-[10px] text-bone-dim">{logList.length} records</span>
             </div>
 
-            <div className="flex-1 overflow-y-auto space-y-2 pr-1 text-xs">
+            <div className="flex-1 overflow-y-auto space-y-1.5 pr-1 text-xs">
               {logList.slice(-15).reverse().map((entry) => (
                 <div
                   key={entry.id}
-                  className={`p-2 border rounded-none ${
+                  className={`p-2 border leading-relaxed ${
                     entry.type === 'death'
-                      ? 'bg-red-950/20 border-red-900/40 text-red-200'
+                      ? 'bg-blood/10 border-blood/30 text-red-200'
                       : entry.type === 'vote'
-                      ? 'bg-surface-2 border-border text-zinc-300'
-                      : 'bg-black/40 border-border text-muted'
+                      ? 'bg-lamp/10 border-lamp/30 text-lamp'
+                      : 'bg-ink-950 border-line text-bone-dim'
                   }`}
                 >
-                  <div className="flex items-center justify-between text-[10px] text-muted mb-0.5">
-                    <span className="font-mono">Round {entry.round} · {entry.phase}</span>
+                  <div className="flex items-center justify-between text-[9px] text-bone-dim mb-0.5 font-mono">
+                    <span>Round {entry.round} · {entry.phase}</span>
                     <span>{new Date(entry.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                   </div>
-                  <p className="leading-relaxed">{entry.text}</p>
+                  <p className="leading-relaxed text-bone">{entry.text}</p>
                 </div>
               ))}
             </div>
           </div>
 
           {/* Bottom: Roster Quick Tally */}
-          <div className="p-3 bg-surface-2 border border-border text-xs space-y-1.5">
+          <div className="p-2.5 bg-ink-950 border border-line text-xs space-y-1">
             <div className="flex items-center justify-between">
-              <span className="text-muted">Living Suspects:</span>
-              <span className="font-bold text-white font-mono">{livingPlayers.length}</span>
+              <span className="text-bone-dim">Living Suspects:</span>
+              <span className="font-bold text-bone">{livingPlayers.length}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-muted">Eliminated Players:</span>
-              <span className="font-bold text-zinc-400 font-mono">
+              <span className="text-bone-dim">Eliminated:</span>
+              <span className="font-bold text-bone-dim/70">
                 {players.length - livingPlayers.length}
               </span>
             </div>
@@ -994,62 +1034,66 @@ export function CircleSittingArena({
         }}
         title={
           phase === 'voting'
-            ? 'Confirm Elimination Ballot'
+            ? 'CONFIRM BALLOT'
             : phase === 'night'
             ? role === 'police'
-              ? 'Confirm Detective Investigation'
+              ? 'CONFIRM INVESTIGATION'
               : role === 'doctor'
-              ? 'Confirm Medical Protection'
-              : 'Confirm Night Target'
-            : 'Confirm Action'
+              ? 'CONFIRM PROTECTION'
+              : 'CONFIRM NIGHT TARGET'
+            : 'CONFIRM ACTION'
         }
       >
-        <div className="space-y-4">
-          <div className="p-3.5 bg-surface-2 border border-border flex items-center gap-3">
-            <AlertCircle className="w-5 h-5 text-white shrink-0" />
-            <div className="text-sm text-text leading-relaxed">
+        <div className="space-y-4 text-bone font-mono">
+          <div className="p-3 bg-ink-950 border border-line flex items-center gap-3">
+            <AlertCircle className="w-5 h-5 text-lamp shrink-0" />
+            <div className="text-xs leading-relaxed">
               {pendingSpecialAction === 'skip' ? (
                 <span>Are you sure you want to <strong>skip voting</strong> today?</span>
               ) : pendingSpecialAction === 'hold' ? (
                 <span>Are you sure you want to <strong>hold fire</strong> tonight?</span>
               ) : phase === 'voting' ? (
                 <span>
-                  Are you sure you want to cast your ballot to eliminate{' '}
-                  <strong className="text-white underline font-bold">{pendingTarget?.name}</strong> today?
+                  Cast your elimination ballot against{' '}
+                  <strong className="text-lamp font-bold">{pendingTarget?.name}</strong> today?
                 </span>
               ) : role === 'police' ? (
                 <span>
-                  Are you sure you want to secretly investigate{' '}
-                  <strong className="text-white underline font-bold">{pendingTarget?.name}</strong> to uncover their allegiance tonight?
+                  Secretly investigate{' '}
+                  <strong className="text-lamp font-bold">{pendingTarget?.name}</strong> to uncover their allegiance tonight?
                 </span>
               ) : role === 'doctor' ? (
                 <span>
-                  Are you sure you want to protect{' '}
-                  <strong className="text-white underline font-bold">{pendingTarget?.name}</strong> from harm tonight?
+                  Protect{' '}
+                  <strong className="text-lamp font-bold">{pendingTarget?.name}</strong> from harm tonight?
                 </span>
               ) : (
                 <span>
-                  Are you sure you want to target{' '}
-                  <strong className="text-white underline font-bold">{pendingTarget?.name}</strong> for tonight&apos;s action?
+                  Target{' '}
+                  <strong className="text-lamp font-bold">{pendingTarget?.name}</strong> for tonight&apos;s action?
                 </span>
               )}
             </div>
           </div>
 
-          <div className="flex items-center justify-end gap-3 pt-2">
-            <Button
-              variant="secondary"
+          <div className="flex items-center justify-end gap-2.5 pt-2">
+            <button
+              type="button"
               onClick={() => {
                 setPendingTarget(null);
                 setPendingSpecialAction(null);
               }}
-              kbd="Esc"
+              className="px-3 py-1.5 bg-ink-900 border border-line text-bone-dim hover:text-bone text-xs uppercase"
             >
               Cancel
-            </Button>
-            <Button variant="primary" onClick={handleConfirmAction} kbd="Enter">
+            </button>
+            <button
+              type="button"
+              onClick={handleConfirmAction}
+              className="px-4 py-1.5 bg-lamp text-ink-950 font-bold text-xs uppercase hover:bg-lamp-soft"
+            >
               Confirm Action
-            </Button>
+            </button>
           </div>
         </div>
       </Modal>

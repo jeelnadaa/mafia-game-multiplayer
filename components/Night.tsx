@@ -2,11 +2,11 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Moon, Shield, Users, MessageSquare, Send, Check, FileText, Skull, AlertCircle } from 'lucide-react';
+import { Moon, Shield, Users, MessageSquare, Send, Check, FileText, Skull, AlertCircle, Eye, Crosshair } from 'lucide-react';
 import { ClientGameView } from '@/lib/types';
 import { ROLES, RoleDef } from '@/lib/content';
 import { TargetPicker } from './TargetPicker';
-import { Button, Badge, Modal, CenterTimer } from './ui';
+import { Button, Badge, Modal, CenterTimer, RubberStamp } from './ui';
 import { useShortcut } from '@/lib/shortcuts';
 
 interface NightProps {
@@ -106,16 +106,25 @@ export function Night({
     mafiaPicksArray.length > 0 && mafiaPicksArray.every((pick) => pick === mafiaPicksArray[0]);
 
   return (
-    <div className="w-full max-w-[1650px] 2xl:max-w-[1850px] mx-auto p-4 md:p-8 lg:p-10 space-y-6">
-      {/* Night Header */}
-      <div className="bg-surface border border-border p-5 md:p-7 flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="flex items-center gap-3.5">
-          <Moon className="w-6 h-6 text-white" />
+    <div className="w-full max-w-[1650px] 2xl:max-w-[1850px] mx-auto p-3 sm:p-5 lg:p-8 space-y-6 select-none">
+      {/* 1930s Streetlamp Header */}
+      <div className="relative overflow-hidden bg-[#101216] border border-[#262A33] p-5 sm:p-7 shadow-2xl flex flex-col md:flex-row items-center justify-between gap-5">
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-[#3E5A78]/50 to-transparent" />
+        
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded border border-[#3E5A78]/40 bg-[#16222F]/40 flex items-center justify-center text-[#93c5fd] shadow-inner">
+            <Moon className="w-6 h-6 animate-pulse" />
+          </div>
           <div>
-            <h2 className="text-xl md:text-2xl font-sans font-bold text-text">
-              Night Operations · Round {gameView.round}
-            </h2>
-            <p className="text-sm text-muted mt-0.5">
+            <div className="flex items-center gap-2.5">
+              <span className="font-mono text-[10px] tracking-widest text-[#93c5fd] uppercase font-bold px-2 py-0.5 bg-[#16222F] border border-[#3E5A78]/50">
+                CASE #{gameView.code} · NIGHT OPS
+              </span>
+              <h2 className="text-xl md:text-2xl font-serif font-black text-[#ECE6D8] tracking-tight">
+                Night Operations · Round {gameView.round}
+              </h2>
+            </div>
+            <p className="text-xs sm:text-sm text-[#A39D90] font-mono mt-1">
               {canActNow
                 ? roleDef?.howToPlay || 'Select your secret target and confirm action.'
                 : isDead
@@ -125,8 +134,8 @@ export function Night({
           </div>
         </div>
 
-        {/* Prominent Center Countdown Timer */}
-        <div className="flex justify-center">
+        {/* Center Countdown Timer */}
+        <div className="flex items-center gap-4">
           <CenterTimer
             phaseEndsAt={gameView.phaseEndsAt}
             serverNow={gameView.serverNow}
@@ -135,63 +144,75 @@ export function Night({
           />
         </div>
 
+        {/* Role Peek / Badge */}
         <div className="flex items-center gap-3">
           {roleDef && (
-            <Badge color="mafia">{roleDef.name}</Badge>
+            <Badge color="mafia" className="font-serif tracking-wider">{roleDef.name}</Badge>
           )}
-          <span className="text-xs text-muted hidden md:inline">
+          <span className="text-xs font-mono text-[#A39D90] hidden md:inline bg-[#171A20] px-2.5 py-1 border border-[#262A33]">
             Hold [R] to peek role
           </span>
         </div>
       </div>
 
-      {/* 16:9 Widescreen Two-Column Layout on PC */}
+      {/* Two-Column Operation Stage */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
         {/* Left Column: TargetPicker & Main Operation Stage (7 cols on Desktop) */}
-        <div className="lg:col-span-7 bg-surface border border-border p-6 space-y-6 flex flex-col justify-between">
+        <div className="lg:col-span-7 bg-[#101216] border border-[#262A33] p-5 sm:p-7 space-y-6 flex flex-col justify-between shadow-2xl">
           {!canActNow ? (
             isDead ? (
               /* Dead Player Status */
               <div className="space-y-4">
-                <div className="flex items-center gap-2 pb-3 border-b border-border">
-                  <Skull className="w-4 h-4 text-white" />
-                  <span className="text-sm font-semibold text-text">
+                <div className="flex items-center gap-2 pb-3 border-b border-[#262A33]">
+                  <Skull className="w-5 h-5 text-[#B3363B]" />
+                  <span className="text-sm font-serif font-bold tracking-wide text-[#ECE6D8]">
                     The Graveyard · Fallen Operatives
                   </span>
                 </div>
-                <p className="text-sm text-muted leading-relaxed">
+                <p className="text-sm text-[#A39D90] leading-relaxed font-mono">
                   You have been eliminated from active town governance. You may monitor remaining suspects and converse with spirits on the private right-hand frequency.
                 </p>
+                <div className="p-4 bg-[#171A20] border border-[#262A33] flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <span className="text-xs font-serif font-bold text-[#ECE6D8]">Spectral Wire Active</span>
+                    <p className="text-[11px] text-[#A39D90]">Other deceased players can hear your whispers</p>
+                  </div>
+                  <RubberStamp variant="eliminated" size="sm" text="FALLEN" />
+                </div>
               </div>
             ) : (
               /* Decoy Screen for Sleeping living players */
               <div className="py-12 text-center space-y-6 flex-1 flex flex-col items-center justify-center">
-                <div className="w-18 h-18 border border-border bg-surface-2 flex items-center justify-center p-4">
-                  <Moon className="w-10 h-10 text-white" />
+                <div className="w-20 h-20 border border-[#262A33] bg-[#171A20] flex items-center justify-center p-4 shadow-inner">
+                  <Moon className="w-10 h-10 text-[#A39D90]" />
                 </div>
                 <div className="max-w-md space-y-2">
-                  <h3 className="text-lg font-bold text-text">
+                  <h3 className="text-xl font-serif font-black text-[#ECE6D8] tracking-wide">
                     Close your eyes...
                   </h3>
-                  <p className="text-sm text-muted leading-relaxed">
+                  <p className="text-xs sm:text-sm text-[#A39D90] font-mono leading-relaxed">
                     Keep your device level. Tap the decoy pad below to disguise night movements from neighboring players.
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setDecoyTaps((t) => t + 1)}
-                  className="w-full max-w-sm h-32 border border-dashed border-border bg-surface-2 hover:bg-zinc-800 transition-colors flex flex-col items-center justify-center text-sm text-muted select-none gap-1.5"
+                  className="w-full max-w-sm h-36 border border-dashed border-[#262A33] hover:border-[#D9A441] bg-[#171A20]/60 hover:bg-[#171A20] transition-colors flex flex-col items-center justify-center text-xs font-mono text-[#A39D90] hover:text-[#ECE6D8] select-none gap-2 shadow-inner"
                 >
-                  <span>Harmless decoy touch pad (Tap freely)</span>
-                  {decoyTaps > 0 && <span className="text-xs text-white">Tap count: {decoyTaps}</span>}
+                  <span className="tracking-wide">Harmless decoy touch pad (Tap freely)</span>
+                  {decoyTaps > 0 && (
+                    <span className="text-xs font-bold text-[#D9A441] bg-[#0A0B0E] px-3 py-1 border border-[#262A33]">
+                      Tap count: {decoyTaps}
+                    </span>
+                  )}
                 </button>
               </div>
             )
           ) : (
             /* Active Target Picker Stage */
             <div className="space-y-6">
-              <div className="flex items-center justify-between pb-3 border-b border-border">
-                <span className="text-sm font-bold text-text">
+              <div className="flex items-center justify-between pb-3 border-b border-[#262A33]">
+                <span className="text-sm font-serif font-bold text-[#ECE6D8] tracking-wide">
                   {isMafia
                     ? 'Syndicate Kill Order'
                     : role === 'doctor'
@@ -209,13 +230,13 @@ export function Night({
                     size="sm"
                   />
                   {me?.shotsRemaining !== undefined && (
-                    <span className="text-xs md:text-sm font-semibold text-white">
+                    <span className="text-xs md:text-sm font-mono font-bold text-[#D9A441] px-2.5 py-1 bg-[#171A20] border border-[#262A33]">
                       Ammo: {me.shotsRemaining} remaining
                     </span>
                   )}
                   {role === 'doctor' && (
-                    <span className="text-xs text-muted">
-                      Self-saves: <strong className="text-white">{me?.doctorSelfSavesRemaining === 999 ? 'Unlimited' : (me?.doctorSelfSavesRemaining ?? 1)}</strong>
+                    <span className="text-xs text-[#A39D90] font-mono">
+                      Self-saves: <strong className="text-[#ECE6D8]">{me?.doctorSelfSavesRemaining === 999 ? 'Unlimited' : (me?.doctorSelfSavesRemaining ?? 1)}</strong>
                       {!gameView.settings.doctorSameTargetTwice && me?.doctorLastSavedId && (
                         <span> · No repeat saves</span>
                       )}
@@ -245,18 +266,18 @@ export function Night({
               />
 
               {/* Confirm Action Button & Status Bar */}
-              <div className="pt-4 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-4">
-                <div className="text-sm text-muted">
+              <div className="pt-4 border-t border-[#262A33] flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="text-xs sm:text-sm font-mono text-[#A39D90]">
                   {isConfirmed ? (
-                    <span className="text-emerald-400 font-semibold flex items-center gap-1.5">
+                    <span className="text-[#5E8C7B] font-bold flex items-center gap-2">
                       <Check className="w-4 h-4" /> Order confirmed. Advancing once all players ready...
                     </span>
                   ) : selectedTargetPlayer ? (
                     <span>
-                      Selected: <strong className="text-white underline font-semibold">{selectedTargetPlayer.name}</strong>
+                      Selected: <strong className="text-[#ECE6D8] underline font-bold font-serif">{selectedTargetPlayer.name}</strong>
                     </span>
                   ) : me?.nightPick === 'hold' ? (
-                    <span>Holding fire tonight</span>
+                    <span className="text-[#D9A441] font-bold">Holding fire tonight</span>
                   ) : (
                     <span>Select a target above to confirm</span>
                   )}
@@ -267,7 +288,7 @@ export function Night({
                   size="lg"
                   disabled={(!me?.nightPick && me?.nightPick !== 'hold') || isConfirmed}
                   onClick={handleConfirmActionClick}
-                  className="w-full sm:w-auto font-bold text-sm"
+                  className="w-full sm:w-auto font-serif font-black tracking-wider text-xs uppercase"
                 >
                   {isConfirmed ? (
                     <>
@@ -291,21 +312,22 @@ export function Night({
 
               {/* Police Dossier */}
               {role === 'police' && me?.policeInbox && me.policeInbox.length > 0 && (
-                <div className="pt-4 border-t border-border space-y-2.5">
-                  <div className="flex items-center gap-2 text-sm font-bold text-text">
-                    <FileText className="w-4 h-4 text-white" />
+                <div className="pt-4 border-t border-[#262A33] space-y-2.5">
+                  <div className="flex items-center gap-2 text-xs font-serif font-bold text-[#ECE6D8] uppercase tracking-wider">
+                    <FileText className="w-4 h-4 text-[#D9A441]" />
                     <span>Confidential Investigation Dossier:</span>
                   </div>
                   <div className="space-y-2">
                     {me.policeInbox.map((entry, idx) => {
                       const target = gameView.players.find((p) => p.id === entry.targetId);
+                      const isMaf = entry.result.toLowerCase().includes('mafia');
                       return (
                         <div
                           key={idx}
-                          className="flex items-center justify-between p-3 bg-surface-2 border border-border text-sm"
+                          className="flex items-center justify-between p-3 bg-[#171A20] border border-[#262A33] text-xs font-mono"
                         >
-                          <span className="font-semibold text-text">{target?.name || 'Subject'}:</span>
-                          <span className="font-bold text-white border border-border px-2.5 py-1 bg-black">
+                          <span className="font-bold text-[#ECE6D8] font-serif">{target?.name || 'Subject'}:</span>
+                          <span className={`px-2.5 py-0.5 font-bold border ${isMaf ? 'bg-[#7E2327]/60 text-[#fca5a5] border-[#B3363B]' : 'bg-[#16222F] text-[#86efac] border-[#5E8C7B]'}`}>
                             {entry.result}
                           </span>
                         </div>
@@ -319,23 +341,23 @@ export function Night({
         </div>
 
         {/* Right Column: Syndicate Private Chat / Graveyard Chat / Quick Manual (5 cols on Desktop) */}
-        <div className="lg:col-span-5 bg-surface border border-border p-6 space-y-5 flex flex-col justify-between">
+        <div className="lg:col-span-5 bg-[#101216] border border-[#262A33] p-5 sm:p-7 space-y-5 flex flex-col justify-between shadow-2xl">
           {isMafia ? (
             /* Mafia Syndicate Private Tactical Hub */
             <div className="space-y-4 flex-1 flex flex-col justify-between">
               <div className="space-y-4">
-                <div className="flex items-center justify-between pb-3 border-b border-border">
-                  <div className="flex items-center gap-2 text-sm font-bold text-text">
-                    <Users className="w-4 h-4" />
+                <div className="flex items-center justify-between pb-3 border-b border-[#262A33]">
+                  <div className="flex items-center gap-2 text-xs font-serif font-bold text-[#ECE6D8] uppercase tracking-wider">
+                    <Users className="w-4 h-4 text-[#B3363B]" />
                     <span>Syndicate Encrypted Night Frequency</span>
                   </div>
-                  <Badge color="mafia">Private</Badge>
+                  <Badge color="mafia" className="font-mono text-[10px]">Private</Badge>
                 </div>
 
                 {/* Teammate Picks / Alignment */}
                 {me?.teammates && me.teammates.length > 0 && (
-                  <div className="p-3.5 bg-surface-2 border border-border space-y-2 text-sm">
-                    <div className="text-xs text-muted font-medium">Syndicate alignment:</div>
+                  <div className="p-3.5 bg-[#171A20] border border-[#262A33] space-y-2 text-xs font-mono">
+                    <div className="text-[11px] text-[#A39D90] font-bold uppercase tracking-wider">Syndicate alignment:</div>
                     <div className="space-y-1.5">
                       {Object.entries(teammatePicks).map(([mateId, pickId]) => {
                         const mate = gameView.players.find((p) => p.id === mateId);
@@ -343,8 +365,8 @@ export function Night({
                         const isMe = mateId === me.id;
                         return (
                           <div key={mateId} className="flex items-center justify-between">
-                            <span className="text-muted">{isMe ? 'You' : mate?.name}:</span>
-                            <span className={pickedPlayer ? 'text-white font-semibold' : 'text-muted/60'}>
+                            <span className="text-[#A39D90]">{isMe ? 'You' : mate?.name}:</span>
+                            <span className={pickedPlayer ? 'text-[#D9A441] font-bold' : 'text-[#A39D90]/50'}>
                               {pickedPlayer ? pickedPlayer.name : 'Choosing...'}
                             </span>
                           </div>
@@ -353,7 +375,7 @@ export function Night({
                     </div>
 
                     {gameView.settings.mafiaKillMode === 'unanimous' && !mafiaAgreed && (
-                      <div className="text-xs text-amber-300 pt-1.5 border-t border-border">
+                      <div className="text-xs text-[#D9A441] pt-1.5 border-t border-[#262A33] font-bold">
                         ⚠️ Unanimous kill required: both Mafia must select the same target!
                       </div>
                     )}
@@ -361,17 +383,17 @@ export function Night({
                 )}
 
                 {/* Secret Syndicate Chat Messages */}
-                <div className="h-72 overflow-y-auto bg-surface-2 border border-border p-3.5 space-y-2.5 text-sm">
+                <div className="h-64 sm:h-72 overflow-y-auto bg-[#0A0B0E] border border-[#262A33] p-3.5 space-y-2 text-xs font-mono">
                   {gameView.chat
                     .filter((m) => m.channel === 'mafia')
                     .map((msg) => (
-                      <div key={msg.id} className="leading-snug">
-                        <span className="font-semibold text-white mr-1.5">{msg.senderName}:</span>
-                        <span className="text-muted">{msg.text}</span>
+                      <div key={msg.id} className="leading-relaxed">
+                        <span className="font-bold text-[#D9A441] mr-1.5">{msg.senderName}:</span>
+                        <span className="text-[#ECE6D8]">{msg.text}</span>
                       </div>
                     ))}
                   {gameView.chat.filter((m) => m.channel === 'mafia').length === 0 && (
-                    <div className="text-muted text-sm text-center pt-16">
+                    <div className="text-[#A39D90] text-center pt-20">
                       No secret night transmissions yet. Coordinate target with partner here.
                     </div>
                   )}
@@ -380,22 +402,22 @@ export function Night({
 
               {/* Chat Input */}
               {gameView.settings.mafiaNightChat ? (
-                <form onSubmit={handleSendChat} className="flex gap-2.5 pt-2 border-t border-border">
+                <form onSubmit={handleSendChat} className="flex gap-2.5 pt-2 border-t border-[#262A33]">
                   <input
                     type="text"
                     value={chatInput}
                     onChange={(e) => setChatInput(e.target.value)}
                     placeholder="Whisper to syndicate partner..."
                     maxLength={300}
-                    className="flex-1 bg-surface-2 border border-border rounded-none px-3.5 py-2 text-sm text-text placeholder-muted/50 focus:outline-none focus:border-white"
+                    className="flex-1 bg-[#171A20] border border-[#262A33] px-3.5 py-2 text-xs font-mono text-[#ECE6D8] placeholder-[#A39D90]/50 focus:outline-none focus:border-[#D9A441]"
                   />
                   <Button type="submit" variant="primary" size="md">
-                    <Send className="w-4 h-4 mr-1" />
+                    <Send className="w-3.5 h-3.5 mr-1" />
                     <span>Send</span>
                   </Button>
                 </form>
               ) : (
-                <div className="p-3 border-t border-border bg-surface-2 text-xs text-muted text-center">
+                <div className="p-3 border-t border-[#262A33] bg-[#171A20] text-xs font-mono text-[#A39D90] text-center">
                   Syndicate night chat is disabled by room rules.
                 </div>
               )}
@@ -404,43 +426,43 @@ export function Night({
             /* Graveyard Chat for Dead Players */
             <div className="space-y-4 flex-1 flex flex-col justify-between">
               <div className="space-y-4">
-                <div className="flex items-center justify-between pb-3 border-b border-border">
-                  <div className="flex items-center gap-2 text-sm font-bold text-text">
-                    <MessageSquare className="w-4 h-4" />
+                <div className="flex items-center justify-between pb-3 border-b border-[#262A33]">
+                  <div className="flex items-center gap-2 text-xs font-serif font-bold text-[#ECE6D8] uppercase tracking-wider">
+                    <MessageSquare className="w-4 h-4 text-[#A39D90]" />
                     <span>Graveyard Spirits Chat</span>
                   </div>
-                  <Badge color="muted">Dead Only</Badge>
+                  <Badge color="muted" className="font-mono text-[10px]">Dead Only</Badge>
                 </div>
 
-                <div className="h-72 overflow-y-auto bg-surface-2 border border-border p-3.5 space-y-2.5 text-sm">
+                <div className="h-64 sm:h-72 overflow-y-auto bg-[#0A0B0E] border border-[#262A33] p-3.5 space-y-2 text-xs font-mono">
                   {gameView.chat
                     .filter((m) => m.channel === 'dead')
                     .map((msg) => (
-                      <div key={msg.id} className="leading-snug">
-                        <span className="font-semibold text-white mr-1.5">{msg.senderName}:</span>
-                        <span className="text-muted">{msg.text}</span>
+                      <div key={msg.id} className="leading-relaxed">
+                        <span className="font-bold text-[#A39D90] mr-1.5">{msg.senderName}:</span>
+                        <span className="text-[#ECE6D8]">{msg.text}</span>
                       </div>
                     ))}
                 </div>
               </div>
 
               {gameView.settings.deadChat ? (
-                <form onSubmit={handleSendChat} className="flex gap-2.5 pt-2 border-t border-border">
+                <form onSubmit={handleSendChat} className="flex gap-2.5 pt-2 border-t border-[#262A33]">
                   <input
                     type="text"
                     value={chatInput}
                     onChange={(e) => setChatInput(e.target.value)}
                     placeholder="Whisper among the fallen..."
                     maxLength={300}
-                    className="flex-1 bg-surface-2 border border-border rounded-none px-3.5 py-2 text-sm text-text placeholder-muted/50 focus:outline-none focus:border-white"
+                    className="flex-1 bg-[#171A20] border border-[#262A33] px-3.5 py-2 text-xs font-mono text-[#ECE6D8] placeholder-[#A39D90]/50 focus:outline-none focus:border-[#D9A441]"
                   />
                   <Button type="submit" variant="secondary" size="md">
-                    <Send className="w-4 h-4 mr-1" />
+                    <Send className="w-3.5 h-3.5 mr-1" />
                     <span>Send</span>
                   </Button>
                 </form>
               ) : (
-                <div className="p-3 border-t border-border bg-surface-2 text-xs text-muted text-center">
+                <div className="p-3 border-t border-[#262A33] bg-[#171A20] text-xs font-mono text-[#A39D90] text-center">
                   Graveyard spirits chat is disabled by room rules.
                 </div>
               )}
@@ -449,28 +471,28 @@ export function Night({
             /* Night Guidance & Manual */
             <div className="space-y-4 flex-1 flex flex-col justify-between">
               <div className="space-y-4">
-                <div className="flex items-center justify-between pb-3 border-b border-border">
-                  <span className="text-sm font-bold text-text">
+                <div className="flex items-center justify-between pb-3 border-b border-[#262A33]">
+                  <span className="text-xs font-serif font-bold text-[#ECE6D8] uppercase tracking-wider">
                     Role Directives
                   </span>
-                  <Badge color="muted">Night {gameView.round}</Badge>
+                  <Badge color="muted" className="font-mono text-[10px]">Night {gameView.round}</Badge>
                 </div>
 
-                <div className="p-4 bg-surface-2 border border-border space-y-3 text-sm">
-                  <div className="font-bold text-white">{roleDef?.name} Directive:</div>
-                  <p className="text-muted leading-relaxed">{roleDef?.howToPlay}</p>
-                  <div className="pt-2 border-t border-border">
-                    <span className="text-white font-semibold">Victory Goal: </span>
-                    <span className="text-muted">{roleDef?.winCondition}</span>
+                <div className="p-4 bg-[#171A20] border border-[#262A33] space-y-3 text-xs font-mono">
+                  <div className="font-bold font-serif text-sm text-[#ECE6D8]">{roleDef?.name} Directive:</div>
+                  <p className="text-[#A39D90] leading-relaxed">{roleDef?.howToPlay}</p>
+                  <div className="pt-2 border-t border-[#262A33]">
+                    <span className="text-[#ECE6D8] font-bold">Victory Goal: </span>
+                    <span className="text-[#A39D90]">{roleDef?.winCondition}</span>
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <div className="text-xs text-muted font-medium">Tactical tips:</div>
-                  <ul className="space-y-1.5 text-xs text-muted">
+                  <div className="text-[11px] font-mono uppercase text-[#A39D90] font-bold tracking-wider">Tactical tips:</div>
+                  <ul className="space-y-1.5 text-xs font-mono text-[#A39D90]">
                     {roleDef?.tips.map((tip, idx) => (
                       <li key={idx} className="flex items-start gap-2">
-                        <span className="text-white">·</span>
+                        <span className="text-[#D9A441]">▪</span>
                         <span>{tip}</span>
                       </li>
                     ))}
@@ -482,7 +504,7 @@ export function Night({
                 variant="secondary"
                 size="md"
                 onClick={() => onOpenHelp('my-role')}
-                className="w-full text-sm font-semibold"
+                className="w-full text-xs font-serif font-bold tracking-wider uppercase"
               >
                 Open Full Role Dossier [I]
               </Button>
@@ -498,14 +520,14 @@ export function Night({
         title="Confirm Night Action"
       >
         <div className="space-y-4">
-          <div className="p-3.5 bg-surface-2 border border-border flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-white shrink-0 mt-0.5" />
-            <div className="space-y-1 text-sm text-text leading-relaxed">
+          <div className="p-4 bg-[#171A20] border border-[#262A33] flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-[#D9A441] shrink-0 mt-0.5" />
+            <div className="space-y-1 text-xs font-mono text-[#ECE6D8] leading-relaxed">
               {me?.nightPick === 'hold' ? (
                 <div>Are you sure you want to hold fire tonight?</div>
               ) : (
                 <div>
-                  Are you sure you want to confirm action on <strong className="text-white underline">{selectedTargetPlayer?.name}</strong>?
+                  Are you sure you want to confirm action on <strong className="text-[#D9A441] underline font-bold">{selectedTargetPlayer?.name}</strong>?
                 </div>
               )}
             </div>
@@ -524,17 +546,17 @@ export function Night({
       {/* Role Peek HUD Modal (When holding R) */}
       <AnimatePresence>
         {isPeeking && roleDef && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90">
-            <div className="max-w-md w-full bg-surface border border-white p-6 text-center space-y-4 rounded-none shadow-2xl">
-              <Badge color="mafia">{roleDef.team}</Badge>
-              <h3 className="text-2xl font-bold text-white tracking-tight">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm">
+            <div className="max-w-md w-full bg-[#101216] border border-[#D9A441]/60 p-6 text-center space-y-4 shadow-2xl">
+              <Badge color="mafia" className="font-mono text-xs tracking-widest uppercase">{roleDef.team}</Badge>
+              <h3 className="text-2xl font-serif font-black text-[#ECE6D8] tracking-tight">
                 {roleDef.name}
               </h3>
-              <p className="text-sm text-muted leading-relaxed">{roleDef.summary}</p>
-              <div className="p-3.5 bg-surface-2 border border-border text-sm text-text">
+              <p className="text-xs font-mono text-[#A39D90] leading-relaxed">{roleDef.summary}</p>
+              <div className="p-3.5 bg-[#171A20] border border-[#262A33] text-xs font-mono text-[#ECE6D8]">
                 {roleDef.howToPlay}
               </div>
-              <div className="text-xs text-muted">
+              <div className="text-[11px] font-mono text-[#A39D90]">
                 Release [R] key to hide role HUD
               </div>
             </div>
@@ -544,3 +566,4 @@ export function Night({
     </div>
   );
 }
+

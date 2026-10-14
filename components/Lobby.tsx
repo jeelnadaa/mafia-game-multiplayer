@@ -2,11 +2,11 @@
 
 import React, { useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { Crown, Shield, Users, Play, Copy, Check, QrCode, UserMinus, AlertTriangle, MessageSquare, Send, Activity, Lock, Ban, Bot, Mic, MicOff, PhoneOff } from 'lucide-react';
+import { Crown, Shield, Users, Play, Copy, Check, QrCode, UserMinus, AlertTriangle, MessageSquare, Send, Activity, Lock, Ban, Bot, Mic, MicOff, PhoneOff, Share2, Sparkles, Settings2, Sliders } from 'lucide-react';
 import { ClientGameView, Settings, PlayerView } from '@/lib/types';
 import { SETTINGS_SCHEMA, ROLE_PRESETS, RULE_PRESETS } from '@/lib/settings';
 import { validateSettings } from '@/lib/engine/rules';
-import { Button, Badge, Switch, Stepper, Avatar, Modal, Kbd } from './ui';
+import { Button, Badge, Switch, Stepper, Avatar, Modal, Kbd, RubberStamp } from './ui';
 import { getRoomShareUrl } from '@/lib/net';
 import { useShortcut } from '@/lib/shortcuts';
 
@@ -51,10 +51,10 @@ export function Lobby({
   onToggleVoiceMute,
   speakingPeers = {},
 }: LobbyProps) {
-  const [showQr, setShowQr] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
-  const [activeTab, setActiveTab] = useState<'roles' | 'settings' | 'comms'>('roles');
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [activeTab, setActiveTab] = useState<'roles' | 'settings' | 'comms' | 'tools'>('roles');
   const [lobbyChatInput, setLobbyChatInput] = useState('');
 
   // Confirmation Modals State
@@ -74,7 +74,6 @@ export function Lobby({
       setPendingBanPlayer(null);
     }
   };
-
 
   // Host only start shortcut
   useShortcut(
@@ -129,8 +128,8 @@ export function Lobby({
   const handleCopyLink = () => {
     if (typeof navigator !== 'undefined') {
       navigator.clipboard.writeText(shareUrl);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2500);
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2500);
     }
   };
 
@@ -176,18 +175,20 @@ export function Lobby({
   };
 
   return (
-    <div className="w-full max-w-[1650px] 2xl:max-w-[1850px] mx-auto p-4 md:p-8 lg:p-10 space-y-6">
-      {/* 16:9 Widescreen Two-Column Layout on PC, Stacked on Mobile */}
+    <div className="w-full max-w-[1650px] 2xl:max-w-[1850px] mx-auto p-3 sm:p-5 md:p-8 space-y-6 text-bone">
+      {/* 16:9 Widescreen Two-Column Layout on Desktop, Stacked on Mobile */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-        {/* Left Column: Room Code & Players Roster (5 cols on Desktop) */}
-        <div className="lg:col-span-5 space-y-6 flex flex-col">
-          {/* Room Banner */}
-          <div className="bg-surface border border-border p-6 space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-border">
-              <span className="text-sm font-medium text-muted">
-                Room Invitation
+        {/* Left Column: Briefing Table & Operatives Roster (5 cols on Desktop) */}
+        <div className="lg:col-span-5 space-y-5 flex flex-col">
+          {/* Hero Room Header Card */}
+          <div className="bg-ink-900 border border-line p-5 space-y-4 relative shadow-md">
+            <div className="flex items-center justify-between pb-3 border-b border-line text-xs font-mono">
+              <span className="text-bone-dim uppercase tracking-wider">
+                Case Briefing Room
               </span>
-              <span className="text-xs text-muted">Direct P2P Mesh</span>
+              <span className="text-lamp uppercase tracking-wider font-semibold">
+                Direct P2P Mesh
+              </span>
             </div>
 
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -195,102 +196,108 @@ export function Lobby({
                 <button
                   type="button"
                   onClick={handleCopyRoomCode}
-                  title="Click to copy Room Code only"
+                  title="Click to copy case code"
                   className="group text-left"
                 >
-                  <div className="text-4xl md:text-5xl font-mono font-bold tracking-wider text-text group-hover:text-white transition-colors flex items-center gap-3">
-                    <span>{gameView.code}</span>
+                  <div className="text-3xl sm:text-4xl font-mono font-black tracking-widest text-bone group-hover:text-lamp transition-colors flex items-center gap-2.5">
+                    <span>CASE #{gameView.code}</span>
                     {copiedCode ? (
-                      <Check className="w-5 h-5 text-emerald-400 shrink-0" />
+                      <Check className="w-5 h-5 text-lamp shrink-0" />
                     ) : (
-                      <Copy className="w-5 h-5 text-muted group-hover:text-white transition-colors shrink-0" />
+                      <Copy className="w-4 h-4 text-bone-dim group-hover:text-lamp transition-colors shrink-0" />
                     )}
                   </div>
-                  <div className="text-xs text-muted mt-1">
+                  <div className="text-[11px] font-mono text-bone-dim mt-1">
                     {copiedCode ? (
-                      <span className="text-emerald-400 font-semibold flex items-center gap-1">
-                        <Check className="w-3.5 h-3.5" /> Room Code Copied!
+                      <span className="text-lamp font-semibold flex items-center gap-1">
+                        <Check className="w-3.5 h-3.5" /> COPIED TO CLIPBOARD
                       </span>
                     ) : (
-                      'Click to copy 5-character Room Code'
+                      'Click to copy code · Share to invite'
                     )}
                   </div>
                 </button>
               </div>
 
-              {/* Lobby Voice Chat Card */}
-              {onToggleVoice && (
-                <div className="flex items-center gap-3 p-3 bg-surface-2 border border-border">
-                  <div className="min-w-0">
-                    <div className="text-xs font-bold text-white flex items-center gap-1.5">
-                      {isVoiceActive ? (
-                        isVoiceMuted ? (
-                          <MicOff className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                        ) : (
-                          <Mic className="w-3.5 h-3.5 text-emerald-400 animate-pulse shrink-0" />
-                        )
-                      ) : (
-                        <MicOff className="w-3.5 h-3.5 text-muted shrink-0" />
-                      )}
-                      <span>Voice Chat</span>
-                    </div>
-                    <div className="text-[11px] text-muted">
-                      {isVoiceActive
-                        ? (isVoiceMuted ? 'Mic Muted' : 'Speaking Live in Lobby')
-                        : 'WebRTC Audio Available'}
-                    </div>
-                  </div>
-                  {isVoiceActive ? (
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <Button
-                        variant={isVoiceMuted ? 'secondary' : 'primary'}
-                        size="sm"
-                        onClick={onToggleVoiceMute}
-                        className="text-xs font-semibold"
-                        title={isVoiceMuted ? 'Unmute microphone' : 'Mute microphone'}
-                      >
-                        {isVoiceMuted ? 'Unmute' : 'Mute'}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={onToggleVoice}
-                        className="text-xs font-semibold text-red-400 hover:text-white hover:bg-red-500/20 border border-transparent hover:border-red-500"
-                        title="Leave voice chat"
-                      >
-                        <PhoneOff className="w-3.5 h-3.5" />
-                        <span className="hidden sm:inline">Leave</span>
-                      </Button>
-                    </div>
-                  ) : (
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={onToggleVoice}
-                      className="shrink-0 text-xs font-semibold hover:border-white"
-                    >
-                      Join Voice
-                    </Button>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Your Profile & Avatar Selector */}
-          <div className="bg-surface border border-border p-6 space-y-3">
-            <div className="flex items-center justify-between pb-2 border-b border-border">
-              <span className="text-sm font-bold text-text">Your Avatar & Identity</span>
-              <span className="text-xs text-muted">Avatar #{me?.avatar || 1}</span>
-            </div>
-            <div className="flex items-center gap-4">
-              <Avatar avatarId={me?.avatar || 1} size={52} className="rounded-none border-white/80" />
-              <div className="min-w-0 flex-1">
-                <div className="text-sm font-semibold text-text truncate">{me?.name || 'You'}</div>
-                <div className="text-xs text-muted mt-0.5">Click any color box to switch avatar:</div>
+              {/* Single Consolidated Invite Button */}
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setInviteModalOpen(true)}
+                  className="px-3.5 py-2 bg-ink-800 hover:bg-ink-800/80 text-bone hover:text-lamp border border-line hover:border-lamp/50 text-xs font-mono font-semibold uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-sm"
+                >
+                  <Share2 className="w-3.5 h-3.5" />
+                  <span>Invite</span>
+                </button>
               </div>
             </div>
-            <div className="grid grid-cols-6 gap-2 pt-1">
+
+            {/* In-Lobby Voice Communication Strip */}
+            {onToggleVoice && (
+              <div className="flex items-center justify-between gap-3 p-2.5 bg-ink-950 border border-line/80 text-xs font-mono">
+                <div className="flex items-center gap-2 min-w-0">
+                  {isVoiceActive ? (
+                    isVoiceMuted ? (
+                      <MicOff className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                    ) : (
+                      <Mic className="w-3.5 h-3.5 text-lamp animate-pulse shrink-0" />
+                    )
+                  ) : (
+                    <MicOff className="w-3.5 h-3.5 text-bone-dim shrink-0" />
+                  )}
+                  <span className="truncate text-bone">
+                    {isVoiceActive
+                      ? (isVoiceMuted ? 'Voice: Mic Muted' : 'Voice: Live in Briefing')
+                      : 'Voice Wire Available'}
+                  </span>
+                </div>
+
+                {isVoiceActive ? (
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      type="button"
+                      onClick={onToggleVoiceMute}
+                      className="px-2.5 py-1 bg-ink-800 hover:bg-ink-800/80 text-bone border border-line text-[11px] uppercase tracking-wider font-semibold"
+                    >
+                      {isVoiceMuted ? 'Unmute' : 'Mute'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={onToggleVoice}
+                      className="px-2 py-1 bg-blood/10 text-blood hover:bg-blood hover:text-white border border-blood/40 text-[11px] uppercase tracking-wider font-semibold flex items-center gap-1"
+                      title="Leave voice wire"
+                    >
+                      <PhoneOff className="w-3 h-3" />
+                      <span>Leave</span>
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={onToggleVoice}
+                    className="px-2.5 py-1 bg-ink-800 hover:bg-ink-800/80 text-lamp border border-line hover:border-lamp text-[11px] uppercase tracking-wider font-semibold"
+                  >
+                    Join Wire
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Player Identity Dossier Selector */}
+          <div className="bg-ink-900 border border-line p-4 space-y-3">
+            <div className="flex items-center justify-between pb-2 border-b border-line text-xs font-mono">
+              <span className="text-bone font-semibold">Your Alias & Portrait</span>
+              <span className="text-bone-dim">Alias #{me?.avatar || 1}</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <Avatar avatarId={me?.avatar || 1} size={44} className="border border-line" />
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-semibold text-bone truncate">{me?.name || 'You'}</div>
+                <div className="text-[11px] text-bone-dim font-mono">Tap any portrait to switch alias:</div>
+              </div>
+            </div>
+            <div className="grid grid-cols-6 gap-1.5 pt-1">
               {Array.from({ length: 12 }, (_, i) => i + 1).map((id) => (
                 <button
                   key={id}
@@ -302,175 +309,170 @@ export function Lobby({
                     onUpdateProfile?.({ avatar: id });
                   }}
                   title={`Avatar #${id}`}
-                  className={`p-1 border transition-colors flex items-center justify-center rounded-none ${
+                  className={`p-1 border transition-all flex items-center justify-center ${
                     (me?.avatar || 1) === id
-                      ? 'border-white bg-white/10 ring-1 ring-white'
-                      : 'border-border hover:border-zinc-500 bg-surface-2'
+                      ? 'border-lamp bg-lamp/15 ring-1 ring-lamp'
+                      : 'border-line hover:border-bone-dim bg-ink-950 opacity-70 hover:opacity-100'
                   }`}
                 >
-                  <Avatar avatarId={id} size={32} className="rounded-none pointer-events-none" />
+                  <Avatar avatarId={id} size={28} className="pointer-events-none" />
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Players Roster */}
-          <div className="flex-1 bg-surface border border-border p-6 space-y-4 flex flex-col justify-between">
+          {/* Seated Operatives Roster */}
+          <div className="flex-1 bg-ink-900 border border-line p-5 space-y-4 flex flex-col justify-between">
             <div className="space-y-4">
-              {/* Header: Title and Test Actions */}
-              <div className="space-y-3 pb-3 border-b border-border">
+              {/* Header: Title & Circle Sitting Setting */}
+              <div className="space-y-3 pb-3 border-b border-line">
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <div className="flex items-center gap-2">
-                    <Users className="w-5 h-5 text-white shrink-0" />
-                    <h3 className="text-base font-bold text-text">
-                      Connected Players ({players.length}/{settings.maxPlayers})
+                    <Users className="w-4 h-4 text-lamp shrink-0" />
+                    <h3 className="text-sm font-mono font-bold tracking-wider text-bone uppercase">
+                      Connected Operatives ({players.length}/{settings.maxPlayers})
                     </h3>
                   </div>
 
-                  {isHost && onAddBots && (
-                    <div className="flex items-center gap-2">
-                      <Button
-                        type="button"
-                        variant="primary"
-                        size="sm"
-                        onClick={onAddBots}
-                        title={`Add minimum test bots required to start match (${Math.max(0, minPlayersNeeded - players.length)} needed)`}
-                        className="text-xs font-semibold py-1 px-2.5 h-7 shadow-sm"
-                      >
-                        <Bot className="w-3.5 h-3.5 mr-1 text-emerald-400" />
-                        <span>+ Test Bots ({Math.max(0, minPlayersNeeded - players.length) > 0 ? `+${Math.max(0, minPlayersNeeded - players.length)}` : 'Fill'})</span>
-                      </Button>
-                      {players.some((p) => p.isBot || p.id.startsWith('bot_')) && onClearBots && (
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          size="sm"
-                          onClick={onClearBots}
-                          title="Remove all automated test bots from the room"
-                          className="text-xs py-1 px-2 h-7 text-muted hover:text-red-400"
-                        >
-                          Clear Bots
-                        </Button>
-                      )}
-                    </div>
-                  )}
-                </div>
+                  {/* Mode Toggles */}
+                  <div className="flex items-center gap-2">
+                    {isHost ? (
+                      <label className="flex items-center gap-2 text-xs text-bone-dim cursor-pointer hover:text-bone select-none bg-ink-950 px-2.5 py-1 border border-line">
+                        <span className="font-mono text-[11px]">Circle Sitting</span>
+                        <Switch
+                          checked={Boolean(settings.circleSitting ?? true)}
+                          onChange={(val) => onUpdateSettings({ circleSitting: val })}
+                        />
+                      </label>
+                    ) : (
+                      <span className="text-[11px] px-2 py-1 bg-ink-950 border border-line text-bone-dim font-mono">
+                        {settings.circleSitting ? 'Circle Seating: ON' : 'Circle Seating: OFF'}
+                      </span>
+                    )}
 
-                {/* Sub-bar: Sitting & Narrator Toggles formatted cleanly with badges & cards */}
-                <div className="flex items-center justify-between flex-wrap gap-2 pt-1">
-                  {isHost ? (
-                    <label className="flex items-center gap-2 text-xs text-muted cursor-pointer hover:text-text select-none bg-surface-2 px-2.5 py-1.5 border border-border">
-                      <span className="font-medium">Circle Sitting</span>
-                      <Switch
-                        checked={Boolean(settings.circleSitting ?? true)}
-                        onChange={(val) => onUpdateSettings({ circleSitting: val })}
-                      />
-                    </label>
-                  ) : (
-                    <span className="text-[11px] px-2.5 py-1.5 bg-surface-2 border border-border text-muted font-mono">
-                      {settings.circleSitting ? 'Circle Seating: ON' : 'Circle Seating: OFF'}
-                    </span>
-                  )}
-
-                  {isHost ? (
-                    <label className="flex items-center gap-2 text-xs text-muted cursor-pointer hover:text-text select-none bg-surface-2 px-2.5 py-1.5 border border-border">
-                      <span className="font-medium">Narrator (God) Mode</span>
-                      <Switch checked={Boolean(me?.isGod)} onChange={(val) => onToggleGod(val)} />
-                    </label>
-                  ) : me?.isGod ? (
-                    <span className="text-[11px] px-2.5 py-1.5 bg-surface-2 border border-border text-zinc-300 font-mono">
-                      Narrator Mode
-                    </span>
-                  ) : null}
+                    {isHost ? (
+                      <label className="flex items-center gap-2 text-xs text-bone-dim cursor-pointer hover:text-bone select-none bg-ink-950 px-2.5 py-1 border border-line">
+                        <span className="font-mono text-[11px]">Narrator Mode</span>
+                        <Switch checked={Boolean(me?.isGod)} onChange={(val) => onToggleGod(val)} />
+                      </label>
+                    ) : me?.isGod ? (
+                      <span className="text-[11px] px-2 py-1 bg-ink-950 border border-line text-lamp font-mono">
+                        Narrator
+                      </span>
+                    ) : null}
+                  </div>
                 </div>
               </div>
 
-              {/* Player Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {players.map((p) => (
-                  <div
-                    key={p.id}
-                    className={`relative flex items-center gap-3 p-3 border transition-colors ${
-                      p.id === me?.id ? 'bg-surface-2 border-white/70' : 'bg-surface-2/60 border-border'
-                    }`}
-                  >
-                    <Avatar avatarId={p.avatar} size={44} className="rounded-none" />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="text-sm font-semibold text-text truncate max-w-[120px] sm:max-w-[140px]">{p.name}</span>
-                        {p.isHost && <Crown className="w-4 h-4 text-white shrink-0" />}
-                        {p.isGod && <Shield className="w-4 h-4 text-zinc-400 shrink-0" />}
-                        {(p.isBot || p.id.startsWith('bot_')) && (
-                          <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 uppercase tracking-wider shrink-0">
-                            BOT
-                          </span>
-                        )}
+              {/* Seated Operative Cards Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {players.map((p) => {
+                  const isSpeaking = speakingPeers[p.id];
+                  return (
+                    <div
+                      key={p.id}
+                      className={`relative flex items-center gap-3 p-2.5 border transition-all ${
+                        p.id === me?.id ? 'bg-ink-800/90 border-lamp/50' : 'bg-ink-950 border-line'
+                      } ${isSpeaking ? 'ring-1 ring-lamp' : ''}`}
+                    >
+                      <Avatar avatarId={p.avatar} size={38} className="border border-line/60" />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-xs font-semibold text-bone truncate max-w-[120px]">{p.name}</span>
+                          {p.isHost && <span title="Host Operative"><Crown className="w-3.5 h-3.5 text-lamp shrink-0" /></span>}
+                          {p.isGod && <span title="Narrator"><Shield className="w-3.5 h-3.5 text-bone-dim shrink-0" /></span>}
+                          {(p.isBot || p.id.startsWith('bot_')) && (
+                            <span className="text-[9px] font-mono font-bold px-1 bg-lamp/10 text-lamp border border-lamp/30 uppercase tracking-wider shrink-0">
+                              BOT
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[10px] font-mono mt-0.5">
+                          {p.isGod ? (
+                            <span className="text-bone-dim">Narrator</span>
+                          ) : p.ready ? (
+                            <span className="text-lamp font-bold uppercase tracking-wider">Ready ✓</span>
+                          ) : (
+                            <span className="text-bone-dim">Waiting</span>
+                          )}
+                        </div>
                       </div>
-                      <div className="text-xs text-muted mt-0.5">
-                        {p.isGod ? 'Moderator' : p.ready ? 'Ready ✓' : 'Waiting'}
-                      </div>
-                    </div>
 
-                    {isHost && p.id !== me?.id && (
-                      <div className="flex items-center gap-1">
-                        <button
-                          type="button"
-                          onClick={() => setPendingKickPlayer(p)}
-                          title={`Kick ${p.name}`}
-                          className="opacity-50 hover:opacity-100 p-1.5 text-muted hover:text-white transition-opacity"
-                        >
-                          <UserMinus className="w-4 h-4" />
-                        </button>
-                        {onBan && (
+                      {isHost && p.id !== me?.id && (
+                        <div className="flex items-center gap-1">
                           <button
                             type="button"
-                            onClick={() => setPendingBanPlayer(p)}
-                            title={`Ban ${p.name} from room`}
-                            className="opacity-50 hover:opacity-100 p-1.5 text-red-400 hover:text-red-300 transition-opacity"
+                            onClick={() => setPendingKickPlayer(p)}
+                            title={`Kick ${p.name}`}
+                            className="opacity-40 hover:opacity-100 p-1 text-bone-dim hover:text-bone transition-opacity"
                           >
-                            <Ban className="w-4 h-4" />
+                            <UserMinus className="w-3.5 h-3.5" />
                           </button>
-                        )}
-                      </div>
-                    )}
+                          {onBan && (
+                            <button
+                              type="button"
+                              onClick={() => setPendingBanPlayer(p)}
+                              title={`Ban ${p.name} from room`}
+                              className="opacity-40 hover:opacity-100 p-1 text-blood/60 hover:text-blood transition-opacity"
+                            >
+                              <Ban className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
 
+                {/* Empty Chair Silhouettes */}
+                {Array.from({ length: Math.max(0, minPlayersNeeded - players.length) }).map((_, idx) => (
+                  <div
+                    key={`empty-${idx}`}
+                    className="flex items-center gap-3 p-2.5 border border-dashed border-line/50 bg-ink-950/40 opacity-50"
+                  >
+                    <div className="w-[38px] h-[38px] border border-dashed border-line flex items-center justify-center text-bone-dim/40 font-mono text-xs">
+                      ?
+                    </div>
+                    <div className="text-[11px] font-mono text-bone-dim/60 italic">
+                      Waiting for operative...
+                    </div>
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* Live Lobby Activity Feed */}
-            <div className="pt-3 border-t border-border space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-mono font-bold text-muted uppercase flex items-center gap-1.5">
-                  <Activity className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
-                  <span>Room Activity</span>
+            {/* Live Activity Wire in Lobby */}
+            <div className="pt-3 border-t border-line space-y-2">
+              <div className="flex items-center justify-between text-[11px] font-mono">
+                <span className="text-bone-dim uppercase flex items-center gap-1.5">
+                  <Activity className="w-3 h-3 text-lamp animate-pulse" />
+                  <span>Case Activity Wire</span>
                 </span>
                 <button
                   type="button"
                   onClick={() => setActiveTab('comms')}
-                  className="text-[11px] text-muted hover:text-white underline cursor-pointer"
+                  className="text-bone-dim hover:text-lamp transition-colors"
                 >
                   Open Comms →
                 </button>
               </div>
 
-              <div className="space-y-1.5 max-h-[110px] overflow-y-auto font-mono text-[11px]">
+              <div className="space-y-1 max-h-[90px] overflow-y-auto font-mono text-[10px]">
                 {gameView.log && gameView.log.length > 0 ? (
-                  gameView.log.slice(-4).reverse().map((entry) => (
+                  gameView.log.slice(-3).reverse().map((entry) => (
                     <div
                       key={entry.id}
-                      className="p-1.5 bg-surface-2 border border-border/80 flex items-center justify-between text-text truncate"
+                      className="p-1.5 bg-ink-950 border border-line/60 flex items-center justify-between text-bone-dim truncate"
                     >
-                      <span className="truncate mr-2">{entry.text}</span>
-                      <span className="text-[10px] text-muted shrink-0">
+                      <span className="truncate mr-2 text-bone">{entry.text}</span>
+                      <span className="text-[9px] text-bone-dim/60 shrink-0">
                         {new Date(entry.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                       </span>
                     </div>
                   ))
                 ) : (
-                  <div className="p-2 bg-surface-2/60 border border-border text-[11px] text-muted text-center">
-                    Waiting for players to join...
+                  <div className="p-2 bg-ink-950 border border-line/40 text-[10px] text-bone-dim/60 text-center font-mono">
+                    Waiting for operatives to take seats...
                   </div>
                 )}
               </div>
@@ -478,30 +480,30 @@ export function Lobby({
           </div>
         </div>
 
-        {/* Right Column: Roles Configuration & Match Settings (7 cols on Desktop) */}
-        <div className="lg:col-span-7 bg-surface border border-border p-6 space-y-6 flex flex-col justify-between">
-          <div className="space-y-6">
-            {/* Tabs & Presets */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border pb-3">
-              <div className="flex gap-2">
+        {/* Right Column: Case Configuration & Rulebook Setup (7 cols on Desktop) */}
+        <div className="lg:col-span-7 bg-ink-900 border border-line p-5 sm:p-6 space-y-6 flex flex-col justify-between shadow-md">
+          <div className="space-y-5">
+            {/* Tab Navigation */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-line pb-3">
+              <div className="flex flex-wrap gap-1.5 font-mono text-xs">
                 <button
                   type="button"
                   onClick={() => setActiveTab('roles')}
-                  className={`px-4 py-2 text-sm font-medium border transition-colors ${
+                  className={`px-3.5 py-1.5 font-semibold uppercase tracking-wider border transition-colors ${
                     activeTab === 'roles'
-                      ? 'bg-white text-black border-white font-bold'
-                      : 'bg-surface-2 text-muted border-border hover:border-zinc-500 hover:text-text'
+                      ? 'bg-bone text-ink-950 border-bone font-bold'
+                      : 'bg-ink-950 text-bone-dim border-line hover:border-bone-dim hover:text-bone'
                   }`}
                 >
-                  Roles Setup
+                  Roles Deck
                 </button>
                 <button
                   type="button"
                   onClick={() => setActiveTab('settings')}
-                  className={`px-4 py-2 text-sm font-medium border transition-colors ${
+                  className={`px-3.5 py-1.5 font-semibold uppercase tracking-wider border transition-colors ${
                     activeTab === 'settings'
-                      ? 'bg-white text-black border-white font-bold'
-                      : 'bg-surface-2 text-muted border-border hover:border-zinc-500 hover:text-text'
+                      ? 'bg-bone text-ink-950 border-bone font-bold'
+                      : 'bg-ink-950 text-bone-dim border-line hover:border-bone-dim hover:text-bone'
                   }`}
                 >
                   Rules & Timers
@@ -509,74 +511,92 @@ export function Lobby({
                 <button
                   type="button"
                   onClick={() => setActiveTab('comms')}
-                  className={`px-4 py-2 text-sm font-medium border transition-colors flex items-center gap-1.5 ${
+                  className={`px-3.5 py-1.5 font-semibold uppercase tracking-wider border transition-colors flex items-center gap-1.5 ${
                     activeTab === 'comms'
-                      ? 'bg-white text-black border-white font-bold'
-                      : 'bg-surface-2 text-muted border-border hover:border-zinc-500 hover:text-text'
+                      ? 'bg-bone text-ink-950 border-bone font-bold'
+                      : 'bg-ink-950 text-bone-dim border-line hover:border-bone-dim hover:text-bone'
                   }`}
                 >
-                  <MessageSquare className="w-3.5 h-3.5" />
-                  <span>Comms & Logs</span>
+                  <MessageSquare className="w-3 h-3" />
+                  <span>Comms Wire</span>
                   {chatList.filter((m) => m.channel === 'public').length > 0 && (
-                    <span className="ml-1 px-1.5 py-0.2 bg-zinc-800 text-white text-[10px] rounded-none">
+                    <span className="ml-1 px-1 bg-ink-800 text-bone text-[9px] font-mono">
                       {chatList.filter((m) => m.channel === 'public').length}
                     </span>
                   )}
                 </button>
+                {isHost && (
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('tools')}
+                    className={`px-3.5 py-1.5 font-semibold uppercase tracking-wider border transition-colors flex items-center gap-1.5 ${
+                      activeTab === 'tools'
+                        ? 'bg-bone text-ink-950 border-bone font-bold'
+                        : 'bg-ink-950 text-bone-dim border-line hover:border-bone-dim hover:text-bone'
+                    }`}
+                  >
+                    <Bot className="w-3 h-3" />
+                    <span>Host Tools</span>
+                  </button>
+                )}
               </div>
 
               {activeTab === 'roles' && isHost && (
-                <Button variant="secondary" size="sm" onClick={handleSuggestBalanced}>
-                  <span>Suggest Balanced</span>
-                </Button>
+                <button
+                  type="button"
+                  onClick={handleSuggestBalanced}
+                  className="px-3 py-1 bg-ink-800 hover:bg-ink-800/80 text-bone hover:text-lamp border border-line text-xs font-mono uppercase tracking-wider transition-colors"
+                >
+                  Suggest Balanced
+                </button>
               )}
             </div>
 
-            {/* Roles Setup Tab */}
+            {/* Tab 1: Roles Deck Tab */}
             {activeTab === 'roles' && (
               <div className="space-y-5">
-                {/* Composition Breakdown Bar (Clean monochrome segments) */}
+                {/* Composition Breakdown Bar */}
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between text-xs md:text-sm">
-                    <span className="font-semibold text-text">Composition:</span>
-                    <span className="text-muted">
+                  <div className="flex items-center justify-between text-xs font-mono">
+                    <span className="font-semibold text-bone">Case Composition:</span>
+                    <span className="text-bone-dim">
                       {playingCount < minPlayersNeeded ? (
                         <>
-                          <strong className="text-white font-mono">{mafiaTotal} Mafia</strong>
+                          <strong className="text-bone font-bold">{mafiaTotal} Mafia</strong>
                           {docTotal > 0 && ` · ${docTotal} Doctor`}
                           {copTotal > 0 && ` · ${copTotal} Police`}
                           {vigTotal > 0 && ` · ${vigTotal} Vigilante`}
                           {jesterTotal > 0 && ` · ${jesterTotal} Jester`}
                           {civTotal > 0 && ` · ${civTotal} Civilians`}
-                          <span className="ml-1.5 text-amber-400 font-medium">
-                            (Requires min {minPlayersNeeded} players · currently {playingCount})
+                          <span className="ml-1.5 text-lamp font-medium">
+                            (Min {minPlayersNeeded} operatives · {playingCount} seated)
                           </span>
                         </>
                       ) : (
-                        `${playingCount} Players: ${mafiaTotal} Mafia · ${docTotal} Doctor · ${copTotal} Police · ${civTotal} Civilians`
+                        `${playingCount} Operatives: ${mafiaTotal} Mafia · ${docTotal} Doctor · ${copTotal} Police · ${civTotal} Civilians`
                       )}
                     </span>
                   </div>
-                  <div className="h-3 w-full bg-surface-2 border border-border overflow-hidden flex">
-                    <div style={{ width: `${(mafiaTotal / displayTotal) * 100}%` }} className="bg-white h-full" title={`${mafiaTotal} Mafia`} />
-                    <div style={{ width: `${(docTotal / displayTotal) * 100}%` }} className="bg-zinc-400 h-full" title={`${docTotal} Doctor`} />
-                    <div style={{ width: `${(copTotal / displayTotal) * 100}%` }} className="bg-zinc-500 h-full" title={`${copTotal} Police`} />
-                    <div style={{ width: `${(vigTotal / displayTotal) * 100}%` }} className="bg-zinc-600 h-full" title={`${vigTotal} Vigilante`} />
-                    <div style={{ width: `${(jesterTotal / displayTotal) * 100}%` }} className="bg-zinc-700 h-full" title={`${jesterTotal} Jester`} />
-                    <div style={{ width: `${(civTotal / displayTotal) * 100}%` }} className="bg-zinc-800 h-full" title={`${civTotal} Civilians`} />
+                  <div className="h-2.5 w-full bg-ink-950 border border-line overflow-hidden flex">
+                    <div style={{ width: `${(mafiaTotal / displayTotal) * 100}%` }} className="bg-blood h-full" title={`${mafiaTotal} Mafia`} />
+                    <div style={{ width: `${(docTotal / displayTotal) * 100}%` }} className="bg-verdigris h-full" title={`${docTotal} Doctor`} />
+                    <div style={{ width: `${(copTotal / displayTotal) * 100}%` }} className="bg-night h-full" title={`${copTotal} Police`} />
+                    <div style={{ width: `${(vigTotal / displayTotal) * 100}%` }} className="bg-lamp h-full" title={`${vigTotal} Vigilante`} />
+                    <div style={{ width: `${(jesterTotal / displayTotal) * 100}%` }} className="bg-plum h-full" title={`${jesterTotal} Jester`} />
+                    <div style={{ width: `${(civTotal / displayTotal) * 100}%` }} className="bg-line h-full" title={`${civTotal} Civilians`} />
                   </div>
                 </div>
 
-                {/* Presets */}
+                {/* Quick Presets */}
                 {isHost && (
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-xs md:text-sm text-muted mr-1">Presets:</span>
+                  <div className="flex flex-wrap items-center gap-2 font-mono">
+                    <span className="text-xs text-bone-dim mr-1">Presets:</span>
                     {Object.keys(ROLE_PRESETS).map((pname) => (
                       <button
                         key={pname}
                         type="button"
                         onClick={() => applyRolePreset(pname as any)}
-                        className="px-3 py-1.5 text-xs md:text-sm capitalize bg-surface-2 hover:bg-zinc-800 border border-border text-text transition-colors font-medium"
+                        className="px-2.5 py-1 text-xs capitalize bg-ink-950 hover:bg-ink-800 border border-line hover:border-bone-dim text-bone transition-colors"
                       >
                         {pname}
                       </button>
@@ -584,16 +604,18 @@ export function Lobby({
                   </div>
                 )}
 
-                {/* Role Cards Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                  {/* Mafia */}
-                  <div className="p-4 bg-surface-2 border border-border flex items-center justify-between">
+                {/* Role Cards Deck Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* Mafia Card */}
+                  <div className="p-3.5 bg-ink-950 border border-line flex items-center justify-between">
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold text-white">Mafia</span>
-                        <Badge color="mafia">Syndicate</Badge>
+                        <span className="text-sm font-bold text-bone">Mafia</span>
+                        <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 bg-blood/10 text-red-300 border border-blood/30">
+                          Syndicate
+                        </span>
                       </div>
-                      <div className="text-xs text-muted mt-1">Strikes secretly each night</div>
+                      <div className="text-xs text-bone-dim mt-1">Strikes secretly each night</div>
                     </div>
                     {isHost && (
                       <Stepper
@@ -607,41 +629,43 @@ export function Lobby({
                     )}
                   </div>
 
-                  {/* Godfather */}
-                  <div className="p-4 bg-surface-2 border border-border flex items-center justify-between">
+                  {/* Godfather Card */}
+                  <div className="p-3.5 bg-ink-950 border border-line flex items-center justify-between">
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold text-white">Godfather</span>
-                        <Badge color="mafia">Boss</Badge>
+                        <span className="text-sm font-bold text-bone">Godfather</span>
+                        <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 bg-blood/10 text-red-300 border border-blood/30">
+                          Boss
+                        </span>
                       </div>
-                      <div className="text-xs text-muted mt-1">Appears innocent to police</div>
+                      <div className="text-xs text-bone-dim mt-1">Appears innocent to police</div>
                     </div>
                     {isHost && (
-                      <div className="flex items-center gap-2">
-                        <Switch
-                          checked={Boolean(settings.roles.godfather?.enabled)}
-                          onChange={(val) => {
-                            if (val && specialTotal + 1 > maxRoomCapacity) return;
-                            onUpdateSettings({
-                              roles: {
-                                ...settings.roles,
-                                godfather: { enabled: val, count: val ? 1 : 0 },
-                              },
-                            });
-                          }}
-                        />
-                      </div>
+                      <Switch
+                        checked={Boolean(settings.roles.godfather?.enabled)}
+                        onChange={(val) => {
+                          if (val && specialTotal + 1 > maxRoomCapacity) return;
+                          onUpdateSettings({
+                            roles: {
+                              ...settings.roles,
+                              godfather: { enabled: val, count: val ? 1 : 0 },
+                            },
+                          });
+                        }}
+                      />
                     )}
                   </div>
 
-                  {/* Doctor */}
-                  <div className="p-4 bg-surface-2 border border-border flex items-center justify-between">
+                  {/* Doctor Card */}
+                  <div className="p-3.5 bg-ink-950 border border-line flex items-center justify-between">
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold text-white">Doctor</span>
-                        <Badge color="doctor">Town</Badge>
+                        <span className="text-sm font-bold text-bone">Doctor</span>
+                        <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 bg-verdigris/15 text-emerald-300 border border-verdigris/30">
+                          Town
+                        </span>
                       </div>
-                      <div className="text-xs text-muted mt-1">Protects 1 target from harm</div>
+                      <div className="text-xs text-bone-dim mt-1">Protects 1 target from harm</div>
                     </div>
                     {isHost && (
                       <div className="flex items-center gap-2">
@@ -681,14 +705,16 @@ export function Lobby({
                     )}
                   </div>
 
-                  {/* Police */}
-                  <div className="p-4 bg-surface-2 border border-border flex items-center justify-between">
+                  {/* Police Card */}
+                  <div className="p-3.5 bg-ink-950 border border-line flex items-center justify-between">
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold text-white">Police</span>
-                        <Badge color="police">Investigative</Badge>
+                        <span className="text-sm font-bold text-bone">Police</span>
+                        <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 bg-night/20 text-blue-300 border border-night/40">
+                          Investigative
+                        </span>
                       </div>
-                      <div className="text-xs text-muted mt-1">Uncovers allegiance each night</div>
+                      <div className="text-xs text-bone-dim mt-1">Uncovers allegiance each night</div>
                     </div>
                     {isHost && (
                       <div className="flex items-center gap-2">
@@ -728,14 +754,16 @@ export function Lobby({
                     )}
                   </div>
 
-                  {/* Vigilante */}
-                  <div className="p-4 bg-surface-2 border border-border flex items-center justify-between">
+                  {/* Vigilante Card */}
+                  <div className="p-3.5 bg-ink-950 border border-line flex items-center justify-between">
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold text-white">Vigilante</span>
-                        <Badge color="vigilante">Rogue</Badge>
+                        <span className="text-sm font-bold text-bone">Vigilante</span>
+                        <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 bg-lamp/15 text-lamp border border-lamp/30">
+                          Rogue
+                        </span>
                       </div>
-                      <div className="text-xs text-muted mt-1">One-shot marksman</div>
+                      <div className="text-xs text-bone-dim mt-1">One-shot marksman</div>
                     </div>
                     {isHost && (
                       <Switch
@@ -750,14 +778,16 @@ export function Lobby({
                     )}
                   </div>
 
-                  {/* Jester */}
-                  <div className="p-4 bg-surface-2 border border-border flex items-center justify-between">
+                  {/* Jester Card */}
+                  <div className="p-3.5 bg-ink-950 border border-line flex items-center justify-between">
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold text-white">Jester</span>
-                        <Badge color="jester">Chaos</Badge>
+                        <span className="text-sm font-bold text-bone">Jester</span>
+                        <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 bg-plum/20 text-purple-300 border border-plum/40">
+                          Chaos
+                        </span>
                       </div>
-                      <div className="text-xs text-muted mt-1">Wins if eliminated in day vote</div>
+                      <div className="text-xs text-bone-dim mt-1">Wins if eliminated in day vote</div>
                     </div>
                     {isHost && (
                       <Switch
@@ -772,56 +802,58 @@ export function Lobby({
                     )}
                   </div>
 
-                  {/* Civilian */}
-                  <div className="p-4 bg-surface-2 border border-border flex items-center justify-between">
+                  {/* Civilian Card */}
+                  <div className="p-3.5 bg-ink-950 border border-line flex items-center justify-between">
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold text-white">Civilian</span>
-                        <Badge color="civilian">Town</Badge>
+                        <span className="text-sm font-bold text-bone">Civilian</span>
+                        <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 bg-ink-800 text-bone-dim border border-line">
+                          Town
+                        </span>
                       </div>
-                      <div className="text-xs text-muted mt-1">Remaining town members</div>
+                      <div className="text-xs text-bone-dim mt-1">Remaining town members</div>
                     </div>
-                    <span className="text-sm text-muted font-medium">Auto: {civTotal}</span>
+                    <span className="text-xs font-mono text-bone-dim font-medium">Auto: {civTotal}</span>
                   </div>
                 </div>
               </div>
             )}
 
-            {/* Settings Tab */}
+            {/* Tab 2: Rules & Timers */}
             {activeTab === 'settings' && (
               <div className="space-y-4">
                 {/* Rule Presets Quick Selector */}
-                <div className="p-4 bg-surface-2 border border-border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div className="p-3.5 bg-ink-950 border border-line flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                   <div>
-                    <span className="text-xs font-bold uppercase tracking-wider text-muted block">Match Rule Presets</span>
-                    <span className="text-xs text-muted">Quick configurations for pacing, timers, and secrecy</span>
+                    <span className="text-xs font-mono font-bold uppercase tracking-wider text-bone block">Match Rule Presets</span>
+                    <span className="text-[11px] text-bone-dim">Quick configurations for pacing, timers, and secrecy</span>
                   </div>
                   {isHost ? (
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-2 font-mono">
                       {Object.keys(RULE_PRESETS).map((presetName) => (
                         <button
                           key={presetName}
                           type="button"
                           onClick={() => onUpdateSettings(RULE_PRESETS[presetName])}
-                          className="px-2.5 py-1 text-xs border border-border hover:border-white bg-surface hover:bg-zinc-800 text-text transition-colors"
+                          className="px-2.5 py-1 text-xs border border-line hover:border-lamp bg-ink-900 text-bone hover:text-lamp transition-colors"
                         >
                           {presetName}
                         </button>
                       ))}
                     </div>
                   ) : (
-                    <span className="text-xs text-muted font-mono border border-border px-2.5 py-1 bg-surface">
+                    <span className="text-xs text-bone-dim font-mono border border-line px-2.5 py-1 bg-ink-900">
                       Host Configured
                     </span>
                   )}
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {SETTINGS_SCHEMA.filter((s) => !s.showIf || s.showIf(settings)).map((s) => (
-                    <div key={s.key} className="p-3.5 bg-surface-2 border border-border flex items-center justify-between">
+                    <div key={s.key} className="p-3 bg-ink-950 border border-line flex items-center justify-between">
                       <div className="pr-2">
-                        <div className="text-xs md:text-sm font-semibold text-text">{s.label}</div>
-                        <div className="text-xs text-muted">{s.tooltip}</div>
+                        <div className="text-xs font-semibold text-bone">{s.label}</div>
+                        <div className="text-[10px] text-bone-dim">{s.tooltip}</div>
                       </div>
 
                       {isHost ? (
@@ -842,17 +874,17 @@ export function Lobby({
                           <select
                             value={String((settings as any)[s.key])}
                             onChange={(e) => onUpdateSettings({ [s.key]: e.target.value })}
-                            className="bg-surface border border-border text-xs md:text-sm rounded-none px-2.5 py-1.5 text-text"
+                            className="bg-ink-900 border border-line text-xs font-mono px-2 py-1 text-bone focus:outline-none focus:border-lamp"
                           >
                             {s.options?.map((opt) => (
-                              <option key={opt.value} value={opt.value}>
+                              <option key={opt.value} value={opt.value} className="bg-ink-900 text-bone">
                                 {opt.label}
                               </option>
                             ))}
                           </select>
                         )
                       ) : (
-                        <span className="text-xs text-muted">{s.plain((settings as any)[s.key])}</span>
+                        <span className="text-xs text-bone-dim font-mono">{s.plain((settings as any)[s.key])}</span>
                       )}
                     </div>
                   ))}
@@ -860,18 +892,18 @@ export function Lobby({
               </div>
             )}
 
-            {/* Comms & Activity Log Tab */}
+            {/* Tab 3: Comms & Logs Tab */}
             {activeTab === 'comms' && (
               <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 h-[420px]">
-                  {/* Left Column: Official Transmission Event Logs */}
-                  <div className="bg-surface-2 border border-border p-3.5 flex flex-col justify-between overflow-hidden">
-                    <div className="flex items-center justify-between pb-2 border-b border-border">
-                      <span className="text-xs font-mono font-bold text-white uppercase flex items-center gap-1.5">
-                        <Activity className="w-3.5 h-3.5 text-emerald-400" />
-                        <span>Room Event Logs</span>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 h-[380px]">
+                  {/* Left Column: Official Room Event Logs */}
+                  <div className="bg-ink-950 border border-line p-3 flex flex-col justify-between overflow-hidden">
+                    <div className="flex items-center justify-between pb-2 border-b border-line text-xs font-mono">
+                      <span className="font-bold text-bone uppercase flex items-center gap-1.5">
+                        <Activity className="w-3.5 h-3.5 text-lamp" />
+                        <span>Case Event Logs</span>
                       </span>
-                      <span className="text-[10px] text-muted font-mono">
+                      <span className="text-[10px] text-bone-dim">
                         {gameView.log?.length || 0} events
                       </span>
                     </div>
@@ -881,15 +913,15 @@ export function Lobby({
                         [...gameView.log].reverse().map((entry) => (
                           <div
                             key={entry.id}
-                            className={`p-2 border text-xs leading-relaxed ${
+                            className={`p-2 border text-[11px] leading-relaxed ${
                               entry.type === 'death'
-                                ? 'bg-red-950/40 border-red-800 text-red-200'
+                                ? 'bg-blood/10 border-blood/40 text-red-200'
                                 : entry.type === 'vote'
-                                ? 'bg-amber-950/40 border-amber-800 text-amber-200'
-                                : 'bg-surface border-border text-text'
+                                ? 'bg-lamp/10 border-lamp/40 text-lamp'
+                                : 'bg-ink-900 border-line text-bone'
                             }`}
                           >
-                            <div className="flex items-center justify-between text-[10px] text-muted mb-0.5">
+                            <div className="flex items-center justify-between text-[9px] text-bone-dim mb-0.5">
                               <span className="uppercase">{entry.phase}</span>
                               <span>
                                 {new Date(entry.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
@@ -899,7 +931,7 @@ export function Lobby({
                           </div>
                         ))
                       ) : (
-                        <div className="text-muted text-center pt-24 text-xs">
+                        <div className="text-bone-dim/60 text-center pt-24 text-xs font-mono">
                           No room events recorded yet.
                         </div>
                       )}
@@ -907,19 +939,19 @@ export function Lobby({
                   </div>
 
                   {/* Right Column: Public Lobby Chat */}
-                  <div className="bg-surface-2 border border-border p-3.5 flex flex-col justify-between overflow-hidden">
-                    <div className="flex items-center justify-between pb-2 border-b border-border">
-                      <span className="text-xs font-mono font-bold text-white uppercase flex items-center gap-1.5">
-                        <MessageSquare className="w-3.5 h-3.5 text-white" />
+                  <div className="bg-ink-950 border border-line p-3 flex flex-col justify-between overflow-hidden">
+                    <div className="flex items-center justify-between pb-2 border-b border-line text-xs font-mono">
+                      <span className="font-bold text-bone uppercase flex items-center gap-1.5">
+                        <MessageSquare className="w-3.5 h-3.5 text-bone" />
                         <span>Lobby Comms Wire</span>
                       </span>
-                      <span className="text-[10px] text-muted font-mono">
-                        All Players
+                      <span className="text-[10px] text-bone-dim">
+                        All Operatives
                       </span>
                     </div>
 
                     {/* Chat Messages */}
-                    <div className="flex-1 overflow-y-auto space-y-2 py-2 text-xs pr-1">
+                    <div className="flex-1 overflow-y-auto space-y-1.5 py-2 text-xs pr-1">
                       {chatList
                         .filter((m) => m.channel === 'public')
                         .map((m) => (
@@ -927,23 +959,23 @@ export function Lobby({
                             key={m.id}
                             className={`p-2 border leading-relaxed ${
                               m.senderId === 'system'
-                                ? 'bg-zinc-900 border-zinc-700 text-amber-300 font-mono'
-                                : 'bg-surface border-border text-text'
+                                ? 'bg-ink-900 border-line text-lamp font-mono text-[11px]'
+                                : 'bg-ink-900 border-line text-bone'
                             }`}
                           >
-                            <div className="flex items-center justify-between text-[10px] text-muted mb-0.5">
-                              <span className="font-bold text-white">
+                            <div className="flex items-center justify-between text-[9px] text-bone-dim mb-0.5 font-mono">
+                              <span className="font-bold text-bone">
                                 {m.senderId === 'system' ? '[SYSTEM]' : m.senderName}
                               </span>
                               <span>
                                 {new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                               </span>
                             </div>
-                            <div>{m.text}</div>
+                            <div className="text-xs">{m.text}</div>
                           </div>
                         ))}
                       {chatList.filter((m) => m.channel === 'public').length === 0 && (
-                        <div className="text-muted text-center pt-24 text-xs">
+                        <div className="text-bone-dim/60 text-center pt-24 text-xs font-mono">
                           Comms wire quiet. Say hello to everyone!
                         </div>
                       )}
@@ -957,7 +989,7 @@ export function Lobby({
                         onSendChat('public', lobbyChatInput.trim());
                         setLobbyChatInput('');
                       }}
-                      className="pt-2 border-t border-border flex gap-2"
+                      className="pt-2 border-t border-line flex gap-2"
                     >
                       <input
                         type="text"
@@ -965,60 +997,108 @@ export function Lobby({
                         onChange={(e) => setLobbyChatInput(e.target.value)}
                         placeholder="Type message to lobby..."
                         maxLength={300}
-                        className="flex-1 bg-surface border border-border px-3 py-1.5 text-xs text-text placeholder-muted/60 focus:outline-none focus:border-white rounded-none"
+                        className="flex-1 bg-ink-900 border border-line px-3 py-1.5 text-xs text-bone placeholder:text-bone-dim/50 focus:outline-none focus:border-lamp"
                       />
-                      <Button type="submit" variant="primary" size="sm" className="px-3">
+                      <button
+                        type="submit"
+                        className="px-3 bg-ink-800 hover:bg-ink-800/80 text-bone hover:text-lamp border border-line text-xs"
+                      >
                         <Send className="w-3.5 h-3.5" />
-                      </Button>
+                      </button>
                     </form>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Tab 4: Host Tools (Relocated Test Bots with clear human explanation) */}
+            {activeTab === 'tools' && isHost && (
+              <div className="space-y-4">
+                <div className="p-4 bg-ink-950 border border-line space-y-3">
+                  <div>
+                    <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-bone flex items-center gap-2">
+                      <Bot className="w-4 h-4 text-lamp" />
+                      <span>Automated Test Operatives (Simulated Bots)</span>
+                    </h4>
+                    <p className="text-xs text-bone-dim mt-1 leading-relaxed">
+                      Deploy autonomous simulated bots to quickly test match pacing, role mechanics, night actions, and day voting without needing multiple browser tabs.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-3 pt-2">
+                    {onAddBots && (
+                      <button
+                        type="button"
+                        onClick={onAddBots}
+                        className="px-4 py-2 bg-lamp text-ink-950 font-mono text-xs font-bold uppercase tracking-wider hover:bg-lamp-soft transition-colors flex items-center gap-1.5"
+                      >
+                        <Bot className="w-3.5 h-3.5" />
+                        <span>+ Test Bots ({Math.max(0, minPlayersNeeded - players.length) > 0 ? `+${Math.max(0, minPlayersNeeded - players.length)} needed` : 'Fill Room'})</span>
+                      </button>
+                    )}
+
+                    {players.some((p) => p.isBot || p.id.startsWith('bot_')) && onClearBots && (
+                      <button
+                        type="button"
+                        onClick={onClearBots}
+                        className="px-3.5 py-2 bg-ink-900 hover:bg-ink-800 text-blood hover:text-white border border-blood/40 hover:border-blood font-mono text-xs font-bold uppercase tracking-wider transition-colors"
+                      >
+                        Clear Bots
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
             )}
           </div>
 
-          {/* Start / Ready Action Bar at Bottom of Right Panel */}
-          <div className="pt-4 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="text-xs md:text-sm text-center sm:text-left">
+          {/* Start / Ready Action Bar at Bottom of Setup Panel */}
+          <div className="pt-4 border-t border-line flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="text-xs md:text-sm text-center sm:text-left font-mono">
               {!validation.valid ? (
-                <span className="text-white font-semibold flex items-center gap-1.5">
-                  <AlertTriangle className="w-4 h-4 text-amber-400" /> {validation.reason}
+                <span className="text-lamp font-semibold flex items-center gap-1.5">
+                  <AlertTriangle className="w-4 h-4 text-lamp shrink-0" /> {validation.reason}
                 </span>
               ) : unreadyPlayers.length > 0 ? (
-                <span className="text-amber-300 font-medium flex items-center gap-1.5">
-                  <AlertTriangle className="w-4 h-4 text-amber-400" /> Waiting for {unreadyPlayers.length} player{unreadyPlayers.length > 1 ? 's' : ''} to mark Ready
+                <span className="text-lamp font-medium flex items-center gap-1.5">
+                  <AlertTriangle className="w-4 h-4 text-lamp shrink-0" /> Waiting for {unreadyPlayers.length} operative{unreadyPlayers.length > 1 ? 's' : ''} to mark Ready
                 </span>
               ) : (
-                <span className="text-emerald-400 font-medium">✓ Ready to begin match</span>
+                <span className="text-emerald-400 font-semibold flex items-center gap-1.5">
+                  <Check className="w-4 h-4 text-emerald-400 shrink-0" /> Ready to commence night investigation
+                </span>
               )}
             </div>
 
             <div className="flex items-center gap-3 w-full sm:w-auto">
               {!isHost && (
-                <Button
-                  variant={me?.isReady ? 'secondary' : 'primary'}
+                <button
+                  type="button"
                   onClick={onToggleReady}
-                  className="w-full sm:w-auto text-sm font-semibold"
-                  kbd="Shift+Enter"
+                  className={`w-full sm:w-auto px-6 py-2.5 font-mono text-xs uppercase tracking-wider font-bold border transition-all ${
+                    me?.isReady
+                      ? 'bg-ink-800 text-bone-dim border-line hover:text-bone'
+                      : 'bg-lamp text-ink-950 border-lamp hover:bg-lamp-soft shadow-md'
+                  }`}
                 >
                   {me?.isReady ? 'Cancel Ready' : 'Mark Ready'}
-                </Button>
+                  <Kbd className="ml-2 border-line/60 bg-ink-950/40 text-current">Shift+Enter</Kbd>
+                </button>
               )}
 
               {isHost && (
-                <Button
-                  variant="primary"
+                <button
+                  type="button"
                   disabled={!validation.valid || unreadyPlayers.length > 0}
                   onClick={() => setStartConfirmOpen(true)}
-                  className="w-full sm:w-auto font-bold text-sm"
-                  kbd="Ctrl+Enter"
+                  className="w-full sm:w-auto px-6 py-2.5 bg-lamp text-ink-950 font-mono text-xs font-bold uppercase tracking-wider shadow-lg hover:bg-lamp-soft active:scale-[0.99] transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 group"
                 >
-                  <Play className="w-4 h-4 mr-1.5 fill-current" />
+                  <Play className="w-4 h-4 fill-current" />
                   <span>Start Match</span>
-                </Button>
+                  <Kbd className="ml-1 border-ink-950/40 bg-ink-950/20 text-ink-950">Ctrl+Enter</Kbd>
+                </button>
               )}
             </div>
-
           </div>
         </div>
       </div>
@@ -1027,22 +1107,30 @@ export function Lobby({
       <Modal
         isOpen={startConfirmOpen}
         onClose={() => setStartConfirmOpen(false)}
-        title="Start Match Confirmation"
+        title="COMMENCE OPERATION"
       >
-        <div className="space-y-4">
-          <p className="text-sm text-text leading-relaxed">
-            Are you sure you want to begin the match now with <strong className="text-white">{players.length} players</strong>?
+        <div className="space-y-4 text-bone font-mono">
+          <p className="text-xs leading-relaxed">
+            Begin the investigation with <strong className="text-lamp font-bold">{players.length} operatives</strong>?
           </p>
-          <div className="p-3 bg-surface-2 border border-border text-xs text-muted">
+          <div className="p-3 bg-ink-950 border border-line text-[11px] text-bone-dim">
             All players will immediately be assigned their secret roles and Night 1 will commence.
           </div>
-          <div className="flex items-center justify-end gap-3 pt-2">
-            <Button variant="secondary" onClick={() => setStartConfirmOpen(false)} kbd="Esc">
+          <div className="flex items-center justify-end gap-2.5 pt-2">
+            <button
+              type="button"
+              onClick={() => setStartConfirmOpen(false)}
+              className="px-3 py-1.5 bg-ink-900 border border-line text-bone-dim hover:text-bone text-xs uppercase"
+            >
               Cancel
-            </Button>
-            <Button variant="primary" onClick={handleConfirmStart} kbd="Enter">
-              Start Match
-            </Button>
+            </button>
+            <button
+              type="button"
+              onClick={handleConfirmStart}
+              className="px-4 py-1.5 bg-lamp text-ink-950 font-bold text-xs uppercase hover:bg-lamp-soft"
+            >
+              Commence Match
+            </button>
           </div>
         </div>
       </Modal>
@@ -1051,19 +1139,27 @@ export function Lobby({
       <Modal
         isOpen={Boolean(pendingKickPlayer)}
         onClose={() => setPendingKickPlayer(null)}
-        title="Kick Player Confirmation"
+        title="EXPEL OPERATIVE"
       >
-        <div className="space-y-4">
-          <p className="text-sm text-text leading-relaxed">
-            Are you sure you want to remove <strong className="text-white">{pendingKickPlayer?.name}</strong> from the game lobby?
+        <div className="space-y-4 text-bone font-mono">
+          <p className="text-xs leading-relaxed">
+            Remove <strong className="text-lamp">{pendingKickPlayer?.name}</strong> from the briefing room?
           </p>
-          <div className="flex items-center justify-end gap-3 pt-2">
-            <Button variant="secondary" onClick={() => setPendingKickPlayer(null)} kbd="Esc">
+          <div className="flex items-center justify-end gap-2.5 pt-2">
+            <button
+              type="button"
+              onClick={() => setPendingKickPlayer(null)}
+              className="px-3 py-1.5 bg-ink-900 border border-line text-bone-dim hover:text-bone text-xs uppercase"
+            >
               Cancel
-            </Button>
-            <Button variant="primary" onClick={handleConfirmKick} kbd="Enter">
-              Kick Player
-            </Button>
+            </button>
+            <button
+              type="button"
+              onClick={handleConfirmKick}
+              className="px-4 py-1.5 bg-blood text-white font-bold text-xs uppercase hover:bg-blood/80"
+            >
+              Expel
+            </button>
           </div>
         </div>
       </Modal>
@@ -1072,36 +1168,70 @@ export function Lobby({
       <Modal
         isOpen={Boolean(pendingBanPlayer)}
         onClose={() => setPendingBanPlayer(null)}
-        title="Ban Player Confirmation"
+        title="PERMANENT BAN"
       >
-        <div className="space-y-4">
-          <p className="text-sm text-text leading-relaxed">
-            Are you sure you want to permanently ban <strong className="text-white">{pendingBanPlayer?.name}</strong> from this room?
+        <div className="space-y-4 text-bone font-mono">
+          <p className="text-xs leading-relaxed">
+            Permanently ban <strong className="text-lamp">{pendingBanPlayer?.name}</strong> from this room?
           </p>
-          <div className="p-3 bg-red-950/40 border border-red-800 text-xs text-red-200">
-            Their device token will be permanently blocked from rejoining this room, even if they change their codename.
+          <div className="p-3 bg-blood/10 border border-blood/40 text-[11px] text-red-200">
+            Their device token will be permanently blocked from rejoining this case room.
           </div>
-          <div className="flex items-center justify-end gap-3 pt-2">
-            <Button variant="secondary" onClick={() => setPendingBanPlayer(null)} kbd="Esc">
+          <div className="flex items-center justify-end gap-2.5 pt-2">
+            <button
+              type="button"
+              onClick={() => setPendingBanPlayer(null)}
+              className="px-3 py-1.5 bg-ink-900 border border-line text-bone-dim hover:text-bone text-xs uppercase"
+            >
               Cancel
-            </Button>
-            <Button variant="primary" onClick={handleConfirmBan} kbd="Enter" className="bg-red-600 hover:bg-red-700 text-white">
-              Ban Player
-            </Button>
+            </button>
+            <button
+              type="button"
+              onClick={handleConfirmBan}
+              className="px-4 py-1.5 bg-blood text-white font-bold text-xs uppercase hover:bg-blood/80"
+            >
+              Confirm Ban
+            </button>
           </div>
         </div>
       </Modal>
 
-
-      {/* QR Code Modal */}
-      <Modal isOpen={showQr} onClose={() => setShowQr(false)} title="Join via QR Code">
-        <div className="flex flex-col items-center justify-center p-4 space-y-4">
-          <div className="p-4 bg-white rounded-none border border-border">
-            <QRCodeSVG value={shareUrl} size={220} />
+      {/* Unified Invite & QR Modal */}
+      <Modal
+        isOpen={inviteModalOpen}
+        onClose={() => setInviteModalOpen(false)}
+        title="INVITE OPERATIVES"
+      >
+        <div className="flex flex-col items-center justify-center p-4 space-y-5 text-bone font-mono">
+          <div className="p-4 bg-bone border border-line shadow-inner">
+            <QRCodeSVG value={shareUrl} size={200} />
           </div>
+
           <div className="text-center space-y-1">
-            <div className="font-mono text-2xl font-bold tracking-widest text-text">{gameView.code}</div>
-            <div className="text-xs text-muted">Scan to join on any phone or browser</div>
+            <div className="text-2xl font-bold tracking-widest text-bone">
+              CASE #{gameView.code}
+            </div>
+            <div className="text-xs text-bone-dim">
+              Scan with phone camera or share link below
+            </div>
+          </div>
+
+          <div className="w-full space-y-2 pt-2 border-t border-line">
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                readOnly
+                value={shareUrl}
+                className="flex-1 bg-ink-950 border border-line px-3 py-1.5 text-xs text-bone-dim select-all font-mono"
+              />
+              <button
+                type="button"
+                onClick={handleCopyLink}
+                className="px-3 py-1.5 bg-ink-800 hover:bg-ink-800/80 text-bone hover:text-lamp border border-line text-xs font-semibold uppercase"
+              >
+                {copiedLink ? 'Copied!' : 'Copy Link'}
+              </button>
+            </div>
           </div>
         </div>
       </Modal>

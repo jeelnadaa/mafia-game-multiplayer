@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Ban, Shield, AlertCircle, Crosshair } from 'lucide-react';
 import { PlayerView } from '@/lib/types';
 import { RoleDef } from '@/lib/content';
-import { Avatar, Button, Kbd, Modal } from './ui';
+import { Avatar, Button, Kbd, Modal, RubberStamp } from './ui';
 import { useShortcut, pushScope, popScope } from '@/lib/shortcuts';
 
 interface TargetPickerProps {
@@ -146,7 +146,7 @@ export function TargetPicker({
   return (
     <div className="space-y-5">
       {/* Player Target Cards Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3.5">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
         {eligiblePlayers.map((p, idx) => {
           const isSelected = selectedId === p.id;
           const teammateWhoTargeted = teammatePicks
@@ -160,30 +160,33 @@ export function TargetPicker({
             <div
               key={p.id}
               onClick={() => handleCardClick(p)}
-              className={`relative flex flex-col items-center p-4 rounded-none border transition-colors cursor-pointer select-none text-center ${
+              className={`relative flex flex-col items-center p-3 sm:p-4 border transition-all cursor-pointer select-none text-center ${
                 isSelected
-                  ? 'bg-surface-2 border-white ring-2 ring-white text-white shadow-xl'
+                  ? 'bg-[#171A20] border-[#D9A441] ring-2 ring-[#D9A441]/80 text-[#ECE6D8] shadow-2xl scale-[1.02]'
                   : teammatePlayer
-                  ? 'bg-surface border-red-500/80 shadow-md'
-                  : 'bg-surface hover:bg-zinc-900 border-border hover:border-zinc-500'
+                  ? 'bg-[#101216] border-[#B3363B]/80 hover:border-[#B3363B] shadow-md'
+                  : 'bg-[#101216] hover:bg-[#171A20] border-[#262A33] hover:border-[#D9A441]/60'
               } ${disabled ? 'opacity-40 cursor-not-allowed' : ''}`}
             >
               {/* Keyboard Index Tag */}
-              <div className="absolute top-2.5 left-2.5">
-                <Kbd>{idx === 9 ? '0' : idx + 1}</Kbd>
+              <div className="absolute top-2 left-2">
+                <Kbd className="bg-[#0A0B0E] border-[#262A33] text-[#A39D90] text-[10px] px-1.5 py-0.5">
+                  {idx === 9 ? '0' : idx + 1}
+                </Kbd>
               </div>
 
               {/* Status indicator on top right */}
-              <div className="absolute top-2.5 right-2.5 flex flex-col items-end gap-1">
+              <div className="absolute top-2 right-2 flex flex-col items-end gap-1">
                 {(() => {
                   const inv = investigations?.find((i) => i.targetId === p.id);
                   if (!inv) return null;
+                  const isMaf = inv.result.toLowerCase().includes('mafia');
                   return (
                     <span
                       className={`px-1.5 py-0.5 text-[9px] font-mono font-bold border ${
-                        inv.result === 'Mafia'
-                          ? 'bg-red-950 text-red-300 border-red-500'
-                          : 'bg-emerald-950 text-emerald-300 border-emerald-500'
+                        isMaf
+                          ? 'bg-[#7E2327]/80 text-[#fca5a5] border-[#B3363B]'
+                          : 'bg-[#16222F] text-[#86efac] border-[#5E8C7B]'
                       }`}
                     >
                       🕵️ {inv.result}
@@ -191,27 +194,32 @@ export function TargetPicker({
                   );
                 })()}
                 {isSelected && (
-                  <span className="px-2 py-0.5 text-xs font-semibold bg-white text-black shadow-sm">
+                  <span className="px-2 py-0.5 text-[11px] font-mono font-bold bg-[#D9A441] text-[#0A0B0E] shadow-sm uppercase tracking-wider">
                     Selected
                   </span>
                 )}
                 {teammatePlayer && (
-                  <span className="px-1.5 py-0.5 text-[10px] font-semibold bg-red-600 text-white border border-red-400 flex items-center gap-1 shadow-md animate-bounce">
+                  <span className="px-1.5 py-0.5 text-[10px] font-mono font-bold bg-[#B3363B] text-white border border-[#7E2327] flex items-center gap-1 shadow-md animate-pulse">
                     <Crosshair className="w-3 h-3 text-white" />
                     <span>{teammatePlayer.name}&apos;s Pick</span>
                   </span>
                 )}
               </div>
 
-              {/* Square Avatar with Vibrant Full Colors */}
+              {/* Avatar with pin color halo */}
               <div className="relative my-3">
-                <Avatar avatarId={p.avatar} size={60} className="rounded-none" />
+                <Avatar avatarId={p.avatar} size={54} className="border border-[#262A33] shadow-md" />
+                <div
+                  className="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full border border-[#0A0B0E]"
+                  style={{ backgroundColor: p.color || '#D9A441' }}
+                  title={`Color Pin #${idx + 1}`}
+                />
               </div>
 
-              <div className="text-sm md:text-base font-bold text-text truncate max-w-full">
+              <div className="text-xs sm:text-sm font-serif font-bold text-[#ECE6D8] truncate max-w-full">
                 {p.name}
               </div>
-              <div className="text-xs text-muted font-mono mt-0.5">Slot #{idx + 1}</div>
+              <div className="text-[10px] text-[#A39D90] font-mono mt-0.5">Slot #{idx + 1}</div>
             </div>
           );
         })}
@@ -226,6 +234,7 @@ export function TargetPicker({
             onClick={() => handleSpecialClick('skip')}
             disabled={disabled}
             kbd="S"
+            className="font-serif text-xs font-bold uppercase tracking-wider"
           >
             <Ban className="w-4 h-4 mr-1.5" />
             <span>Skip Vote</span>
@@ -239,6 +248,7 @@ export function TargetPicker({
             onClick={() => handleSpecialClick('hold')}
             disabled={disabled}
             kbd="X"
+            className="font-serif text-xs font-bold uppercase tracking-wider"
           >
             <Shield className="w-4 h-4 mr-1.5" />
             <span>Hold Fire Tonight</span>
@@ -253,18 +263,18 @@ export function TargetPicker({
         title={mode === 'voting' ? 'Confirm Vote Ballot' : 'Confirm Night Target'}
       >
         <div className="space-y-4">
-          <div className="p-3.5 bg-surface-2 border border-border flex items-center gap-3">
-            <AlertCircle className="w-5 h-5 text-white shrink-0" />
-            <div className="text-sm text-text leading-relaxed">
+          <div className="p-4 bg-[#171A20] border border-[#262A33] flex items-center gap-3">
+            <AlertCircle className="w-5 h-5 text-[#D9A441] shrink-0" />
+            <div className="text-xs sm:text-sm font-mono text-[#ECE6D8] leading-relaxed">
               {mode === 'voting' ? (
                 <span>
                   Are you sure you want to cast your ballot to eliminate{' '}
-                  <strong className="text-white underline font-bold">{pendingTarget?.name}</strong> today?
+                  <strong className="text-[#D9A441] underline font-serif font-bold">{pendingTarget?.name}</strong> today?
                 </span>
               ) : (
                 <span>
                   Are you sure you want to {roleDef?.nightVerb?.toLowerCase() || 'target'}{' '}
-                  <strong className="text-white underline font-bold">{pendingTarget?.name}</strong> tonight?
+                  <strong className="text-[#D9A441] underline font-serif font-bold">{pendingTarget?.name}</strong> tonight?
                 </span>
               )}
             </div>
@@ -287,16 +297,16 @@ export function TargetPicker({
         title={pendingSpecial === 'skip' ? 'Confirm Skip Vote' : 'Confirm Hold Fire'}
       >
         <div className="space-y-4">
-          <div className="p-3.5 bg-surface-2 border border-border flex items-center gap-3">
-            <AlertCircle className="w-5 h-5 text-white shrink-0" />
-            <div className="text-sm text-text leading-relaxed">
+          <div className="p-4 bg-[#171A20] border border-[#262A33] flex items-center gap-3">
+            <AlertCircle className="w-5 h-5 text-[#D9A441] shrink-0" />
+            <div className="text-xs sm:text-sm font-mono text-[#ECE6D8] leading-relaxed">
               {pendingSpecial === 'skip' ? (
                 <span>
-                  Are you sure you wish to <strong className="text-white">Skip elimination</strong> today? No player will receive your ballot.
+                  Are you sure you wish to <strong className="text-[#D9A441]">Skip elimination</strong> today? No player will receive your ballot.
                 </span>
               ) : (
                 <span>
-                  Are you sure you wish to <strong className="text-white">Hold your fire</strong> tonight? Your ammunition will be preserved.
+                  Are you sure you wish to <strong className="text-[#D9A441]">Hold your fire</strong> tonight? Your ammunition will be preserved.
                 </span>
               )}
             </div>
@@ -314,3 +324,4 @@ export function TargetPicker({
     </div>
   );
 }
+

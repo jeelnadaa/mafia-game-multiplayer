@@ -389,3 +389,158 @@ export function Modal({
     </AnimatePresence>
   );
 }
+
+export function MafiaWordmark({ className = 'h-8 text-bone' }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 320 64"
+      fill="currentColor"
+      className={`inline-block select-none ${className}`}
+      role="img"
+      aria-label="Mafia: Shadows of the City"
+    >
+      <g className="font-extrabold tracking-widest">
+        <path d="M12 56V8h14l12 28L50 8h14v48h-11V22l-11 25h-8L23 22v34H12z" />
+        <path d="M78 56l18-48h14l18 48h-12l-4-12h-20l-4 12H78zm23-22h14l-7-20-7 20z" />
+        <path d="M142 56V8h34v10h-23v13h20v10h-20v15h-11z" />
+        <path d="M190 56V8h12v48h-12z" />
+        <path d="M216 56l18-48h14l18 48h-12l-4-12h-20l-4 12h-14zm23-22h14l-7-20-7 20z" />
+      </g>
+      <line x1="8" y1="32" x2="280" y2="32" stroke="var(--ink-950)" strokeWidth="2.5" />
+    </svg>
+  );
+}
+
+export function RubberStamp({
+  status = 'eliminated',
+  variant,
+  label,
+  text,
+  size = 'md',
+  className = '',
+}: {
+  status?: 'eliminated' | 'survived' | 'saved';
+  variant?: string;
+  label?: string;
+  text?: string;
+  size?: 'sm' | 'md' | 'lg' | string;
+  className?: string;
+}) {
+  const effectiveStatus = (variant === 'success' || status === 'survived') ? 'survived' : (variant === 'amber' || status === 'saved') ? 'saved' : 'eliminated';
+  const defaultLabels = {
+    eliminated: 'ELIMINATED',
+    survived: 'SURVIVED',
+    saved: 'SHIELDED',
+  };
+  const statusClasses = {
+    eliminated: 'rubber-stamp-eliminated',
+    survived: 'rubber-stamp-survived',
+    saved: 'rubber-stamp-saved',
+  };
+  const sizeClasses: Record<string, string> = {
+    sm: 'text-[9px] px-1.5 py-0.5 border',
+    md: 'text-xs px-2.5 py-1 border-2',
+    lg: 'text-base px-4 py-2 border-2',
+  };
+  const displayText = text || label || defaultLabels[effectiveStatus];
+
+  return (
+    <div className={`rubber-stamp ${statusClasses[effectiveStatus]} ${sizeClasses[size] || sizeClasses.md} ${className}`}>
+      <span>{displayText}</span>
+    </div>
+  );
+}
+
+export function RedactionShield({
+  isRevealed,
+  isRedacted,
+  onToggle,
+  label,
+  children,
+  className = '',
+}: {
+  isRevealed?: boolean;
+  isRedacted?: boolean;
+  onToggle?: ((revealed: boolean) => void) | (() => void);
+  label?: string;
+  children: ReactNode;
+  className?: string;
+}) {
+  const activeRevealed = typeof isRevealed === 'boolean' ? isRevealed : !isRedacted;
+
+  const handlePointerDown = () => {
+    if (!onToggle) return;
+    if (onToggle.length === 0) (onToggle as () => void)();
+    else (onToggle as (r: boolean) => void)(true);
+  };
+
+  const handlePointerUp = () => {
+    if (!onToggle) return;
+    if (onToggle.length === 0) (onToggle as () => void)();
+    else (onToggle as (r: boolean) => void)(false);
+  };
+
+  return (
+    <div
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
+      onPointerLeave={handlePointerUp}
+      className={`relative inline-block cursor-pointer select-none ${className}`}
+      title={label || "Hold mouse, touch, or Spacebar to reveal classified intel"}
+    >
+      <div className={`transition-all duration-200 ${activeRevealed ? 'revealed-ink' : 'redacted-ink'}`}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+export function TimerRing({
+  remainingSeconds,
+  totalSeconds,
+  size = 36,
+  strokeWidth = 3,
+  className = '',
+}: {
+  remainingSeconds: number;
+  totalSeconds: number;
+  size?: number;
+  strokeWidth?: number;
+  className?: string;
+}) {
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const ratio = Math.max(0, Math.min(1, remainingSeconds / Math.max(1, totalSeconds)));
+  const offset = circumference * (1 - ratio);
+  const isUrgent = remainingSeconds <= 10 && remainingSeconds > 0;
+
+  return (
+    <div className={`relative inline-flex items-center justify-center ${className}`} style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="-rotate-90 transform">
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke="var(--line)"
+          strokeWidth={strokeWidth}
+          fill="none"
+        />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke={isUrgent ? 'var(--blood)' : 'var(--lamp)'}
+          strokeWidth={strokeWidth}
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          strokeLinecap="round"
+          fill="none"
+          className="transition-all duration-200"
+        />
+      </svg>
+      <span className={`absolute font-mono text-[10px] font-bold ${isUrgent ? 'text-red-400 animate-pulse' : 'text-bone'}`}>
+        {Math.max(0, Math.ceil(remainingSeconds))}
+      </span>
+    </div>
+  );
+}

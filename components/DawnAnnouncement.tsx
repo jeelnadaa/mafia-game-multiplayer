@@ -1,10 +1,10 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Sun, Skull, ShieldCheck, CheckCircle2, AlertOctagon } from 'lucide-react';
+import { Sun, Skull, ShieldCheck, CheckCircle2, Newspaper } from 'lucide-react';
 import { ClientGameView } from '@/lib/types';
 import { ROLES } from '@/lib/content';
-import { Avatar, Badge, Button } from './ui';
+import { Avatar, Badge, Button, RubberStamp } from './ui';
 import { playDayChime, playEliminationKnell } from '@/lib/sfx';
 
 interface DawnAnnouncementProps {
@@ -33,8 +33,8 @@ export function DawnAnnouncement({ gameView, onProceed }: DawnAnnouncementProps)
       if (casualties.length > 0) {
         playEliminationKnell();
       }
-    }, 2800);
-    const t3 = setTimeout(() => setStep(3), 4200);
+    }, 2600);
+    const t3 = setTimeout(() => setStep(3), 3800);
 
     return () => {
       clearTimeout(t1);
@@ -44,29 +44,32 @@ export function DawnAnnouncement({ gameView, onProceed }: DawnAnnouncementProps)
   }, [round, casualties.length]);
 
   return (
-    <div className="w-full max-w-[900px] mx-auto p-4 md:p-8 flex flex-col items-center justify-center min-h-[65vh] text-center select-none">
-      {/* Sun Icon Header */}
-      <div className="w-16 h-16 rounded-none border border-amber-500/40 bg-amber-950/20 flex items-center justify-center text-amber-400 mx-auto mb-6 animate-pulse">
+    <div className="w-full max-w-[850px] mx-auto p-4 md:p-8 flex flex-col items-center justify-center min-h-[70vh] text-center select-none">
+      {/* 1930s Gazette Extra Bulletin Header */}
+      <div className="w-16 h-16 rounded border border-[#D9A441]/50 bg-[#16222F]/40 flex items-center justify-center text-[#D9A441] mx-auto mb-6 shadow-2xl animate-pulse">
         <Sun className="w-8 h-8" />
       </div>
 
       <div className="space-y-6 w-full max-w-lg">
         {/* Step 0: Town wakes */}
-        <div className="space-y-1 animate-in fade-in duration-500">
-          <span className="text-[11px] font-mono tracking-widest text-amber-400 uppercase font-bold px-2.5 py-0.5 bg-amber-950/40 border border-amber-800">
-            DAYBREAK · ROUND {round}
-          </span>
-          <h2 className="text-2xl md:text-3xl font-black text-text tracking-wide pt-2">
+        <div className="space-y-2 animate-in fade-in duration-500">
+          <div className="inline-flex items-center gap-2 px-3 py-1 bg-[#101216] border border-[#262A33]">
+            <Newspaper className="w-3.5 h-3.5 text-[#D9A441]" />
+            <span className="text-[10px] font-mono tracking-widest text-[#D9A441] uppercase font-bold">
+              CITY DISPATCH · EXTRA EDITION · ROUND {round}
+            </span>
+          </div>
+          <h2 className="text-3xl sm:text-4xl font-serif font-black text-[#ECE6D8] tracking-tight">
             The Town Wakes
           </h2>
-          <p className="text-xs text-muted">
+          <p className="text-xs sm:text-sm text-[#A39D90] font-mono">
             The shadows of night disperse across the city streets.
           </p>
         </div>
 
         {/* Step 1: Casualties and Saves Announcements */}
         {step >= 1 && (
-          <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-500">
+          <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
             {casualties.length > 0 ? (
               casualties.map((victim) => {
                 const roleDef = victim.role ? ROLES[victim.role] : null;
@@ -78,20 +81,25 @@ export function DawnAnnouncement({ gameView, onProceed }: DawnAnnouncementProps)
                 return (
                   <div
                     key={victim.id}
-                    className="p-5 bg-red-950/40 border-2 border-red-700/80 shadow-2xl space-y-3"
+                    className="relative overflow-hidden p-6 bg-[#101216] border-2 border-[#7E2327] shadow-2xl space-y-4 text-center"
                   >
-                    <div className="flex items-center justify-center gap-2 text-red-400 text-xs font-mono font-bold uppercase tracking-wider">
-                      <Skull className="w-4 h-4" />
+                    {/* Elimination Rubber Stamp */}
+                    <div className="absolute top-3 right-3 pointer-events-none">
+                      <RubberStamp variant="eliminated" size="md" text="ELIMINATED" />
+                    </div>
+
+                    <div className="flex items-center justify-center gap-2 text-[#fca5a5] text-xs font-mono font-bold uppercase tracking-widest">
+                      <Skull className="w-4 h-4 text-[#B3363B]" />
                       <span>Casualty Discovered</span>
                     </div>
 
-                    <div className="flex items-center justify-center gap-3">
-                      <Avatar avatarId={victim.avatar} size={48} className="rounded-none border-red-600 grayscale" />
+                    <div className="flex items-center justify-center gap-4 py-1">
+                      <Avatar avatarId={victim.avatar} size={56} className="border border-[#7E2327] grayscale" />
                       <div className="text-left">
-                        <div className="text-lg font-black text-white line-through decoration-red-500">
+                        <div className="text-xl font-serif font-black text-[#ECE6D8] line-through decoration-[#B3363B] decoration-2">
                           {victim.name}
                         </div>
-                        <div className="text-xs font-mono text-red-300">
+                        <div className="text-xs font-mono text-[#fca5a5]">
                           Found fallen in the night
                         </div>
                       </div>
@@ -99,18 +107,18 @@ export function DawnAnnouncement({ gameView, onProceed }: DawnAnnouncementProps)
 
                     {/* Step 2+: Role Reveal if settings permit */}
                     {step >= 2 && canRevealRole && roleDef && (
-                      <div className="pt-2 border-t border-red-900/60 flex items-center justify-center gap-2 text-xs text-zinc-300">
+                      <div className="pt-3 border-t border-[#262A33] flex items-center justify-center gap-2 text-xs font-mono text-[#A39D90]">
                         <span>Their true assignment was:</span>
-                        <Badge color={roleDef.team === 'mafia' ? 'mafia' : 'civilian'}>
+                        <Badge color={roleDef.team === 'mafia' ? 'mafia' : 'civilian'} className="font-serif">
                           {roleDef.name}
                         </Badge>
                       </div>
                     )}
 
                     {step >= 2 && canRevealAlignment && !canRevealRole && (
-                      <div className="pt-2 border-t border-red-900/60 flex items-center justify-center gap-2 text-xs text-zinc-300">
+                      <div className="pt-3 border-t border-[#262A33] flex items-center justify-center gap-2 text-xs font-mono text-[#A39D90]">
                         <span>Their true allegiance was:</span>
-                        <Badge color={victim.role === 'mafia' || victim.role === 'godfather' ? 'mafia' : 'civilian'}>
+                        <Badge color={victim.role === 'mafia' || victim.role === 'godfather' ? 'mafia' : 'civilian'} className="font-serif">
                           {victim.role === 'mafia' || victim.role === 'godfather' ? 'MAFIA' : 'TOWN'}
                         </Badge>
                       </div>
@@ -119,12 +127,15 @@ export function DawnAnnouncement({ gameView, onProceed }: DawnAnnouncementProps)
                 );
               })
             ) : (
-              <div className="p-5 bg-surface-2 border border-border shadow-xl space-y-2">
-                <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto" />
-                <div className="text-base font-bold text-white">
+              <div className="relative overflow-hidden p-6 bg-[#101216] border border-[#262A33] shadow-2xl space-y-2.5">
+                <div className="absolute top-3 right-3 pointer-events-none">
+                  <RubberStamp variant="saved" size="sm" text="ALL SAFE" />
+                </div>
+                <CheckCircle2 className="w-9 h-9 text-[#5E8C7B] mx-auto" />
+                <div className="text-lg font-serif font-bold text-[#ECE6D8]">
                   Nobody Was Harmed Tonight
                 </div>
-                <p className="text-xs text-muted">
+                <p className="text-xs sm:text-sm font-mono text-[#A39D90]">
                   The morning sirens remain quiet. All citizens survived the darkness.
                 </p>
               </div>
@@ -132,18 +143,23 @@ export function DawnAnnouncement({ gameView, onProceed }: DawnAnnouncementProps)
 
             {/* Doctor Save Notice if Announce Save Setting is Enabled */}
             {settings.announceSave && saveLogs.length > 0 && (
-              <div className="p-3 bg-emerald-950/40 border border-emerald-800 text-emerald-200 text-xs flex items-center justify-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+              <div className="p-3.5 bg-[#171A20] border border-[#5E8C7B]/60 text-[#86efac] text-xs font-mono flex items-center justify-center gap-2 shadow-lg">
+                <ShieldCheck className="w-4 h-4 text-[#5E8C7B] shrink-0" />
                 <span>The doctor intervened in time! A victim was shielded from fatal injury.</span>
               </div>
             )}
           </div>
         )}
 
-        {/* Step 3: Button to proceed or timer countdown */}
+        {/* Step 3: Button to proceed */}
         {step >= 2 && onProceed && (
           <div className="pt-4 animate-in fade-in duration-300">
-            <Button variant="primary" size="lg" onClick={onProceed} className="font-bold text-xs uppercase px-8">
+            <Button
+              variant="primary"
+              size="lg"
+              onClick={onProceed}
+              className="font-serif font-black text-xs uppercase tracking-widest px-8 shadow-xl"
+            >
               Proceed to Discussion
             </Button>
           </div>
@@ -152,3 +168,4 @@ export function DawnAnnouncement({ gameView, onProceed }: DawnAnnouncementProps)
     </div>
   );
 }
+

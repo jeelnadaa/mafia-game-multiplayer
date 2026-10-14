@@ -1,10 +1,10 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Sun, MessageSquare, Gavel, CheckCircle, Send, Users, Search } from 'lucide-react';
+import { Sun, MessageSquare, Gavel, CheckCircle, Send, Users, Search, AlertCircle, FileText } from 'lucide-react';
 import { ClientGameView } from '@/lib/types';
 import { TargetPicker } from './TargetPicker';
-import { Button, Avatar, Kbd, Modal, CenterTimer } from './ui';
+import { Button, Avatar, Kbd, Modal, CenterTimer, RubberStamp } from './ui';
 import { useShortcut } from '@/lib/shortcuts';
 
 interface DayProps {
@@ -62,25 +62,30 @@ export function Day({ gameView, onVote, onReadyToVote, onSendChat }: DayProps) {
   const voteLog = log.filter((l) => l.round === round && l.phase === 'voting');
 
   return (
-    <div className="w-full max-w-[1650px] 2xl:max-w-[1850px] mx-auto p-4 md:p-8 lg:p-10 space-y-6">
+    <div className="w-full max-w-[1650px] 2xl:max-w-[1850px] mx-auto p-3 sm:p-5 lg:p-8 space-y-6 select-none">
       {/* Morning Incident Report Announcement Banner */}
       {phase === 'morning' && (
-        <div className="bg-surface border border-border p-6 md:p-10 text-center space-y-4">
-          <div className="inline-flex items-center justify-center p-3.5 border border-border bg-surface-2 text-white">
-            <Sun className="w-9 h-9" />
+        <div className="relative overflow-hidden bg-[#101216] border border-[#262A33] p-6 sm:p-10 text-center space-y-4 shadow-2xl">
+          <div className="w-14 h-14 rounded border border-[#D9A441]/40 bg-[#171A20] flex items-center justify-center text-[#D9A441] mx-auto shadow-inner">
+            <Sun className="w-8 h-8 animate-pulse" />
           </div>
           <div className="space-y-1">
-            <h2 className="text-2xl md:text-4xl font-sans font-bold text-text">
+            <span className="font-mono text-[10px] tracking-widest text-[#D9A441] uppercase font-bold px-2.5 py-0.5 bg-[#171A20] border border-[#D9A441]/40">
+              GAZETTE BULLETIN · CASE #{gameView.code}
+            </span>
+            <h2 className="text-2xl sm:text-4xl font-serif font-black text-[#ECE6D8] tracking-tight pt-1">
               Dawn in the City · Round {round}
             </h2>
-            <div className="text-sm text-muted">Official morning incident log</div>
+            <div className="text-xs sm:text-sm text-[#A39D90] font-mono">Official morning incident log</div>
           </div>
-          <div className="space-y-2 max-w-xl mx-auto pt-2">
+          <div className="space-y-2.5 max-w-xl mx-auto pt-2">
             {morningLog.length === 0 ? (
-              <p className="text-base text-muted">The night passed in complete silence. No casualties recorded.</p>
+              <p className="text-sm sm:text-base font-serif text-[#A39D90] italic">
+                The night passed in complete silence. No casualties recorded.
+              </p>
             ) : (
               morningLog.map((l) => (
-                <div key={l.id} className="p-3.5 bg-surface-2 border border-border text-sm md:text-base text-white">
+                <div key={l.id} className="p-3.5 bg-[#171A20] border border-[#262A33] text-xs sm:text-sm font-mono text-[#ECE6D8]">
                   {l.text}
                 </div>
               ))
@@ -93,21 +98,30 @@ export function Day({ gameView, onVote, onReadyToVote, onSendChat }: DayProps) {
       {phase === 'discussion' && (
         <div className="space-y-6">
           {/* Discussion Header with Center Timer */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-surface border border-border p-5 md:p-7">
-            <div className="flex items-center gap-3">
-              <Sun className="w-6 h-6 text-white" />
+          <div className="relative overflow-hidden bg-[#101216] border border-[#262A33] p-5 sm:p-7 flex flex-col md:flex-row items-center justify-between gap-5 shadow-2xl">
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-[#D9A441]/50 to-transparent" />
+            
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded border border-[#D9A441]/40 bg-[#171A20] flex items-center justify-center text-[#D9A441] shadow-inner">
+                <Sun className="w-6 h-6" />
+              </div>
               <div>
-                <h2 className="text-xl md:text-2xl font-sans font-bold text-text">
-                  Day Discussion · Round {round}
-                </h2>
-                <p className="text-sm text-muted mt-1">
+                <div className="flex items-center gap-2.5">
+                  <span className="font-mono text-[10px] tracking-widest text-[#D9A441] uppercase font-bold px-2 py-0.5 bg-[#171A20] border border-[#D9A441]/40">
+                    CASE #{gameView.code} · PRECINCT ASSEMBLY
+                  </span>
+                  <h2 className="text-xl md:text-2xl font-serif font-black text-[#ECE6D8] tracking-tight">
+                    Day Discussion · Round {round}
+                  </h2>
+                </div>
+                <p className="text-xs sm:text-sm text-[#A39D90] font-mono mt-1">
                   Debate claims, share evidence, and decide who faces the town vote.
                 </p>
               </div>
             </div>
 
-            {/* Prominent Center Countdown Timer */}
-            <div className="flex justify-center">
+            {/* Center Countdown Timer */}
+            <div className="flex items-center justify-center">
               <CenterTimer
                 phaseEndsAt={gameView.phaseEndsAt}
                 serverNow={gameView.serverNow}
@@ -121,7 +135,7 @@ export function Day({ gameView, onVote, onReadyToVote, onSendChat }: DayProps) {
               size="lg"
               onClick={handleReadyClick}
               kbd="V"
-              className="font-bold text-sm"
+              className="font-serif font-bold text-xs uppercase tracking-wider px-6"
             >
               <CheckCircle className="w-4 h-4 mr-2" />
               <span>{me?.readyToVote ? 'Waiting for others' : 'Ready to Vote'}</span>
@@ -131,41 +145,48 @@ export function Day({ gameView, onVote, onReadyToVote, onSendChat }: DayProps) {
             </Button>
           </div>
 
-          {/* 16:9 Widescreen Two-Column Layout on PC */}
+          {/* Two-Column Deliberation Layout */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
             {/* Living Suspects Column (4 cols on Desktop) */}
-            <div className="lg:col-span-4 bg-surface border border-border p-6 space-y-4 flex flex-col justify-between">
+            <div className="lg:col-span-4 bg-[#101216] border border-[#262A33] p-5 sm:p-6 space-y-4 flex flex-col justify-between shadow-2xl">
               <div className="space-y-3.5">
-                <div className="flex items-center justify-between pb-3 border-b border-border">
-                  <div className="flex items-center gap-2 text-sm font-bold text-text">
-                    <Users className="w-4 h-4 text-white" />
+                <div className="flex items-center justify-between pb-3 border-b border-[#262A33]">
+                  <div className="flex items-center gap-2 text-xs font-serif font-bold text-[#ECE6D8] uppercase tracking-wider">
+                    <Users className="w-4 h-4 text-[#D9A441]" />
                     <span>Living Suspects</span>
                   </div>
-                  <span className="text-xs text-muted">
+                  <span className="text-[11px] font-mono text-[#A39D90]">
                     {players.filter((p) => p.alive && !p.isGod).length} remaining
                   </span>
                 </div>
 
-                <div className="space-y-2.5">
+                <div className="space-y-2 max-h-[380px] overflow-y-auto">
                   {players
                     .filter((p) => p.alive && !p.isGod)
                     .map((p) => {
                       const inv = me?.role === 'police' ? me?.policeInbox?.find((e) => e.targetId === p.id) : null;
+                      const isMaf = inv && inv.result.toLowerCase().includes('mafia');
                       return (
                         <div
                           key={p.id}
-                          className="flex items-center justify-between p-3 bg-surface-2 border border-border text-sm"
+                          className="flex items-center justify-between p-3 bg-[#171A20] border border-[#262A33] text-xs font-mono"
                         >
                           <div className="flex items-center gap-3 truncate">
-                            <Avatar avatarId={p.avatar} size={36} className="rounded-none" />
+                            <div className="relative">
+                              <Avatar avatarId={p.avatar} size={36} className="border border-[#262A33]" />
+                              <div
+                                className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border border-[#0A0B0E]"
+                                style={{ backgroundColor: p.color || '#D9A441' }}
+                              />
+                            </div>
                             <div className="truncate">
-                              <span className="text-text font-semibold truncate block">{p.name}</span>
+                              <span className="text-[#ECE6D8] font-serif font-bold truncate block">{p.name}</span>
                               {inv && (
                                 <span
-                                  className={`inline-block font-mono font-bold text-[10px] px-1.5 py-0.2 border ${
-                                    inv.result === 'Mafia'
-                                      ? 'bg-red-950 text-red-300 border-red-500'
-                                      : 'bg-emerald-950 text-emerald-300 border-emerald-500'
+                                  className={`inline-block font-mono font-bold text-[9px] px-1.5 py-0.2 border mt-0.5 ${
+                                    isMaf
+                                      ? 'bg-[#7E2327]/80 text-[#fca5a5] border-[#B3363B]'
+                                      : 'bg-[#16222F] text-[#86efac] border-[#5E8C7B]'
                                   }`}
                                 >
                                   🕵️ {inv.result}
@@ -174,11 +195,11 @@ export function Day({ gameView, onVote, onReadyToVote, onSendChat }: DayProps) {
                             </div>
                           </div>
                           {readyToVote.includes(p.id) ? (
-                            <span className="text-xs font-semibold px-2 py-0.5 bg-white text-black">
+                            <span className="text-[10px] font-mono font-bold px-2 py-0.5 bg-[#D9A441] text-[#0A0B0E] uppercase tracking-wider">
                               Ready ✓
                             </span>
                           ) : (
-                            <span className="text-xs text-muted">
+                            <span className="text-[10px] font-mono text-[#A39D90]">
                               Thinking
                             </span>
                           )}
@@ -189,34 +210,34 @@ export function Day({ gameView, onVote, onReadyToVote, onSendChat }: DayProps) {
 
                 {/* Detective Investigation Dossier for Police */}
                 {me?.role === 'police' && (
-                  <div className="pt-4 border-t border-border space-y-2">
+                  <div className="pt-4 border-t border-[#262A33] space-y-2">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5 text-xs font-bold text-blue-300">
-                        <Search className="w-3.5 h-3.5 text-blue-400" />
+                      <div className="flex items-center gap-1.5 text-xs font-serif font-bold text-[#93c5fd] uppercase tracking-wider">
+                        <Search className="w-3.5 h-3.5 text-[#93c5fd]" />
                         <span>Detective Dossier</span>
                       </div>
-                      <span className="text-[10px] font-mono text-muted">{me.policeInbox?.length || 0} Records</span>
+                      <span className="text-[10px] font-mono text-[#A39D90]">{me.policeInbox?.length || 0} Records</span>
                     </div>
 
                     {me.policeInbox && me.policeInbox.length > 0 ? (
                       <div className="space-y-1.5 max-h-40 overflow-y-auto">
                         {me.policeInbox.map((entry, idx) => {
                           const target = players.find((p) => p.id === entry.targetId);
-                          const isSuspect = entry.result === 'Mafia';
+                          const isSuspect = entry.result.toLowerCase().includes('mafia');
                           return (
                             <div
                               key={idx}
-                              className="flex items-center justify-between p-2 bg-surface border border-border text-xs"
+                              className="flex items-center justify-between p-2.5 bg-[#0A0B0E] border border-[#262A33] text-xs font-mono"
                             >
                               <div className="truncate pr-2">
-                                <span className="font-bold text-white truncate block">{target?.name || 'Subject'}</span>
-                                <span className="text-[10px] text-muted">Round {entry.round} Investigation</span>
+                                <span className="font-serif font-bold text-[#ECE6D8] truncate block">{target?.name || 'Subject'}</span>
+                                <span className="text-[10px] text-[#A39D90]">Round {entry.round} Investigation</span>
                               </div>
                               <span
                                 className={`px-2 py-0.5 font-bold font-mono text-[10px] border shrink-0 ${
                                   isSuspect
-                                    ? 'bg-red-950/80 border-red-500 text-red-300'
-                                    : 'bg-emerald-950/80 border-emerald-500 text-emerald-300'
+                                    ? 'bg-[#7E2327]/80 border-[#B3363B] text-[#fca5a5]'
+                                    : 'bg-[#16222F] border-[#5E8C7B] text-[#86efac]'
                                 }`}
                               >
                                 {entry.result}
@@ -226,7 +247,7 @@ export function Day({ gameView, onVote, onReadyToVote, onSendChat }: DayProps) {
                         })}
                       </div>
                     ) : (
-                      <div className="p-2.5 bg-surface/60 border border-border text-[11px] text-muted text-center">
+                      <div className="p-3 bg-[#0A0B0E] border border-[#262A33] text-[11px] font-mono text-[#A39D90] text-center">
                         No subjects investigated yet.
                       </div>
                     )}
@@ -234,64 +255,64 @@ export function Day({ gameView, onVote, onReadyToVote, onSendChat }: DayProps) {
                 )}
               </div>
 
-              <div className="pt-3 border-t border-border text-xs text-muted text-center">
+              <div className="pt-3 border-t border-[#262A33] text-[11px] font-mono text-[#A39D90] text-center">
                 Press [V] to toggle ready status
               </div>
             </div>
 
             {/* Public Town Assembly Chat (8 cols on Desktop) */}
-            <div className="lg:col-span-8 bg-surface border border-border p-6 flex flex-col h-[520px]">
-              <div className="flex items-center justify-between pb-3 border-b border-border">
-                <div className="flex items-center gap-2 text-sm font-bold text-text">
-                  <MessageSquare className="w-4 h-4 text-white" />
+            <div className="lg:col-span-8 bg-[#101216] border border-[#262A33] p-5 sm:p-6 flex flex-col h-[520px] shadow-2xl">
+              <div className="flex items-center justify-between pb-3 border-b border-[#262A33]">
+                <div className="flex items-center gap-2 text-xs font-serif font-bold text-[#ECE6D8] uppercase tracking-wider">
+                  <MessageSquare className="w-4 h-4 text-[#D9A441]" />
                   <span>Town Assembly Chat (Public)</span>
                 </div>
-                <span className="text-xs text-muted">All living players</span>
+                <span className="text-[11px] font-mono text-[#A39D90]">All living players</span>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-3 space-y-3 text-sm">
+              <div className="flex-1 overflow-y-auto p-3 space-y-2.5 text-xs font-mono">
                 {gameView.chat
                   .filter((m) => m.channel === 'public')
                   .map((m) =>
                     m.senderId === 'system' ? (
                       <div
                         key={m.id}
-                        className="p-2.5 bg-zinc-900 border border-zinc-700 text-xs font-mono text-amber-300 flex items-start gap-2 shadow-sm rounded-none"
+                        className="p-3 bg-[#171A20] border-l-2 border-l-[#D9A441] border border-[#262A33] text-xs font-mono flex items-start gap-2 shadow-sm"
                       >
-                        <span className="font-bold text-amber-400 shrink-0">[SYSTEM]:</span>
-                        <span className="leading-relaxed text-white font-medium">{m.text}</span>
+                        <span className="font-bold text-[#D9A441] shrink-0">[SYSTEM]:</span>
+                        <span className="leading-relaxed text-[#ECE6D8]">{m.text}</span>
                       </div>
                     ) : (
                       <div key={m.id} className="leading-relaxed">
-                        <span className="font-bold text-white mr-2">[{m.senderName}]:</span>
-                        <span className="text-text">{m.text}</span>
+                        <span className="font-bold font-serif text-[#D9A441] mr-2">[{m.senderName}]:</span>
+                        <span className="text-[#ECE6D8]">{m.text}</span>
                       </div>
                     )
                   )}
                 {gameView.chat.filter((m) => m.channel === 'public').length === 0 && (
-                  <div className="text-muted text-center pt-32 text-sm">
+                  <div className="text-[#A39D90] font-mono text-center pt-36">
                     The town hall is quiet. Present claims or defenses to begin discussion.
                   </div>
                 )}
               </div>
 
               {gameView.settings.dayChat ? (
-                <form onSubmit={handleSendChat} className="flex gap-2.5 pt-3 border-t border-border">
+                <form onSubmit={handleSendChat} className="flex gap-2.5 pt-3 border-t border-[#262A33]">
                   <input
                     type="text"
                     value={chatInput}
                     onChange={(e) => setChatInput(e.target.value)}
                     placeholder="Share accusations, defenses, deductions..."
                     maxLength={300}
-                    className="flex-1 bg-surface-2 border border-border rounded-none px-4 py-2.5 text-sm text-text placeholder-muted/50 focus:outline-none focus:border-white"
+                    className="flex-1 bg-[#171A20] border border-[#262A33] px-4 py-2 text-xs font-mono text-[#ECE6D8] placeholder-[#A39D90]/50 focus:outline-none focus:border-[#D9A441]"
                   />
-                  <Button type="submit" variant="primary" size="md" className="px-5">
-                    <Send className="w-4 h-4 mr-1" />
+                  <Button type="submit" variant="primary" size="md" className="px-5 font-serif font-bold uppercase text-xs">
+                    <Send className="w-3.5 h-3.5 mr-1.5" />
                     <span>Send</span>
                   </Button>
                 </form>
               ) : (
-                <div className="p-3 border-t border-border bg-surface-2 text-xs text-muted text-center">
+                <div className="p-3 border-t border-[#262A33] bg-[#171A20] text-xs font-mono text-[#A39D90] text-center">
                   Town public chat is disabled by room rules.
                 </div>
               )}
@@ -303,17 +324,19 @@ export function Day({ gameView, onVote, onReadyToVote, onSendChat }: DayProps) {
       {/* Voting Phase */}
       {phase === 'voting' && (
         <div className="space-y-6">
-          <div className="bg-surface border border-border p-5 md:p-7 text-center space-y-3">
-            <h2 className="text-2xl md:text-3xl font-sans font-bold text-text flex items-center justify-center gap-2.5">
-              <Gavel className="w-6 h-6 text-white" />
+          <div className="relative overflow-hidden bg-[#101216] border border-[#262A33] p-5 sm:p-7 text-center space-y-3 shadow-2xl">
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-[#B3363B]/60 to-transparent" />
+            
+            <h2 className="text-2xl sm:text-3xl font-serif font-black text-[#ECE6D8] flex items-center justify-center gap-3 tracking-tight">
+              <Gavel className="w-7 h-7 text-[#D9A441]" />
               <span>Town Vote</span>
             </h2>
-            <p className="text-sm text-muted">
+            <p className="text-xs sm:text-sm text-[#A39D90] font-mono">
               Cast your ballot to eliminate one Prime Suspect, or choose to Skip.
             </p>
 
-            {/* Prominent Center Countdown Timer */}
-            <div className="pt-1 flex justify-center">
+            {/* Countdown Timer */}
+            <div className="pt-2 flex justify-center">
               <CenterTimer
                 phaseEndsAt={gameView.phaseEndsAt}
                 serverNow={gameView.serverNow}
@@ -323,13 +346,13 @@ export function Day({ gameView, onVote, onReadyToVote, onSendChat }: DayProps) {
             </div>
           </div>
 
-          {/* 16:9 Widescreen Two-Column Layout on PC */}
+          {/* Two-Column Voting Layout */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
             {/* Target Picker (7 cols on Desktop) */}
-            <div className="lg:col-span-7 bg-surface border border-border p-6 space-y-4">
-              <div className="text-sm font-bold text-text pb-2.5 border-b border-border flex items-center justify-between">
+            <div className="lg:col-span-7 bg-[#101216] border border-[#262A33] p-5 sm:p-6 space-y-4 shadow-2xl">
+              <div className="text-xs font-serif font-bold text-[#ECE6D8] uppercase tracking-wider pb-2.5 border-b border-[#262A33] flex items-center justify-between">
                 <span>Select Prime Suspect:</span>
-                <span className="text-xs text-muted font-normal font-mono">
+                <span className="font-mono text-[10px] text-[#A39D90] font-normal">
                   {gameView.settings.voteVisibility === 'public' ? 'Public Ballots' : 'Anonymous Secret Ballots'}
                 </span>
               </div>
@@ -345,17 +368,17 @@ export function Day({ gameView, onVote, onReadyToVote, onSendChat }: DayProps) {
             </div>
 
             {/* Vote Tally & Assembly Chat (5 cols on Desktop) */}
-            <div className="lg:col-span-5 bg-surface border border-border p-6 space-y-5 flex flex-col justify-between">
+            <div className="lg:col-span-5 bg-[#101216] border border-[#262A33] p-5 sm:p-6 space-y-5 flex flex-col justify-between shadow-2xl">
               {/* Live Vote Tally Bars */}
               <div className="space-y-3">
-                <div className="text-sm font-bold text-text pb-2.5 border-b border-border flex items-center justify-between">
+                <div className="text-xs font-serif font-bold text-[#ECE6D8] uppercase tracking-wider pb-2.5 border-b border-[#262A33] flex items-center justify-between">
                   <span>Current Vote Tally:</span>
-                  <span className="text-xs text-muted font-mono">
+                  <span className="text-[10px] text-[#A39D90] font-mono">
                     {gameView.settings.voteVisibility === 'public' ? 'Voters Public' : 'Ballots Anonymous'}
                   </span>
                 </div>
                 {voteCounts && Object.keys(voteCounts).length > 0 ? (
-                  <div className="space-y-3">
+                  <div className="space-y-3 max-h-56 overflow-y-auto">
                     {Object.entries(voteCounts).map(([targetId, count]) => {
                       const isSkip = targetId === 'skip';
                       const targetName = isSkip
@@ -368,26 +391,26 @@ export function Day({ gameView, onVote, onReadyToVote, onSendChat }: DayProps) {
 
                       return (
                         <div key={targetId} className="space-y-1">
-                          <div className="flex items-center gap-3 text-sm">
-                            <span className="w-32 truncate font-semibold text-text">
+                          <div className="flex items-center gap-3 text-xs font-mono">
+                            <span className="w-32 truncate font-serif font-bold text-[#ECE6D8]">
                               {targetName}
                             </span>
-                            <div className="flex-1 h-3 bg-surface-2 border border-border overflow-hidden">
+                            <div className="flex-1 h-3 bg-[#0A0B0E] border border-[#262A33] overflow-hidden">
                               <div
                                 style={{ width: `${(count / Math.max(1, players.filter((p) => p.alive && !p.isGod).length)) * 100}%` }}
-                                className="h-full bg-white"
+                                className="h-full bg-[#D9A441]"
                               />
                             </div>
-                            <span className="w-8 text-right font-mono font-bold text-white">[{count}]</span>
+                            <span className="w-8 text-right font-mono font-bold text-[#D9A441]">[{count}]</span>
                           </div>
 
                           {gameView.settings.voteVisibility === 'public' && voters.length > 0 && (
-                            <div className="text-[11px] text-muted truncate pl-1">
-                              Voted by: <span className="text-white/80">{voters.join(', ')}</span>
+                            <div className="text-[10px] text-[#A39D90] font-mono truncate pl-1">
+                              Voted by: <span className="text-[#ECE6D8]">{voters.join(', ')}</span>
                             </div>
                           )}
                           {gameView.settings.voteVisibility === 'anonymous' && (
-                            <div className="text-[10px] text-muted/60 italic pl-1">
+                            <div className="text-[10px] text-[#A39D90]/70 font-mono italic pl-1">
                               Secret vote
                             </div>
                           )}
@@ -396,27 +419,27 @@ export function Day({ gameView, onVote, onReadyToVote, onSendChat }: DayProps) {
                     })}
                   </div>
                 ) : (
-                  <div className="text-sm text-muted text-center py-6">
+                  <div className="text-xs font-mono text-[#A39D90] text-center py-6">
                     No ballots cast yet
                   </div>
                 )}
               </div>
 
               {/* Chat inside Voting */}
-              <div className="pt-4 border-t border-border flex flex-col h-[300px]">
+              <div className="pt-4 border-t border-[#262A33] flex flex-col h-[280px]">
                 <div className="flex items-center justify-between pb-2.5">
-                  <span className="text-xs md:text-sm font-semibold text-text">
+                  <span className="text-xs font-serif font-bold text-[#ECE6D8] uppercase tracking-wider">
                     {isDead ? 'Graveyard Spirits (Dead Chat)' : 'Town Assembly Chat (Public)'}
                   </span>
                 </div>
 
-                <div className="flex-1 overflow-y-auto bg-surface-2 border border-border p-3 space-y-2 text-xs md:text-sm">
+                <div className="flex-1 overflow-y-auto bg-[#0A0B0E] border border-[#262A33] p-3 space-y-2 text-xs font-mono">
                   {gameView.chat
                     .filter((m) => (isDead ? m.channel === 'dead' : m.channel === 'public'))
                     .map((m) => (
                       <div key={m.id} className="leading-relaxed">
-                        <span className="font-semibold text-white mr-1.5">[{m.senderName}]:</span>
-                        <span className="text-muted">{m.text}</span>
+                        <span className="font-bold text-[#D9A441] mr-1.5">[{m.senderName}]:</span>
+                        <span className="text-[#ECE6D8]">{m.text}</span>
                       </div>
                     ))}
                 </div>
@@ -429,14 +452,14 @@ export function Day({ gameView, onVote, onReadyToVote, onSendChat }: DayProps) {
                       onChange={(e) => setChatInput(e.target.value)}
                       placeholder="Discuss vote rationale..."
                       maxLength={300}
-                      className="flex-1 bg-surface-2 border border-border rounded-none px-3.5 py-2 text-xs md:text-sm text-text placeholder-muted/50 focus:outline-none focus:border-white"
+                      className="flex-1 bg-[#171A20] border border-[#262A33] px-3 py-1.5 text-xs font-mono text-[#ECE6D8] placeholder-[#A39D90]/50 focus:outline-none focus:border-[#D9A441]"
                     />
                     <Button type="submit" variant="primary" size="sm">
-                      <Send className="w-4 h-4" />
+                      <Send className="w-3.5 h-3.5" />
                     </Button>
                   </form>
                 ) : (
-                  <div className="p-2 border-t border-border bg-surface-2 text-xs text-muted text-center">
+                  <div className="p-2 border-t border-[#262A33] bg-[#171A20] text-xs font-mono text-[#A39D90] text-center">
                     {isDead ? 'Graveyard chat is disabled by room rules.' : 'Town public chat is disabled by room rules.'}
                   </div>
                 )}
@@ -448,16 +471,21 @@ export function Day({ gameView, onVote, onReadyToVote, onSendChat }: DayProps) {
 
       {/* Vote Result Phase */}
       {phase === 'voteResult' && (
-        <div className="bg-surface border border-border p-8 md:p-14 text-center space-y-4">
-          <div className="inline-flex items-center justify-center p-3.5 border border-border bg-surface-2 text-white">
+        <div className="relative overflow-hidden bg-[#101216] border border-[#262A33] p-8 sm:p-14 text-center space-y-5 shadow-2xl">
+          <div className="w-16 h-16 rounded border border-[#D9A441]/40 bg-[#171A20] flex items-center justify-center text-[#D9A441] mx-auto shadow-inner">
             <Gavel className="w-9 h-9" />
           </div>
-          <h2 className="text-2xl md:text-4xl font-sans font-bold text-text">
-            Town Verdict
-          </h2>
+          <div className="space-y-1">
+            <span className="font-mono text-[10px] tracking-widest text-[#D9A441] uppercase font-bold px-2.5 py-0.5 bg-[#171A20] border border-[#D9A441]/40">
+              OFFICIAL COURT RECORD
+            </span>
+            <h2 className="text-2xl sm:text-4xl font-serif font-black text-[#ECE6D8] tracking-tight pt-1">
+              Town Verdict
+            </h2>
+          </div>
           <div className="max-w-md mx-auto space-y-2 pt-2">
             {voteLog.map((l) => (
-              <div key={l.id} className="p-3.5 bg-surface-2 border border-border text-sm md:text-base text-white">
+              <div key={l.id} className="p-3.5 bg-[#171A20] border border-[#262A33] text-xs sm:text-sm font-mono text-[#ECE6D8]">
                 {l.text}
               </div>
             ))}
@@ -472,7 +500,7 @@ export function Day({ gameView, onVote, onReadyToVote, onSendChat }: DayProps) {
         title="Ready to Vote"
       >
         <div className="space-y-4">
-          <p className="text-sm text-text leading-relaxed">
+          <p className="text-xs sm:text-sm font-mono text-[#ECE6D8] leading-relaxed">
             Are you ready to end discussion and cast your official vote now?
           </p>
           <div className="flex items-center justify-end gap-3 pt-2">
@@ -488,3 +516,4 @@ export function Day({ gameView, onVote, onReadyToVote, onSendChat }: DayProps) {
     </div>
   );
 }
+

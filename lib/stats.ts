@@ -312,129 +312,188 @@ export function computeMatchAwards(
 
 /**
  * Renders a high-resolution noir share card onto an HTML5 canvas (1200x630)
+/**
+ * Renders a high-resolution noir share card onto an HTML5 canvas (1200x630 landscape or 1080x1350 portrait)
  */
 export async function renderShareCardToBlob(
   gameView: ClientGameView,
   localPlayerName: string,
-  localPlayerRole?: string
+  localPlayerRole?: string,
+  options?: { format?: 'landscape' | 'portrait' }
 ): Promise<Blob | null> {
   if (typeof document === 'undefined') return null;
 
+  try {
+    if (document.fonts && document.fonts.ready) {
+      await document.fonts.ready;
+    }
+  } catch (_) {}
+
+  const isPortrait = options?.format === 'portrait';
+  const width = isPortrait ? 1080 : 1200;
+  const height = isPortrait ? 1350 : 630;
+
   const canvas = document.createElement('canvas');
-  canvas.width = 1200;
-  canvas.height = 630;
+  canvas.width = width;
+  canvas.height = height;
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
 
-  // Background
-  ctx.fillStyle = '#09090b';
-  ctx.fillRect(0, 0, 1200, 630);
+  // Background: Deep Ink
+  ctx.fillStyle = '#0A0B0E';
+  ctx.fillRect(0, 0, width, height);
 
-  // Noise / Subtle Grid Lines
-  ctx.strokeStyle = '#18181b';
+  // Subtle Aged File Border
+  ctx.strokeStyle = '#262A33';
+  ctx.lineWidth = 4;
+  ctx.strokeRect(24, 24, width - 48, height - 48);
+
+  ctx.strokeStyle = '#D9A441';
   ctx.lineWidth = 1;
-  for (let x = 0; x < 1200; x += 40) {
-    ctx.beginPath();
-    ctx.moveTo(x, 0);
-    ctx.lineTo(x, 630);
-    ctx.stroke();
-  }
-  for (let y = 0; y < 630; y += 40) {
-    ctx.beginPath();
-    ctx.moveTo(0, y);
-    ctx.lineTo(1200, y);
-    ctx.stroke();
-  }
-
-  // Double Border
-  ctx.strokeStyle = '#27272a';
-  ctx.lineWidth = 3;
-  ctx.strokeRect(20, 20, 1160, 590);
-
-  ctx.strokeStyle = '#3f3f46';
-  ctx.lineWidth = 1;
-  ctx.strokeRect(28, 28, 1144, 574);
+  ctx.strokeRect(32, 32, width - 64, height - 64);
 
   // Top Classified Header
-  ctx.font = 'bold 16px monospace';
-  ctx.fillStyle = '#dc2626';
-  ctx.fillText('TOP SECRET // MAFIA: SHADOWS OF THE CITY // DOSSIER SUMMARY', 60, 75);
+  ctx.font = 'bold 13px "Courier New", monospace';
+  ctx.fillStyle = '#B3363B';
+  ctx.fillText('TOP SECRET // DECLASSIFIED OFFICIAL MATCH DOCKET // CASE RECORD', 60, 68);
 
-  // Title: Winner
+  // Wordmark
+  ctx.font = 'bold 22px "Georgia", serif';
+  ctx.fillStyle = '#D9A441';
+  ctx.fillText('MAFIA: SHADOWS OF THE CITY', 60, 102);
+
+  // Title: Winner Verdict
   const winnerTitle =
     gameView.winner === 'town'
-      ? 'TOWN PREVAILS'
+      ? 'THE TOWN PREVAILS'
       : gameView.winner === 'mafia'
-      ? 'SYNDICATE WINS'
-      : 'JESTER VICTORY';
+      ? 'THE SYNDICATE WINS'
+      : 'THE JESTER PREVAILS';
 
-  ctx.font = 'bold 54px sans-serif';
-  ctx.fillStyle = '#fafafa';
+  ctx.font = '900 48px "Georgia", serif';
+  ctx.fillStyle = gameView.winner === 'mafia' ? '#fca5a5' : '#ECE6D8';
   ctx.fillText(winnerTitle, 60, 160);
 
-  // Match Details
-  ctx.font = '20px sans-serif';
-  ctx.fillStyle = '#a1a1aa';
+  // Case Metadata
+  ctx.font = '14px "Courier New", monospace';
+  ctx.fillStyle = '#A39D90';
   ctx.fillText(
-    `Room Code: ${gameView.code}  ·  Rounds: ${gameView.round}  ·  Players: ${gameView.players.length}`,
+    `CASE #${gameView.code}  ·  ROUNDS: ${gameView.round}  ·  OPERATIVES: ${gameView.players.length}  ·  DATE: ${new Date().toLocaleDateString()}`,
     60,
-    210
+    195
   );
 
-  // Local Player Dossier Box
-  ctx.fillStyle = '#111113';
-  ctx.fillRect(60, 260, 500, 240);
-  ctx.strokeStyle = '#27272a';
-  ctx.lineWidth = 2;
-  ctx.strokeRect(60, 260, 500, 240);
+  if (!isPortrait) {
+    // Landscape Layout (1200x630)
+    // Left Box: Operative File
+    ctx.fillStyle = '#101216';
+    ctx.fillRect(60, 230, 520, 310);
+    ctx.strokeStyle = '#262A33';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(60, 230, 520, 310);
 
-  ctx.font = 'bold 14px monospace';
-  ctx.fillStyle = '#71717a';
-  ctx.fillText('OPERATIVE DOSSIER', 85, 295);
+    ctx.font = 'bold 12px "Courier New", monospace';
+    ctx.fillStyle = '#A39D90';
+    ctx.fillText('SUBJECT DOSSIER', 85, 265);
 
-  ctx.font = 'bold 32px sans-serif';
-  ctx.fillStyle = '#fafafa';
-  ctx.fillText(localPlayerName.slice(0, 18), 85, 345);
+    ctx.font = 'bold 30px "Georgia", serif';
+    ctx.fillStyle = '#ECE6D8';
+    ctx.fillText(localPlayerName.slice(0, 20), 85, 315);
 
-  ctx.font = 'bold 18px monospace';
-  ctx.fillStyle = '#d97706';
-  ctx.fillText(`ROLE: ${(localPlayerRole || 'CIVILIAN').toUpperCase()}`, 85, 395);
+    ctx.font = 'bold 16px "Courier New", monospace';
+    ctx.fillStyle = '#D9A441';
+    ctx.fillText(`ROLE: ${(localPlayerRole || 'CIVILIAN').toUpperCase()}`, 85, 360);
 
-  ctx.font = '16px sans-serif';
-  ctx.fillStyle = '#a1a1aa';
-  ctx.fillText(
-    `Status: ${gameView.me.alive ? 'Survived Operation' : 'Fallen in Action'}`,
-    85,
-    440
-  );
-
-  // Right Side: Roster preview
-  ctx.fillStyle = '#111113';
-  ctx.fillRect(600, 260, 540, 240);
-  ctx.strokeStyle = '#27272a';
-  ctx.lineWidth = 2;
-  ctx.strokeRect(600, 260, 540, 240);
-
-  ctx.font = 'bold 14px monospace';
-  ctx.fillStyle = '#71717a';
-  ctx.fillText('IDENTIFIED ATTRITION', 625, 295);
-
-  const displayPlayers = gameView.players.slice(0, 5);
-  displayPlayers.forEach((p, idx) => {
-    ctx.font = '16px sans-serif';
-    ctx.fillStyle = p.alive ? '#fafafa' : '#71717a';
-    const roleText = p.role ? `(${p.role.toUpperCase()})` : '';
+    ctx.font = '14px "Georgia", serif';
+    ctx.fillStyle = '#A39D90';
     ctx.fillText(
-      `${idx + 1}. ${p.name.slice(0, 14)} ${roleText}`,
-      625,
-      340 + idx * 30
+      `Status: ${gameView.me?.alive ? 'Survived Operation' : 'Fallen in Action'}`,
+      85,
+      405
     );
-  });
+
+    // Stamped mark
+    ctx.save();
+    ctx.translate(450, 440);
+    ctx.rotate(-0.1);
+    ctx.font = '900 24px "Courier New", monospace';
+    ctx.fillStyle = gameView.me?.alive ? '#5E8C7B' : '#B3363B';
+    ctx.strokeStyle = gameView.me?.alive ? '#5E8C7B' : '#B3363B';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(-10, -26, 140, 36);
+    ctx.fillText(gameView.me?.alive ? 'SURVIVED' : 'ELIMINATED', 0, 0);
+    ctx.restore();
+
+    // Right Box: Roster Attrition Record
+    ctx.fillStyle = '#101216';
+    ctx.fillRect(620, 230, 520, 310);
+    ctx.strokeStyle = '#262A33';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(620, 230, 520, 310);
+
+    ctx.font = 'bold 12px "Courier New", monospace';
+    ctx.fillStyle = '#A39D90';
+    ctx.fillText('IDENTIFIED ATTRITION & ROLES', 645, 265);
+
+    const displayPlayers = gameView.players.slice(0, 7);
+    displayPlayers.forEach((p, idx) => {
+      ctx.font = '14px "Georgia", serif';
+      ctx.fillStyle = p.alive ? '#ECE6D8' : '#71717a';
+      const roleText = p.role ? `(${p.role.toUpperCase()})` : '';
+      const statusText = p.alive ? '· Survived' : `· Fallen R${p.diedInRound || 1}`;
+      ctx.fillText(
+        `${idx + 1}. ${p.name.slice(0, 16)} ${roleText} ${statusText}`,
+        645,
+        305 + idx * 30
+      );
+    });
+  } else {
+    // Portrait Layout (1080x1350)
+    ctx.fillStyle = '#101216';
+    ctx.fillRect(60, 240, 960, 420);
+    ctx.strokeStyle = '#262A33';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(60, 240, 960, 420);
+
+    ctx.font = 'bold 14px "Courier New", monospace';
+    ctx.fillStyle = '#A39D90';
+    ctx.fillText('SUBJECT DOSSIER', 95, 285);
+
+    ctx.font = 'bold 44px "Georgia", serif';
+    ctx.fillStyle = '#ECE6D8';
+    ctx.fillText(localPlayerName.slice(0, 24), 95, 360);
+
+    ctx.font = 'bold 22px "Courier New", monospace';
+    ctx.fillStyle = '#D9A441';
+    ctx.fillText(`ROLE: ${(localPlayerRole || 'CIVILIAN').toUpperCase()}`, 95, 430);
+
+    // Roster Box
+    ctx.fillStyle = '#101216';
+    ctx.fillRect(60, 700, 960, 520);
+    ctx.strokeStyle = '#262A33';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(60, 700, 960, 520);
+
+    ctx.font = 'bold 14px "Courier New", monospace';
+    ctx.fillStyle = '#A39D90';
+    ctx.fillText('ATTRITION & IDENTITIES', 95, 745);
+
+    gameView.players.slice(0, 12).forEach((p, idx) => {
+      ctx.font = '18px "Georgia", serif';
+      ctx.fillStyle = p.alive ? '#ECE6D8' : '#71717a';
+      const roleText = p.role ? `· ${(p.role || '').toUpperCase()}` : '';
+      ctx.fillText(
+        `${idx + 1}. ${p.name.slice(0, 20)} ${roleText}`,
+        95,
+        795 + idx * 34
+      );
+    });
+  }
 
   // Footer: Site URL
-  ctx.font = '16px monospace';
-  ctx.fillStyle = '#71717a';
-  ctx.fillText('Play free P2P at https://the-apes.vercel.app · No signup required', 60, 565);
+  ctx.font = '12px "Courier New", monospace';
+  ctx.fillStyle = '#A39D90';
+  ctx.fillText('Play free P2P at https://the-apes.vercel.app · No signup required', 60, height - 42);
 
   return new Promise((resolve) => {
     canvas.toBlob((blob) => resolve(blob), 'image/png');
