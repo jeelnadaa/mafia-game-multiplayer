@@ -31,3 +31,4 @@ assets-raw/
 # TypeScript
 *.tsbuildinfo
 next-env.d.ts
+cleaned/
